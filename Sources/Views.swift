@@ -184,9 +184,10 @@ struct ContentView: View {
         }
         .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
             guard let provider = providers.first else { return false }
+            let viewModel = model
             provider.loadObject(ofClass: NSURL.self) { object, _ in
                 guard let url = object as? NSURL else { return }
-                Task { @MainActor in model.addProject(url as URL) }
+                Task { @MainActor in viewModel.addProject(url as URL) }
             }
             return true
         }

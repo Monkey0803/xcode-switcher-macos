@@ -46,7 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.refresh()
         rebuildMenu()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.model.refresh(silently: true) }
+            guard let appDelegate = self else { return }
+            Task { @MainActor in appDelegate.model.refresh(silently: true) }
         }
         applyMenuBarOnly(model.configuration.menuBarOnly)
     }
