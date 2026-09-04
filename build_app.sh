@@ -71,6 +71,7 @@ for architecture in arm64 x86_64; do
     -o "$app_output"
 
   /usr/bin/xcrun swiftc -O \
+    -parse-as-library \
     -target "$architecture-apple-macosx13.0" \
     -strict-concurrency=complete \
     -warnings-as-errors \

@@ -179,10 +179,15 @@ private struct XcodeSwitcherCLI {
     """
 }
 
-do {
-    let status = try XcodeSwitcherCLI().run(arguments: Array(CommandLine.arguments.dropFirst()))
-    exit(status)
-} catch {
-    FileHandle.standardError.write(Data("错误：\(error)\n".utf8))
-    exit(2)
+@main
+private struct XcodeSwitcherCLIEntryPoint {
+    static func main() {
+        do {
+            let status = try XcodeSwitcherCLI().run(arguments: Array(ProcessInfo.processInfo.arguments.dropFirst()))
+            exit(status)
+        } catch {
+            FileHandle.standardError.write(Data("错误：\(error)\n".utf8))
+            exit(2)
+        }
+    }
 }
