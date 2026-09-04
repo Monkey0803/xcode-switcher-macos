@@ -2,6 +2,8 @@
 
 一个原生 macOS 应用，用于发现、诊断和切换本机安装的 Xcode，并为不同项目固定对应的开发环境。
 
+当前稳定版本：`1.0.0`（最低支持 macOS 13.0）。
+
 ## 功能
 
 - 菜单栏常驻，支持自定义全局快捷键唤起主窗口并直接聚焦搜索框，默认快捷键为 `⌃⌥⌘X`。
@@ -72,6 +74,9 @@ export DEVELOPER_ID_APPLICATION="Developer ID Application: Example (TEAMID)"
 export NOTARYTOOL_PROFILE="xcode-switcher-notary"
 export SU_FEED_URL="https://example.com/xcode-switcher/appcast.xml"
 export SPARKLE_PUBLIC_KEY="<Sparkle EdDSA public key>"
+export SPARKLE_DOWNLOAD_URL_PREFIX="https://example.com/xcode-switcher/releases/"
+# 可选：不使用 Keychain 中的 ed25519 私钥时，指定私钥文件路径
+export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 ./build_release.sh --preflight
 ./build_release.sh
 ```
@@ -83,6 +88,25 @@ export SPARKLE_PUBLIC_KEY="<Sparkle EdDSA public key>"
 - `release/appcast.xml`
 
 私钥只保存在发布机器的 Keychain 中，不写入仓库。将 ZIP 和 appcast 上传至 `SUFeedURL` 对应的 HTTPS 站点即可供 Sparkle 检查更新。
+
+### GitHub Actions 正式发布
+
+推送 `v1.0.0` 标签后，`.github/workflows/release.yml` 会在 macOS runner 上完成签名、公证、Sparkle appcast 生成并创建 GitHub Release。启用前需要在仓库配置以下 Actions Secrets，并设置仓库变量 `SU_FEED_URL`：
+
+- `DEVELOPER_ID_APPLICATION`
+- `DEVELOPER_ID_CERTIFICATE_BASE64`、`DEVELOPER_ID_CERTIFICATE_PASSWORD`
+- `BUILD_KEYCHAIN_PASSWORD`
+- `NOTARY_API_KEY_BASE64`、`NOTARY_KEY_ID`、`NOTARY_ISSUER`
+- `SPARKLE_PUBLIC_KEY`、`SPARKLE_PRIVATE_KEY_BASE64`
+
+`SU_FEED_URL` 应指向公开的 HTTPS appcast 地址，例如 GitHub Release 的 `latest/download/appcast.xml`。私钥和证书只通过 Actions Secrets 或构建机 Keychain 使用，不提交到仓库。
+
+### 1.0.0 发布前验收
+
+1. 在真实的 Apple Silicon 和 Intel 机器上验证首次启动、辅助功能授权、管理员授权和多个 Xcode 版本切换。
+2. 在干净用户环境安装公证后的 DMG，确认 Gatekeeper、CLI 链接和项目打开流程。
+3. 运行 `./run_smoke_test.sh` 和 `./Scripts/release_preflight.sh`，确认测试、签名、公证凭据、HTTPS feed 与 Sparkle 公钥均通过。
+4. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送 `v1.0.0` 标签。
 
 ## 测试
 

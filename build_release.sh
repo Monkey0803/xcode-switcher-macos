@@ -49,6 +49,13 @@ dmg_path="$release_dir/Xcode-Switcher-$version-$build_number.dmg"
 /usr/sbin/spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg_path"
 
 generate_appcast="$script_dir/.build/artifacts/sparkle/Sparkle/bin/generate_appcast"
-"$generate_appcast" -o "$release_dir/appcast.xml" "$updates_dir"
+generate_appcast_arguments=(
+  -o "$release_dir/appcast.xml"
+  --download-url-prefix "$SPARKLE_DOWNLOAD_URL_PREFIX"
+)
+if [[ -n "${SPARKLE_PRIVATE_KEY_FILE:-}" ]]; then
+  generate_appcast_arguments+=(--ed-key-file "$SPARKLE_PRIVATE_KEY_FILE")
+fi
+"$generate_appcast" "${generate_appcast_arguments[@]}" "$updates_dir"
 
 printf '正式分发产物：\n%s\n%s\n%s\n' "$archive_path" "$dmg_path" "$release_dir/appcast.xml"

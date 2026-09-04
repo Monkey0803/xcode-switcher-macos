@@ -11,6 +11,7 @@ required_variables=(
   NOTARYTOOL_PROFILE
   SU_FEED_URL
   SPARKLE_PUBLIC_KEY
+  SPARKLE_DOWNLOAD_URL_PREFIX
 )
 for variable_name in "${required_variables[@]}"; do
   if [[ -z "${!variable_name:-}" ]]; then
@@ -29,8 +30,16 @@ if [[ -n "${DEVELOPER_ID_APPLICATION:-}" ]]; then
   fi
 fi
 
-if [[ -n "${SU_FEED_URL:-}" && "$SU_FEED_URL" != https://?* ]]; then
-  errors+=("SU_FEED_URL 必须是包含主机名的 HTTPS 地址。")
+if [[ -n "${SU_FEED_URL:-}" && ! "$SU_FEED_URL" =~ ^https://[^[:space:]]+$ ]]; then
+  errors+=("SU_FEED_URL 必须是 HTTPS 地址。")
+fi
+
+if [[ -n "${SPARKLE_DOWNLOAD_URL_PREFIX:-}" && ! "$SPARKLE_DOWNLOAD_URL_PREFIX" =~ ^https://[^[:space:]]+/$ ]]; then
+  errors+=("SPARKLE_DOWNLOAD_URL_PREFIX 必须是以斜杠结尾的 HTTPS 地址。")
+fi
+
+if [[ -n "${SPARKLE_PRIVATE_KEY_FILE:-}" && ! -r "$SPARKLE_PRIVATE_KEY_FILE" ]]; then
+  errors+=("SPARKLE_PRIVATE_KEY_FILE 不存在或不可读：$SPARKLE_PRIVATE_KEY_FILE")
 fi
 
 if [[ -n "${SPARKLE_PUBLIC_KEY:-}" ]]; then

@@ -32,7 +32,7 @@ if release_preflight_output="$(
   printf 'Release preflight unexpectedly succeeded without credentials.\n' >&2
   exit 1
 fi
-for variable_name in DEVELOPER_ID_APPLICATION NOTARYTOOL_PROFILE SU_FEED_URL SPARKLE_PUBLIC_KEY; do
+for variable_name in DEVELOPER_ID_APPLICATION NOTARYTOOL_PROFILE SU_FEED_URL SPARKLE_PUBLIC_KEY SPARKLE_DOWNLOAD_URL_PREFIX; do
   /usr/bin/grep -q "$variable_name" <<<"$release_preflight_output"
 done
 

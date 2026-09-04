@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test Swift package
+        run: swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+      - name: Validate release scripts
+        run: bash -n build_app.sh build_local_release.sh build_release.sh Scripts/release_preflight.sh Scripts/sign_bundle.sh
+      - name: Build local app candidate
+        run: ./build_app.sh
