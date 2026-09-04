@@ -57,7 +57,7 @@ ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.lo
 
 `use` 和 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`resolve` 与 `doctor` 不改变系统配置。
 
-## 正式发布
+## 正式发布（非 App Store）
 
 本项目不要求发布到 Mac App Store。若只用于本机或团队内部，可直接生成未公证的 ZIP/DMG：
 
@@ -67,7 +67,7 @@ ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.lo
 
 产物位于 `release/local/`。这类包不依赖 App Store，但首次运行可能需要用户在“系统设置 → 隐私与安全性”中确认，或右键选择“打开”。Sparkle 自动更新只适用于配置了 HTTPS feed、公钥并完成正式签名的构建。
 
-先在 Keychain 中安装 Developer ID Application 证书，使用 `notarytool store-credentials` 保存公证凭据，并使用 Sparkle 的 `generate_keys` 生成 EdDSA 密钥。然后配置：
+可选：如果希望公开下载时不出现 Gatekeeper 提示，并启用 Sparkle 自动更新，可在 Keychain 中安装 Developer ID Application 证书，使用 `notarytool store-credentials` 保存公证凭据，并使用 Sparkle 的 `generate_keys` 生成 EdDSA 密钥。然后配置：
 
 ```bash
 export DEVELOPER_ID_APPLICATION="Developer ID Application: Example (TEAMID)"
@@ -91,21 +91,15 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 
 ### GitHub Actions 正式发布
 
-推送 `v1.0.0` 标签后，`.github/workflows/release.yml` 会在 macOS runner 上完成签名、公证、Sparkle appcast 生成并创建 GitHub Release。启用前需要在仓库配置以下 Actions Secrets，并设置仓库变量 `SU_FEED_URL`：
+推送 `v1.0.0` 标签后，`.github/workflows/release.yml` 会在 macOS runner 上生成 ad-hoc 签名的 ZIP/DMG、SHA256 校验文件并创建 GitHub Release。该流程不需要 App Store、Developer ID 或 Actions Secrets；首次运行可能需要用户在 macOS 的安全设置中手动确认。
 
-- `DEVELOPER_ID_APPLICATION`
-- `DEVELOPER_ID_CERTIFICATE_BASE64`、`DEVELOPER_ID_CERTIFICATE_PASSWORD`
-- `BUILD_KEYCHAIN_PASSWORD`
-- `NOTARY_API_KEY_BASE64`、`NOTARY_KEY_ID`、`NOTARY_ISSUER`
-- `SPARKLE_PUBLIC_KEY`、`SPARKLE_PRIVATE_KEY_BASE64`
-
-`SU_FEED_URL` 应指向公开的 HTTPS appcast 地址，例如 GitHub Release 的 `latest/download/appcast.xml`。私钥和证书只通过 Actions Secrets 或构建机 Keychain 使用，不提交到仓库。
+当前直接分发版本不启用 Sparkle 自动更新，因此不要求配置 `SU_FEED_URL`。如果之后希望消除 Gatekeeper 提示并启用自动更新，再按上面的正式签名流程配置 Developer ID、公证凭据和 Sparkle 密钥。
 
 ### 1.0.0 发布前验收
 
 1. 在真实的 Apple Silicon 和 Intel 机器上验证首次启动、辅助功能授权、管理员授权和多个 Xcode 版本切换。
-2. 在干净用户环境安装公证后的 DMG，确认 Gatekeeper、CLI 链接和项目打开流程。
-3. 运行 `./run_smoke_test.sh` 和 `./Scripts/release_preflight.sh`，确认测试、签名、公证凭据、HTTPS feed 与 Sparkle 公钥均通过。
+2. 在干净用户环境安装直接分发 DMG，确认 Gatekeeper 手动放行、CLI 链接和项目打开流程。
+3. 运行 `./run_smoke_test.sh`，确认测试、Universal 架构、嵌套签名和实际启动通过。
 4. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送 `v1.0.0` 标签。
 
 ## 测试
