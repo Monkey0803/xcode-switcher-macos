@@ -1,0 +1,17 @@
+.DS_Store
+.build/
+build/
+release/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Local signing and notarization material
+*.p12
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.dmg
+*.zip
+notarytool-credentials*
+private-key*
