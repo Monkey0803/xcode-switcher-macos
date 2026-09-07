@@ -41,6 +41,22 @@ final class ConfigurationStoreTests: XCTestCase {
         XCTAssertTrue(store.load().menuBarOnly)
     }
 
+    func testCreatesDistinctHistoricalBackupsForRapidSaves() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("XcodeSwitcherConfig-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = AppConfigurationStore(fileURL: root.appendingPathComponent("configuration.json"))
+        var configuration = AppConfiguration()
+        store.save(configuration)
+        configuration.menuBarOnly = true
+        store.save(configuration)
+        configuration.menuBarOnly = false
+        store.save(configuration)
+
+        let backups = try FileManager.default.contentsOfDirectory(at: store.backupDirectoryURL, includingPropertiesForKeys: nil)
+        XCTAssertEqual(backups.count, 2)
+        XCTAssertEqual(Set(backups.map(\.lastPathComponent)).count, 2)
+    }
+
     func testPreservesUnreadableConfigurationForRecovery() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("XcodeSwitcherConfig-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }

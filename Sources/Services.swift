@@ -693,8 +693,7 @@ final class AppConfigurationStore: @unchecked Sendable {
         try? FileManager.default.removeItem(at: backupURL)
         try? FileManager.default.copyItem(at: fileURL, to: backupURL)
         try? FileManager.default.createDirectory(at: backupDirectoryURL, withIntermediateDirectories: true)
-        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        let historicalURL = backupDirectoryURL.appendingPathComponent("configuration-\(stamp).json")
+        let historicalURL = backupDirectoryURL.appendingPathComponent("configuration-\(UUID().uuidString).json")
         try? FileManager.default.copyItem(at: fileURL, to: historicalURL)
     }
 

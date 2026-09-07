@@ -2,7 +2,7 @@
 
 一个原生 macOS 应用，用于发现、诊断和切换本机安装的 Xcode，并为不同项目固定对应的开发环境。
 
-当前开发版本：`1.1.1`（仅支持 Apple Silicon，最低支持 macOS 13.0）。`v1.1.0` 为当前公开稳定版本。
+当前开发版本：`1.2.0`（仅支持 Apple Silicon，最低支持 macOS 13.0）。`v1.1.1` 为当前公开稳定版本。
 
 ## 功能
 
@@ -93,16 +93,16 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 
 ### GitHub Actions 正式发布
 
-推送 `v1.1.1` 标签后，`.github/workflows/release.yml` 会在 macOS runner 上生成 ad-hoc 签名的 ZIP/DMG、SHA256 校验文件并创建 GitHub Release。该流程不需要 App Store、Developer ID 或 Actions Secrets；首次运行可能需要用户在 macOS 的安全设置中手动确认。
+推送与 `Info.plist` 中版本一致的 `v<version>` 标签后，`.github/workflows/release.yml` 会在 macOS runner 上生成 ad-hoc 签名的 ZIP/DMG、SHA256 校验文件并创建 GitHub Release。该流程不需要 App Store、Developer ID 或 Actions Secrets；首次运行可能需要用户在 macOS 的安全设置中手动确认。
 
 当前直接分发版本不启用 Sparkle 自动更新，因此不要求配置 `SU_FEED_URL`；设置页提供 GitHub Releases 下载入口。如果之后希望消除 Gatekeeper 提示并启用自动更新，再按上面的正式签名流程配置 Developer ID、公证凭据和 Sparkle 密钥。
 
-### 1.1.1 发布前验收
+### 发布前验收
 
 1. 在真实 Apple Silicon 机器上验证首次启动、辅助功能授权、管理员授权和多个 Xcode 版本切换。
 2. 在干净用户环境安装直接分发 DMG，确认 Gatekeeper 手动放行、CLI 链接和项目打开流程。
 3. 运行 `./run_smoke_test.sh`，确认测试、Apple Silicon 架构、嵌套签名和实际启动通过。
-4. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送 `v1.1.1` 标签。
+4. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送与 `Info.plist` 中版本一致的 `v<version>` 标签。
 
 ## 测试
 
@@ -112,7 +112,7 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 
 Smoke Test 会运行核心单元测试，覆盖项目版本匹配、失效绑定保护、进程超时/取消/输出流、多 Target 签名解析、环境报告和旧配置兼容；随后检查 App/CLI Apple Silicon 架构、Sparkle 动态链接、最低系统版本、Info.plist、嵌套签名、发布脚本语法及实际启动。
 
-推送到 `main` 或 `1.1.1` 分支会触发 GitHub Actions CI；也可以在 Actions 页面手动触发。贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，问题报告和功能建议可直接使用 Issue 模板。
+推送到 `main` 或 `1.2.0` 分支会触发 GitHub Actions CI；也可以在 Actions 页面手动触发。贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，问题报告和功能建议可直接使用 Issue 模板。
 
 ## 权限与安全
 
