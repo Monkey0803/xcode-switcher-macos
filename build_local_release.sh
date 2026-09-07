@@ -8,8 +8,8 @@ release_dir="$script_dir/release/local"
 
 "$script_dir/build_app.sh"
 /usr/bin/codesign --verify --deep --strict "$app_bundle"
-/usr/bin/lipo "$app_bundle/Contents/MacOS/XcodeSwitcherApp" -verify_arch arm64 x86_64
-/usr/bin/lipo "$app_bundle/Contents/MacOS/xcodeswitcher" -verify_arch arm64 x86_64
+/usr/bin/lipo "$app_bundle/Contents/MacOS/XcodeSwitcherApp" -verify_arch arm64
+/usr/bin/lipo "$app_bundle/Contents/MacOS/xcodeswitcher" -verify_arch arm64
 
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_bundle/Contents/Info.plist")"
 build_number="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_bundle/Contents/Info.plist")"

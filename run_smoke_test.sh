@@ -11,13 +11,17 @@ cd "$script_dir"
 "$script_dir/build_app.sh"
 /usr/bin/plutil -lint "$app_bundle/Contents/Info.plist"
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$app_bundle"
-/usr/bin/lipo "$executable" -verify_arch arm64 x86_64
-/usr/bin/lipo "$app_bundle/Contents/MacOS/xcodeswitcher" -verify_arch arm64 x86_64
+/usr/bin/lipo "$executable" -verify_arch arm64
+/bin/test "$(/usr/bin/lipo "$executable" -archs)" = "arm64"
+/usr/bin/lipo "$app_bundle/Contents/MacOS/xcodeswitcher" -verify_arch arm64
+/bin/test "$(/usr/bin/lipo "$app_bundle/Contents/MacOS/xcodeswitcher" -archs)" = "arm64"
 /usr/bin/xcrun vtool -show-build "$executable" | /usr/bin/grep -q "minos 13.0"
 /usr/bin/otool -L "$executable" | /usr/bin/grep -q "@rpath/Sparkle.framework/Versions/B/Sparkle"
 /bin/test -x "$app_bundle/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate"
 "$app_bundle/Contents/MacOS/xcodeswitcher" list | /usr/bin/grep -q "Xcode"
 "$app_bundle/Contents/MacOS/xcodeswitcher" current | /usr/bin/grep -q "developer="
+"$app_bundle/Contents/MacOS/xcodeswitcher" --json list | /usr/bin/grep -q '"name"'
+"$app_bundle/Contents/MacOS/xcodeswitcher" --json current | /usr/bin/grep -q '"developer"'
 /bin/bash -n \
   "$script_dir/build_app.sh" \
   "$script_dir/build_release.sh" \
@@ -48,4 +52,4 @@ trap cleanup EXIT
 /bin/sleep 2
 /bin/kill -0 "$app_pid"
 
-printf 'Smoke test passed: unit tests, universal app/CLI, Sparkle link, plist, signature, scripts, and packaged launch.\n'
+printf 'Smoke test passed: unit tests, Apple Silicon app/CLI, Sparkle link, plist, signature, scripts, and packaged launch.\n'

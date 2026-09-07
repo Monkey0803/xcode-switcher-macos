@@ -88,6 +88,11 @@ struct ProjectXcodeMatch: Equatable, Sendable {
 }
 
 struct AppConfiguration: Codable {
+    static let currentSchemaVersion = 2
+
+    /// The on-disk schema. Missing values from pre-1.2.0 files are migrated
+    /// to the current schema by `AppConfigurationStore`.
+    var schemaVersion = AppConfiguration.currentSchemaVersion
     var customSearchPaths: [String] = []
     var favoriteIDs: Set<String> = []
     var xcodeAliases: [String: String] = [:]
@@ -97,16 +102,18 @@ struct AppConfiguration: Codable {
     var launchAtLoginEnabled = false
     var menuBarOnly = false
     var automaticallyChecksForUpdates = true
+    var activationHistory: [String] = []
 
     private enum CodingKeys: String, CodingKey {
-        case customSearchPaths, favoriteIDs, xcodeAliases, projects, globalShortcutEnabled, globalShortcut
-        case launchAtLoginEnabled, menuBarOnly, automaticallyChecksForUpdates
+        case schemaVersion, customSearchPaths, favoriteIDs, xcodeAliases, projects, globalShortcutEnabled, globalShortcut
+        case launchAtLoginEnabled, menuBarOnly, automaticallyChecksForUpdates, activationHistory
     }
 
     init() {}
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         customSearchPaths = try container.decodeIfPresent([String].self, forKey: .customSearchPaths) ?? []
         favoriteIDs = try container.decodeIfPresent(Set<String>.self, forKey: .favoriteIDs) ?? []
         xcodeAliases = try container.decodeIfPresent([String: String].self, forKey: .xcodeAliases) ?? [:]
@@ -116,6 +123,13 @@ struct AppConfiguration: Codable {
         launchAtLoginEnabled = try container.decodeIfPresent(Bool.self, forKey: .launchAtLoginEnabled) ?? false
         menuBarOnly = try container.decodeIfPresent(Bool.self, forKey: .menuBarOnly) ?? false
         automaticallyChecksForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyChecksForUpdates) ?? true
+        activationHistory = try container.decodeIfPresent([String].self, forKey: .activationHistory) ?? []
+    }
+
+    mutating func migrate() {
+        schemaVersion = Self.currentSchemaVersion
+        var seen = Set<String>()
+        activationHistory = activationHistory.filter { seen.insert($0).inserted }.prefix(10).map { $0 }
     }
 }
 
@@ -130,6 +144,16 @@ struct SimulatorRuntime: Identifiable, Sendable {
     let name: String
     let version: String
     let isAvailable: Bool
+}
+
+struct SimulatorDevice: Identifiable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let state: String
+    let runtimeID: String
+    let isAvailable: Bool
+
+    var isBooted: Bool { state.caseInsensitiveCompare("Booted") == .orderedSame }
 }
 
 struct XcodeDiagnostic: Identifiable, Sendable {

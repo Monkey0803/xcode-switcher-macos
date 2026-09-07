@@ -2,7 +2,7 @@
 
 一个原生 macOS 应用，用于发现、诊断和切换本机安装的 Xcode，并为不同项目固定对应的开发环境。
 
-当前稳定版本：`1.0.0`（最低支持 macOS 13.0）。
+当前开发版本：`1.2.0`（仅支持 Apple Silicon，最低支持 macOS 13.0）。`v1.0.0` 为当前公开稳定版本。
 
 ## 功能
 
@@ -11,18 +11,19 @@
 - 使用进程内复用的系统管理员授权执行 `xcode-select --switch`，同一次运行期间首次切换后可连续切换，切换后自动验证当前 Developer 路径。
 - 查看 Xcode 路径、iPhoneOS SDK、Swift 和当前 `xcode-select` 环境诊断。
 - 查看 Simulator Runtime，并可启动 iOS Runtime 下载或打开所选 Xcode 的 Settings。
+- 查看 Simulator 设备状态，并可启动、关闭或抹掉设备；切换 Xcode 后可回滚到最近使用版本。
 - 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode，一键切换并打开项目。
 - 自动读取项目或上级目录中的 `.xcode-version`、`.tool-versions`，匹配对应 Xcode；绑定版本或项目路径失效时会阻止误开并给出提示。
 - 一键打开指定 Xcode，或打开注入对应 `DEVELOPER_DIR` 的 Terminal。
-- 配置导入导出，保存搜索目录、收藏、别名、项目绑定、快捷键组合和快捷键开关。
+- 配置导入导出，保存搜索目录、收藏、别名、项目绑定、快捷键组合、快捷键开关和切换历史；每次保存前自动备份并可恢复。
 - 签名管理页读取 Keychain 代码签名证书、Provisioning Profile，并支持按 Scheme、Configuration、Target 查看项目签名配置。
 - 证书支持导出公钥 `.cer` 并在 Finder 中显示；Profile 支持直接打开其 Finder 路径。
 - Runtime 下载显示命令进度，支持主动取消，并为外部命令设置超时保护。
 - 针对每个 Xcode 执行环境体检，检查安装路径、Command Line Tools、首次启动任务、License、iPhoneOS SDK、Simulator、Rosetta 与磁盘空间；报告支持复制和导出。
 - 菜单栏“项目”子菜单可直接按项目配置匹配 Xcode 并打开，失效项目会禁用并提示原因。
 - 内置 `xcodeswitcher` CLI，可列出/解析/诊断/切换 Xcode，并按项目配置打开工程。
-- 支持登录时启动、仅在菜单栏运行，以及基于 Sparkle 2 的安全自动更新。
-- App 与 CLI 均构建为 Apple Silicon + Intel Universal Binary，并提供本地直接分发 ZIP/DMG，以及可选的 Developer ID 签名、公证、DMG 与 appcast 发布脚本。
+- 支持登录时启动、仅在菜单栏运行；正式签名构建使用 Sparkle 2 自动更新，直接分发构建可检查 GitHub Releases 并跳转下载。
+- App 与 CLI 均仅面向 Apple Silicon（`arm64`）构建，并提供本地直接分发 ZIP/DMG，以及可选的 Developer ID 签名、公证、DMG 与 appcast 发布脚本。
 
 ## 构建与运行
 
@@ -40,12 +41,12 @@ CLI 位于 App 包内：
 
 ```bash
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" help
-"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" list
+"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json list
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" current
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" resolve /path/Demo.xcworkspace
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" doctor 16.4
-"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" use 16.4
-"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" open /path/Demo.xcodeproj
+"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json use --dry-run 16.4
+"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json open --dry-run /path/Demo.xcodeproj
 ```
 
 安装到 `/Applications` 后，可将它链接到用户命令目录：
@@ -56,6 +57,7 @@ ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.lo
 ```
 
 `use` 和 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`resolve` 与 `doctor` 不改变系统配置。
+所有命令默认输出人类可读文本；`--json` 输出机器可读 JSON，`--dry-run` 只解析并展示 `use`/`open` 将执行的动作，不会切换 Xcode 或打开项目。
 
 ## 正式发布（非 App Store）
 
@@ -81,7 +83,7 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 ./build_release.sh
 ```
 
-`--preflight` 会一次性检查证书类型、Keychain 签名身份、HTTPS feed、Ed25519 公钥长度、Sparkle 工具和 Notary Keychain Profile。发布脚本会构建 Universal App/CLI、使用 hardened runtime 逐层签名、提交 Apple 公证并 stapling，最后生成：
+`--preflight` 会一次性检查证书类型、Keychain 签名身份、HTTPS feed、Ed25519 公钥长度、Sparkle 工具和 Notary Keychain Profile。发布脚本会构建 Apple Silicon App/CLI、使用 hardened runtime 逐层签名、提交 Apple 公证并 stapling，最后生成：
 
 - `release/updates/Xcode-Switcher-<version>-<build>.zip`
 - `release/Xcode-Switcher-<version>-<build>.dmg`
@@ -91,16 +93,16 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 
 ### GitHub Actions 正式发布
 
-推送 `v1.0.0` 标签后，`.github/workflows/release.yml` 会在 macOS runner 上生成 ad-hoc 签名的 ZIP/DMG、SHA256 校验文件并创建 GitHub Release。该流程不需要 App Store、Developer ID 或 Actions Secrets；首次运行可能需要用户在 macOS 的安全设置中手动确认。
+推送 `v1.2.0` 标签后，`.github/workflows/release.yml` 会在 macOS runner 上生成 ad-hoc 签名的 ZIP/DMG、SHA256 校验文件并创建 GitHub Release。该流程不需要 App Store、Developer ID 或 Actions Secrets；首次运行可能需要用户在 macOS 的安全设置中手动确认。
 
-当前直接分发版本不启用 Sparkle 自动更新，因此不要求配置 `SU_FEED_URL`。如果之后希望消除 Gatekeeper 提示并启用自动更新，再按上面的正式签名流程配置 Developer ID、公证凭据和 Sparkle 密钥。
+当前直接分发版本不启用 Sparkle 自动更新，因此不要求配置 `SU_FEED_URL`；设置页提供 GitHub Releases 下载入口。如果之后希望消除 Gatekeeper 提示并启用自动更新，再按上面的正式签名流程配置 Developer ID、公证凭据和 Sparkle 密钥。
 
-### 1.0.0 发布前验收
+### 1.2.0 发布前验收
 
-1. 在真实的 Apple Silicon 和 Intel 机器上验证首次启动、辅助功能授权、管理员授权和多个 Xcode 版本切换。
+1. 在真实 Apple Silicon 机器上验证首次启动、辅助功能授权、管理员授权和多个 Xcode 版本切换。
 2. 在干净用户环境安装直接分发 DMG，确认 Gatekeeper 手动放行、CLI 链接和项目打开流程。
-3. 运行 `./run_smoke_test.sh`，确认测试、Universal 架构、嵌套签名和实际启动通过。
-4. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送 `v1.0.0` 标签。
+3. 运行 `./run_smoke_test.sh`，确认测试、Apple Silicon 架构、嵌套签名和实际启动通过。
+4. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送 `v1.2.0` 标签。
 
 ## 测试
 
@@ -108,7 +110,9 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 ./run_smoke_test.sh
 ```
 
-Smoke Test 会运行核心单元测试，覆盖项目版本匹配、失效绑定保护、进程超时/取消/输出流、多 Target 签名解析、环境报告和旧配置兼容；随后检查 App/CLI Universal 架构、Sparkle 动态链接、最低系统版本、Info.plist、嵌套签名、发布脚本语法及实际启动。
+Smoke Test 会运行核心单元测试，覆盖项目版本匹配、失效绑定保护、进程超时/取消/输出流、多 Target 签名解析、环境报告和旧配置兼容；随后检查 App/CLI Apple Silicon 架构、Sparkle 动态链接、最低系统版本、Info.plist、嵌套签名、发布脚本语法及实际启动。
+
+推送到 `main` 或 `1.2.0` 分支会触发 GitHub Actions CI；也可以在 Actions 页面手动触发。贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，问题报告和功能建议可直接使用 Issue 模板。
 
 ## 权限与安全
 
@@ -116,9 +120,11 @@ Smoke Test 会运行核心单元测试，覆盖项目版本匹配、失效绑定
 
 Xcode 发现方式包括 Spotlight 和 `/Applications`、`~/Applications` 的直接扫描；列表按版本稳定排序，并标记当前 `xcode-select` 激活的版本。
 
-项目绑定、收藏、别名和自定义搜索目录会保存到：
+项目绑定、收藏、别名、自定义搜索目录和切换历史会保存到：
 
 `~/Library/Application Support/XcodeSwitcher/configuration.json`
+
+每次覆盖配置前会保留 `configuration.json.bak`，并在同目录的 `backups/` 下写入时间戳历史副本。
 
 首次使用全局快捷键需要在“系统设置 → 隐私与安全性 → 辅助功能”中允许本应用监听键盘事件。进入“设置 → 通用”，点击快捷键组合区域并按下带修饰键的组合即可录制；按下 `Esc` 可取消录制。
 

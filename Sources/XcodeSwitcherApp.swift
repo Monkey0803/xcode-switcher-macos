@@ -135,7 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(settings)
         let updates = NSMenuItem(title: "检查更新…", action: #selector(checkForUpdates), keyEquivalent: "")
         updates.target = self
-        updates.isEnabled = model.isUpdateServiceAvailable
+        updates.isEnabled = !model.isCheckingRelease
         updates.toolTip = model.updateServiceMessage
         menu.addItem(updates)
         menu.addItem(.separator())

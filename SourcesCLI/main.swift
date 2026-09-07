@@ -25,23 +25,24 @@ private struct XcodeSwitcherCLI {
     }
 
     func run(arguments: [String]) throws -> Int32 {
-        guard let command = arguments.first else {
+        let options = try CLIOptions.parse(arguments)
+        guard let command = options.command else {
             print(Self.help)
             return 0
         }
-        let values = Array(arguments.dropFirst())
+        let values = options.values
         switch command {
         case "help", "--help", "-h":
             print(Self.help)
             return 0
         case "list":
-            list()
+            list(json: options.json)
             return installations.isEmpty ? 1 : 0
         case "current":
             guard let active = installations.first(where: { $0.developerURL.path == activeDeveloperPath }) else {
                 throw CLIError.failed("当前 Developer 目录未对应已发现的 Xcode：\(activeDeveloperPath ?? "未配置")")
             }
-            printInstallation(active)
+            printInstallation(active, json: options.json)
             return 0
         case "resolve":
             let project = try projectURL(from: values)
@@ -51,9 +52,21 @@ private struct XcodeSwitcherCLI {
                   let installation = installations.first(where: { $0.id == id }) else {
                 throw CLIError.failed("无法解析项目使用的 Xcode。")
             }
-            printInstallation(installation)
-            if let requirement = ProjectXcodeMatcher.requirement(for: project) {
-                print("source=\(requirement.source)")
+            if options.json {
+                printJSON(CLIResolveOutput(
+                    installation: CLIInstallationOutput(
+                        installation: installation,
+                        active: installation.developerURL.path == activeDeveloperPath,
+                        alias: configuration.xcodeAliases[installation.id]
+                    ),
+                    project: project.path,
+                    requirementSource: ProjectXcodeMatcher.requirement(for: project)?.source
+                ))
+            } else {
+                printInstallation(installation, json: false)
+                if let requirement = ProjectXcodeMatcher.requirement(for: project) {
+                    print("source=\(requirement.source)")
+                }
             }
             return 0
         case "doctor":
@@ -62,11 +75,29 @@ private struct XcodeSwitcherCLI {
                 installation: installation,
                 activeDeveloperPath: activeDeveloperPath
             )
-            print(EnvironmentDoctor.render(report))
+            if options.json {
+                printJSON(report)
+            } else {
+                print(EnvironmentDoctor.render(report))
+            }
             return report.highestSeverity == .error ? 2 : (report.issueCount > 0 ? 1 : 0)
         case "use":
             guard let selector = values.first else { throw CLIError.usage("用法：xcodeswitcher use <版本、别名或路径>") }
             let installation = try findInstallation(selector)
+            if options.dryRun {
+                let output = CLIOperationOutput(
+                    action: "use",
+                    installation: CLIInstallationOutput(
+                        installation: installation,
+                        active: installation.developerURL.path == activeDeveloperPath,
+                        alias: configuration.xcodeAliases[installation.id]
+                    ),
+                    project: nil,
+                    dryRun: true
+                )
+                if options.json { printJSON(output) } else { print("[dry-run] 将激活 \(installation.name) \(installation.displayVersion)") }
+                return 0
+            }
             if installation.developerURL.path != activeDeveloperPath {
                 try XcodeActivator.activate(installation)
             }
@@ -83,6 +114,20 @@ private struct XcodeSwitcherCLI {
                   let installation = installations.first(where: { $0.id == id }) else {
                 throw CLIError.failed("无法解析项目使用的 Xcode。")
             }
+            if options.dryRun {
+                let output = CLIOperationOutput(
+                    action: "open",
+                    installation: CLIInstallationOutput(
+                        installation: installation,
+                        active: installation.developerURL.path == activeDeveloperPath,
+                        alias: configuration.xcodeAliases[installation.id]
+                    ),
+                    project: project.path,
+                    dryRun: true
+                )
+                if options.json { printJSON(output) } else { print("[dry-run] 将使用 \(installation.name) 打开 \(project.path)") }
+                return 0
+            }
             if installation.developerURL.path != activeDeveloperPath {
                 try XcodeActivator.activate(installation)
             }
@@ -94,7 +139,17 @@ private struct XcodeSwitcherCLI {
         }
     }
 
-    private func list() {
+    private func list(json: Bool) {
+        if json {
+            printJSON(installations.map {
+                CLIInstallationOutput(
+                    installation: $0,
+                    active: $0.developerURL.path == activeDeveloperPath,
+                    alias: configuration.xcodeAliases[$0.id]
+                )
+            })
+            return
+        }
         for installation in installations {
             let active = installation.developerURL.path == activeDeveloperPath ? "*" : " "
             let alias = configuration.xcodeAliases[installation.id].map { " alias=\($0)" } ?? ""
@@ -102,12 +157,28 @@ private struct XcodeSwitcherCLI {
         }
     }
 
-    private func printInstallation(_ installation: XcodeInstallation) {
+    private func printInstallation(_ installation: XcodeInstallation, json: Bool) {
+        if json {
+            printJSON(CLIInstallationOutput(
+                installation: installation,
+                active: installation.developerURL.path == activeDeveloperPath,
+                alias: configuration.xcodeAliases[installation.id]
+            ))
+            return
+        }
         print("name=\(installation.name)")
         print("version=\(installation.version)")
         print("build=\(installation.build)")
         print("app=\(installation.appURL.path)")
         print("developer=\(installation.developerURL.path)")
+    }
+
+    private func printJSON<T: Encodable>(_ value: T) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        if let data = try? encoder.encode(value), let output = String(data: data, encoding: .utf8) {
+            print(output)
+        }
     }
 
     private func projectURL(from values: [String]) throws -> URL {
@@ -157,25 +228,21 @@ private struct XcodeSwitcherCLI {
     }
 
     private static func loadConfiguration() -> AppConfiguration {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let url = base.appendingPathComponent("XcodeSwitcher/configuration.json")
-        guard let data = try? Data(contentsOf: url),
-              let configuration = try? JSONDecoder().decode(AppConfiguration.self, from: data) else {
-            return AppConfiguration()
-        }
-        return configuration
+        AppConfigurationStore.shared.load()
     }
 
     static let help = """
     Xcode Switcher CLI
 
     用法：
-      xcodeswitcher list
-      xcodeswitcher current
-      xcodeswitcher resolve <project.xcodeproj|workspace.xcworkspace>
-      xcodeswitcher doctor [版本、别名或路径]
-      xcodeswitcher use <版本、别名或路径>
-      xcodeswitcher open <project.xcodeproj|workspace.xcworkspace>
+      xcodeswitcher [--json] list
+      xcodeswitcher [--json] current
+      xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>
+      xcodeswitcher [--json] doctor [版本、别名或路径]
+      xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>
+      xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>
+
+    --json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。
     """
 }
 

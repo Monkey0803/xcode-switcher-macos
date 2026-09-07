@@ -256,6 +256,47 @@ enum XcodeTooling {
         }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
+    static func simulatorDevices(for installation: XcodeInstallation) -> [SimulatorDevice] {
+        let result = ProcessRunner.run(
+            executable: "/usr/bin/xcrun",
+            arguments: ["simctl", "list", "devices", "--json"],
+            environment: ["DEVELOPER_DIR": installation.developerURL.path],
+            timeout: 30
+        )
+        guard result.succeeded, let data = result.stdout.data(using: .utf8) else { return [] }
+        return parseSimulatorDevices(data: data)
+    }
+
+    static func parseSimulatorDevices(data: Data) -> [SimulatorDevice] {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let deviceGroups = root["devices"] as? [String: [[String: Any]]] else { return [] }
+        return deviceGroups.flatMap { runtimeID, devices in
+            devices.compactMap { device in
+                guard let id = device["udid"] as? String,
+                      let name = device["name"] as? String else { return nil }
+                let state = device["state"] as? String ?? "未知"
+                let available = device["isAvailable"] as? Bool ?? true
+                return SimulatorDevice(id: id, name: name, state: state, runtimeID: runtimeID, isAvailable: available)
+            }
+        }.sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
+    }
+
+    @discardableResult
+    static func simulatorAction(
+        _ action: String,
+        device: SimulatorDevice,
+        installation: XcodeInstallation
+    ) -> ProcessResult {
+        ProcessRunner.run(
+            executable: "/usr/bin/xcrun",
+            arguments: ["simctl", action, device.id],
+            environment: ["DEVELOPER_DIR": installation.developerURL.path],
+            timeout: 120
+        )
+    }
+
     static func downloadIOSRuntime(
         for installation: XcodeInstallation,
         progress: (@Sendable (String) -> Void)? = nil
@@ -579,35 +620,88 @@ final class GlobalShortcutService {
     }
 }
 
-@MainActor
-final class AppConfigurationStore {
+final class AppConfigurationStore: @unchecked Sendable {
     static let shared = AppConfigurationStore()
     private let fileURL: URL
 
-    init() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        fileURL = base.appendingPathComponent("XcodeSwitcher", isDirectory: true).appendingPathComponent("configuration.json")
+    init(fileURL: URL? = nil) {
+        if let fileURL {
+            self.fileURL = fileURL
+        } else {
+            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            self.fileURL = base.appendingPathComponent("XcodeSwitcher", isDirectory: true).appendingPathComponent("configuration.json")
+        }
     }
 
     func load() -> AppConfiguration {
-        guard let data = try? Data(contentsOf: fileURL), let configuration = try? JSONDecoder().decode(AppConfiguration.self, from: data) else {
+        guard let data = try? Data(contentsOf: fileURL) else {
             return AppConfiguration()
         }
+        guard var configuration = try? JSONDecoder().decode(AppConfiguration.self, from: data) else {
+            // Preserve an unreadable file before falling back to defaults so a
+            // later manual recovery remains possible.
+            backupExistingFile()
+            return AppConfiguration()
+        }
+        configuration.migrate()
         return configuration
     }
 
     func save(_ configuration: AppConfiguration) {
-        guard let data = try? JSONEncoder().encode(configuration) else { return }
+        var configuration = configuration
+        configuration.migrate()
+        guard let data = try? Self.encoder.encode(configuration) else { return }
         try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        backupExistingFile()
         try? data.write(to: fileURL, options: .atomic)
     }
 
     func export(_ configuration: AppConfiguration, to url: URL) throws {
-        let data = try JSONEncoder().encode(configuration)
+        var configuration = configuration
+        configuration.migrate()
+        let data = try Self.encoder.encode(configuration)
         try data.write(to: url, options: .atomic)
     }
 
     func `import`(from url: URL) throws -> AppConfiguration {
-        try JSONDecoder().decode(AppConfiguration.self, from: Data(contentsOf: url))
+        var configuration = try JSONDecoder().decode(AppConfiguration.self, from: Data(contentsOf: url))
+        configuration.migrate()
+        return configuration
     }
+
+    var backupURL: URL {
+        fileURL.deletingPathExtension().appendingPathExtension("json.bak")
+    }
+
+    var backupDirectoryURL: URL {
+        fileURL.deletingLastPathComponent().appendingPathComponent("backups", isDirectory: true)
+    }
+
+    var hasBackup: Bool {
+        FileManager.default.fileExists(atPath: backupURL.path)
+    }
+
+    func restoreBackup() throws -> AppConfiguration {
+        guard hasBackup else { throw CocoaError(.fileNoSuchFile) }
+        let configuration = try `import`(from: backupURL)
+        save(configuration)
+        return configuration
+    }
+
+    private func backupExistingFile() {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        try? FileManager.default.removeItem(at: backupURL)
+        try? FileManager.default.copyItem(at: fileURL, to: backupURL)
+        try? FileManager.default.createDirectory(at: backupDirectoryURL, withIntermediateDirectories: true)
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let historicalURL = backupDirectoryURL.appendingPathComponent("configuration-\(stamp).json")
+        try? FileManager.default.copyItem(at: fileURL, to: historicalURL)
+    }
+
+    private static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
 }

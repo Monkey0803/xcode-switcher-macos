@@ -20,11 +20,14 @@ final class XcodeViewModel: ObservableObject {
     @Published private(set) var isLaunchAtLoginEnabled = false
     @Published private(set) var detailsByID: [String: XcodeDetails] = [:]
     @Published private(set) var runtimesByID: [String: [SimulatorRuntime]] = [:]
+    @Published private(set) var devicesByID: [String: [SimulatorDevice]] = [:]
     @Published private(set) var signingCertificates: [SigningCertificate] = []
     @Published private(set) var provisioningProfiles: [ProvisioningProfile] = []
     @Published private(set) var signingReport: ProjectSigningReport?
     @Published private(set) var isRefreshingSigning = false
     @Published private(set) var isLoadingSigningReport = false
+    @Published private(set) var isCheckingRelease = false
+    @Published private(set) var releaseCheckMessage = ""
     @Published var configuration: AppConfiguration
     @Published var statusMessage = "正在扫描本机安装的 Xcode…"
     @Published var isError = false
@@ -119,7 +122,11 @@ final class XcodeViewModel: ObservableObject {
         guard detailsByID[installation.id] == nil, detailTasks[installation.id] == nil else { return }
         loadingDetailsIDs.insert(installation.id)
         detailTasks[installation.id] = Task.detached(priority: .utility) { [weak self] in
-            let result = (XcodeTooling.details(for: installation), XcodeTooling.simulatorRuntimes(for: installation))
+            let result = (
+                XcodeTooling.details(for: installation),
+                XcodeTooling.simulatorRuntimes(for: installation),
+                XcodeTooling.simulatorDevices(for: installation)
+            )
             guard !Task.isCancelled else {
                 await self?.completeDetailsLoad(for: installation.id, result: nil)
                 return
@@ -132,10 +139,11 @@ final class XcodeViewModel: ObservableObject {
         loadingDetailsIDs.contains(installation.id)
     }
 
-    private func completeDetailsLoad(for id: String, result: (XcodeDetails, [SimulatorRuntime])?) {
+    private func completeDetailsLoad(for id: String, result: (XcodeDetails, [SimulatorRuntime], [SimulatorDevice])?) {
         if let result {
             detailsByID[id] = result.0
             runtimesByID[id] = result.1
+            devicesByID[id] = result.2
         }
         loadingDetailsIDs.remove(id)
         detailTasks[id] = nil
@@ -153,6 +161,9 @@ final class XcodeViewModel: ObservableObject {
             return
         }
         guard !isSwitching else { return }
+        if let activeInstallation {
+            recordActivation(activeInstallation)
+        }
         isSwitching = true
         isError = false
         statusMessage = "正在请求管理员授权…"
@@ -175,6 +186,9 @@ final class XcodeViewModel: ObservableObject {
             let verified = activeDeveloperPath == installation.developerURL.path
             isError = !verified
             statusMessage = verified ? "已激活并验证 Xcode \(installation.displayVersion)。" : "切换命令完成，但未能验证当前开发者目录。"
+            if verified {
+                recordActivation(installation)
+            }
             if let project, verified { XcodeActions.open(project, with: installation) }
         }
     }
@@ -357,7 +371,9 @@ final class XcodeViewModel: ObservableObject {
     }
 
     var updateServiceMessage: String {
-        UpdateService.shared.configurationError ?? "Sparkle 自动更新已启用。"
+        if !releaseCheckMessage.isEmpty { return releaseCheckMessage }
+        if UpdateService.shared.isAvailable { return "Sparkle 自动更新已启用。" }
+        return "当前为直接分发构建，可检查 GitHub Releases；Sparkle 自动更新仅在正式签名构建启用。"
     }
 
     func toggleLaunchAtLogin(_ enabled: Bool) {
@@ -388,14 +404,40 @@ final class XcodeViewModel: ObservableObject {
     }
 
     func checkForUpdates() {
-        guard UpdateService.shared.isAvailable else {
-            statusMessage = UpdateService.shared.configurationError ?? "当前构建未启用自动更新。"
-            isError = true
+        guard !isCheckingRelease else { return }
+        if UpdateService.shared.isAvailable {
+            UpdateService.shared.checkForUpdates()
+            statusMessage = "正在检查更新…"
+            isError = false
             return
         }
-        UpdateService.shared.checkForUpdates()
-        statusMessage = "正在检查更新…"
+        isCheckingRelease = true
+        releaseCheckMessage = "正在读取 GitHub Releases…"
+        statusMessage = "正在检查 GitHub Releases…"
         isError = false
+        Task { @MainActor in
+            let result = await UpdateService.shared.checkGitHubRelease()
+            isCheckingRelease = false
+            if let error = result.errorMessage {
+                releaseCheckMessage = "GitHub Releases 检查失败：\(error)"
+                statusMessage = releaseCheckMessage
+                isError = true
+            } else if result.isUpdateAvailable, let latest = result.latestVersion {
+                releaseCheckMessage = "发现新版本 \(latest)，点击右侧按钮下载。"
+                statusMessage = releaseCheckMessage
+                isError = false
+            } else {
+                releaseCheckMessage = "当前已是最新版本（\(result.currentVersion)）。"
+                statusMessage = releaseCheckMessage
+                isError = false
+            }
+        }
+    }
+
+    func openReleasePage() {
+        let opened = UpdateService.shared.openReleasePage()
+        statusMessage = opened ? "已打开 GitHub Releases 下载页。" : "无法打开 GitHub Releases。"
+        isError = !opened
     }
 
     func exportConfiguration() {
@@ -421,6 +463,20 @@ final class XcodeViewModel: ObservableObject {
             statusMessage = "配置已导入。"
             isError = false
         } catch { statusMessage = "导入失败：\(error.localizedDescription)"; isError = true }
+    }
+
+    var hasConfigurationBackup: Bool { store.hasBackup }
+
+    func restoreConfigurationBackup() {
+        do {
+            configuration = try store.restoreBackup()
+            refresh()
+            statusMessage = "已恢复上次配置备份。"
+            isError = false
+        } catch {
+            statusMessage = "恢复配置失败：\(error.localizedDescription)"
+            isError = true
+        }
     }
 
     func hasAvailableRuntime(for installation: XcodeInstallation) -> Bool {
@@ -458,6 +514,50 @@ final class XcodeViewModel: ObservableObject {
     func cancelRuntimeDownload() {
         runtimeDownloadProgress = "正在取消…"
         runtimeDownloadTask?.cancel()
+    }
+
+    func simulatorDevices(for installation: XcodeInstallation) -> [SimulatorDevice] {
+        devicesByID[installation.id] ?? []
+    }
+
+    func performSimulatorAction(_ action: String, device: SimulatorDevice, installation: XcodeInstallation) {
+        guard ["boot", "shutdown", "erase"].contains(action) else { return }
+        let title = action == "boot" ? "启动" : action == "shutdown" ? "关闭" : "抹掉"
+        statusMessage = "正在\(title) Simulator \(device.name)…"
+        isError = false
+        Task { @MainActor in
+            let result = await Task.detached(priority: .utility) {
+                let actionResult = XcodeTooling.simulatorAction(action, device: device, installation: installation)
+                let devices = actionResult.succeeded ? XcodeTooling.simulatorDevices(for: installation) : nil
+                return (actionResult, devices)
+            }.value
+            if result.0.succeeded {
+                if let devices = result.1 { devicesByID[installation.id] = devices }
+                statusMessage = "Simulator \(device.name) 操作完成。"
+            } else {
+                isError = true
+                statusMessage = "Simulator 操作失败：\(result.0.failureDescription)"
+            }
+        }
+    }
+
+    func rollbackToPreviousXcode() {
+        let candidates = configuration.activationHistory.compactMap { id in
+            installations.first { $0.id == id }
+        }
+        guard let previous = candidates.first(where: { !isActive($0) }) else {
+            statusMessage = "没有可回滚的上一个 Xcode。"
+            isError = true
+            return
+        }
+        activate(previous)
+    }
+
+    private func recordActivation(_ installation: XcodeInstallation) {
+        configuration.activationHistory.removeAll { $0 == installation.id }
+        configuration.activationHistory.insert(installation.id, at: 0)
+        configuration.activationHistory = Array(configuration.activationHistory.prefix(10))
+        persist()
     }
 
     private func completeRuntimeDownload(result: ProcessResult, runtimes: [SimulatorRuntime]?, installationID: String) {

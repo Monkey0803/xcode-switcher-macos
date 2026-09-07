@@ -85,10 +85,12 @@ struct ContentView: View {
                     HStack {
                         TextField("搜索版本或路径", text: $model.filter)
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("xcode-search-field")
                             .focused($isSearchFieldFocused)
                         Button { model.refresh() } label: { Image(systemName: "arrow.clockwise") }
                             .disabled(model.isRefreshing || model.isSwitching)
                             .help("重新扫描")
+                            .accessibilityIdentifier("refresh-xcodes-button")
                     }
                     .padding(10)
                     if !model.installations.isEmpty {
@@ -155,6 +157,9 @@ struct ContentView: View {
                 }
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.selectedInstallation == nil || model.selectedInstallation.map { model.isActive($0) } == true || model.isSwitching)
+                    .accessibilityIdentifier("activate-selected-xcode-button")
+                Button("回滚上一个") { model.rollbackToPreviousXcode() }
+                    .disabled(model.configuration.activationHistory.count < 2 || model.isSwitching)
             }
             .padding()
         }
@@ -321,6 +326,8 @@ struct XcodeDetailView: View {
                                 .lineLimit(3)
                                 .textSelection(.enabled)
                         }
+
+                        SimulatorDevicesView(installation: installation)
                     }
                     .padding(4)
                 }
@@ -345,6 +352,56 @@ struct XcodeDetailView: View {
         case .informational: return .blue
         case .warning: return .orange
         case .error: return .red
+        }
+    }
+}
+
+private struct SimulatorDevicesView: View {
+    @EnvironmentObject private var model: XcodeViewModel
+    let installation: XcodeInstallation
+    @State private var deviceToErase: SimulatorDevice?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            Text("Simulator 设备").font(.headline)
+            let devices = model.simulatorDevices(for: installation)
+            if devices.isEmpty {
+                Text("未检测到 Simulator 设备。可在 Xcode 或 simctl 中创建。")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(devices) { device in
+                    HStack(spacing: 8) {
+                        Image(systemName: device.isBooted ? "power.circle.fill" : "circle")
+                            .foregroundStyle(device.isBooted ? .green : .secondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(device.name)
+                            Text(device.state).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if device.isBooted {
+                            Button("关闭") { model.performSimulatorAction("shutdown", device: device, installation: installation) }
+                        } else {
+                            Button("启动") { model.performSimulatorAction("boot", device: device, installation: installation) }
+                        }
+                        Button("抹掉") { deviceToErase = device }
+                            .foregroundStyle(.red)
+                    }
+                    .disabled(!device.isAvailable)
+                }
+            }
+        }
+        .confirmationDialog("抹掉 Simulator 设备？", isPresented: Binding(
+            get: { deviceToErase != nil },
+            set: { if !$0 { deviceToErase = nil } }
+        ), presenting: deviceToErase) { device in
+            Button("抹掉 \(device.name)", role: .destructive) {
+                model.performSimulatorAction("erase", device: device, installation: installation)
+                deviceToErase = nil
+            }
+            Button("取消", role: .cancel) { deviceToErase = nil }
+        } message: { _ in
+            Text("这会删除设备中的应用和数据，且无法撤销。")
         }
     }
 }
@@ -678,10 +735,11 @@ struct GeneralSettingsView: View {
                 .disabled(!model.isUpdateServiceAvailable)
                 HStack {
                     Button("检查更新…") { model.checkForUpdates() }
-                        .disabled(!model.isUpdateServiceAvailable)
+                        .disabled(model.isCheckingRelease)
+                    Button("打开 GitHub Releases") { model.openReleasePage() }
                     Text(model.updateServiceMessage)
                         .font(.caption)
-                        .foregroundStyle(model.isUpdateServiceAvailable ? Color.secondary : Color.orange)
+                        .foregroundStyle(model.isError ? Color.orange : Color.secondary)
                 }
             }
 
@@ -734,8 +792,10 @@ struct GeneralSettingsView: View {
                 HStack {
                     Button("导入配置…") { model.importConfiguration() }
                     Button("导出配置…") { model.exportConfiguration() }
+                    Button("恢复上次备份") { model.restoreConfigurationBackup() }
+                        .disabled(!model.hasConfigurationBackup)
                 }
-                Text("配置包含收藏、项目绑定、搜索目录和快捷键开关。")
+                Text("配置包含收藏、项目绑定、搜索目录、快捷键和最近切换记录；每次保存前会保留一份备份。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
