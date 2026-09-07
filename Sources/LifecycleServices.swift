@@ -1,3 +1,4 @@
+@preconcurrency import Foundation
 import AppKit
 import ServiceManagement
 import Sparkle
