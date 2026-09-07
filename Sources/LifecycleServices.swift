@@ -73,7 +73,7 @@ final class UpdateService {
         let endpoint = URL(string: "https://api.github.com/repos/Monkey0803/xcode-switcher-macos/releases/latest")!
         do {
             var request = URLRequest(url: endpoint)
-            request.setValue("XcodeSwitcher/1.2", forHTTPHeaderField: "User-Agent")
+            request.setValue(Self.userAgent(for: currentVersion), forHTTPHeaderField: "User-Agent")
             request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
@@ -109,6 +109,10 @@ final class UpdateService {
             if left != right { return left > right }
         }
         return false
+    }
+
+    nonisolated static func userAgent(for version: String) -> String {
+        "XcodeSwitcher/\(version)"
     }
 
     private static func version(from tag: String) -> String? {

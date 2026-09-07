@@ -8,4 +8,8 @@ final class ReleaseCheckTests: XCTestCase {
         XCTAssertFalse(UpdateService.isNewer("1.2.0", than: "1.2.0"))
         XCTAssertFalse(UpdateService.isNewer(nil, than: "1.2.0"))
     }
+
+    func testBuildsUserAgentFromCurrentVersion() {
+        XCTAssertEqual(UpdateService.userAgent(for: "1.1.1"), "XcodeSwitcher/1.1.1")
+    }
 }
