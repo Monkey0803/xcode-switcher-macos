@@ -26,6 +26,7 @@ Allow zsh users to enter a project directory and automatically receive the Xcode
 
 - With no path, resolve the current working directory.
 - Accept a directory, `.xcodeproj`, or `.xcworkspace` path.
+- For a directory, inspect it and its ancestors for project packages. Use the only candidate when exactly one exists; when both a workspace and project exist at the same level, prefer the workspace. If multiple candidates of the preferred type exist, return a diagnostic requiring an explicit project path rather than selecting arbitrarily.
 - When a matching installed Xcode is found, print exactly one shell-safe export command:
 
 ```zsh
@@ -56,6 +57,7 @@ The CLI continues to own command parsing and process exit status. A small pure f
 ## Error Handling
 
 - The `env` command never selects the active or first discovered Xcode as a fallback. Only explicit project intent may affect `DEVELOPER_DIR`.
+- Directory discovery never chooses arbitrarily among multiple project packages of the same preferred type.
 - Error output must be safe to display in a terminal and must not be evaluated as shell source.
 - The hook treats command failure as an environment restoration event, preventing one project's failed resolution from leaking into another directory.
 
