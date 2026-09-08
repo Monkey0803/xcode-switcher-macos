@@ -2,6 +2,7 @@
 .build/
 build/
 release/
+.worktrees/
 DerivedData/
 *.xcuserstate
 xcuserdata/
