@@ -3,6 +3,15 @@ import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
+struct ProjectOpenRequest: Identifiable {
+    let profile: ProjectProfile
+    let currentInstallation: XcodeInstallation
+    let recommendedInstallation: XcodeInstallation
+    let source: ProjectXcodeResolutionSource
+
+    var id: UUID { profile.id }
+}
+
 @MainActor
 final class XcodeViewModel: ObservableObject {
     @Published private(set) var installations: [XcodeInstallation] = []
@@ -29,6 +38,7 @@ final class XcodeViewModel: ObservableObject {
     @Published private(set) var isCheckingRelease = false
     @Published private(set) var releaseCheckMessage = ""
     @Published var configuration: AppConfiguration
+    @Published var pendingProjectOpen: ProjectOpenRequest?
     @Published var statusMessage = "正在扫描本机安装的 Xcode…"
     @Published var isError = false
     @Published var filter = ""
@@ -285,17 +295,60 @@ final class XcodeViewModel: ObservableObject {
     }
 
     func applyAndOpen(_ profile: ProjectProfile) {
-        if let issue = projectIssue(for: profile) {
+        let resolution = projectResolution(for: profile)
+        if let issue = resolution.issueDescription {
             statusMessage = issue
             isError = true
             return
         }
-        guard let installation = installation(for: profile) else {
+        guard let installationID = resolution.installationID,
+              let installation = installations.first(where: { $0.id == installationID }) else {
             statusMessage = "没有可用于打开项目的 Xcode。"
             isError = true
             return
         }
-        activate(installation, thenOpen: profile.url)
+        guard let decision = ProjectXcodeMatcher.openDecision(
+            for: resolution,
+            activeInstallationID: activeInstallation?.id
+        ) else {
+            statusMessage = "无法解析项目使用的 Xcode。"
+            isError = true
+            return
+        }
+        switch decision {
+        case .open:
+            activate(installation, thenOpen: profile.url)
+        case let .requiresConfirmation(_, source):
+            guard let activeInstallation else {
+                activate(installation, thenOpen: profile.url)
+                return
+            }
+            pendingProjectOpen = ProjectOpenRequest(
+                profile: profile,
+                currentInstallation: activeInstallation,
+                recommendedInstallation: installation,
+                source: source
+            )
+            showMainWindow()
+        }
+    }
+
+    func switchAndOpenPendingProject() {
+        guard let request = pendingProjectOpen else { return }
+        pendingProjectOpen = nil
+        activate(request.recommendedInstallation, thenOpen: request.profile.url)
+    }
+
+    func openPendingProjectWithCurrentXcode() {
+        guard let request = pendingProjectOpen else { return }
+        pendingProjectOpen = nil
+        XcodeActions.open(request.profile.url, with: request.currentInstallation)
+        statusMessage = "已使用当前 Xcode \(request.currentInstallation.displayVersion) 打开 \(request.profile.name)。"
+        isError = false
+    }
+
+    func cancelPendingProjectOpen() {
+        pendingProjectOpen = nil
     }
 
     func automaticMatch(for profile: ProjectProfile) -> ProjectXcodeMatch? {

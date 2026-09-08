@@ -1,7 +1,7 @@
 import Foundation
 
 enum ProjectXcodeResolution: Equatable, Sendable {
-    case resolved(installationID: String, automaticRequirement: ProjectXcodeRequirement?)
+    case resolved(installationID: String, source: ProjectXcodeResolutionSource)
     case missingProject(path: String)
     case missingBoundXcode(path: String)
     case missingRequiredXcode(ProjectXcodeRequirement)
@@ -28,7 +28,44 @@ enum ProjectXcodeResolution: Equatable, Sendable {
     }
 }
 
+enum ProjectXcodeResolutionSource: Equatable, Sendable {
+    case explicitBinding
+    case automaticRequirement(ProjectXcodeRequirement)
+    case currentInstallationFallback
+    case firstInstallationFallback
+
+    var displayName: String {
+        switch self {
+        case .explicitBinding:
+            return "项目固定绑定"
+        case let .automaticRequirement(requirement):
+            return URL(fileURLWithPath: requirement.source).lastPathComponent
+        case .currentInstallationFallback, .firstInstallationFallback:
+            return "默认选择"
+        }
+    }
+}
+
+enum ProjectXcodeOpenDecision: Equatable, Sendable {
+    case open(installationID: String)
+    case requiresConfirmation(installationID: String, source: ProjectXcodeResolutionSource)
+}
+
 enum ProjectXcodeMatcher {
+    static func openDecision(
+        for resolution: ProjectXcodeResolution,
+        activeInstallationID: String?
+    ) -> ProjectXcodeOpenDecision? {
+        guard case let .resolved(installationID, source) = resolution else { return nil }
+        guard installationID != activeInstallationID else { return .open(installationID: installationID) }
+        switch source {
+        case .explicitBinding, .automaticRequirement:
+            return .requiresConfirmation(installationID: installationID, source: source)
+        case .currentInstallationFallback, .firstInstallationFallback:
+            return .open(installationID: installationID)
+        }
+    }
+
     static func requirement(for projectURL: URL, fileManager: FileManager = .default) -> ProjectXcodeRequirement? {
         let startDirectory = projectURL.hasDirectoryPath || ["xcodeproj", "xcworkspace"].contains(projectURL.pathExtension)
             ? projectURL.deletingLastPathComponent()
@@ -94,7 +131,7 @@ enum ProjectXcodeMatcher {
             guard installations.contains(where: { $0.id == boundID }) else {
                 return .missingBoundXcode(path: boundID)
             }
-            return .resolved(installationID: boundID, automaticRequirement: nil)
+            return .resolved(installationID: boundID, source: .explicitBinding)
         }
         if let automaticMatch = match(
             projectURL: profile.url,
@@ -105,14 +142,14 @@ enum ProjectXcodeMatcher {
             guard let installationID = automaticMatch.installationID else {
                 return .missingRequiredXcode(automaticMatch.requirement)
             }
-            return .resolved(installationID: installationID, automaticRequirement: automaticMatch.requirement)
+            return .resolved(installationID: installationID, source: .automaticRequirement(automaticMatch.requirement))
         }
         if let activeInstallationID,
            installations.contains(where: { $0.id == activeInstallationID }) {
-            return .resolved(installationID: activeInstallationID, automaticRequirement: nil)
+            return .resolved(installationID: activeInstallationID, source: .currentInstallationFallback)
         }
         guard let first = installations.first else { return .noInstallation }
-        return .resolved(installationID: first.id, automaticRequirement: nil)
+        return .resolved(installationID: first.id, source: .firstInstallationFallback)
     }
 
     static func normalizeVersion(_ rawValue: String) -> String? {

@@ -196,6 +196,28 @@ struct ContentView: View {
             }
             return true
         }
+        .confirmationDialog(
+            "项目推荐使用另一版本的 Xcode",
+            isPresented: Binding(
+                get: { model.pendingProjectOpen != nil },
+                set: { if !$0 { model.cancelPendingProjectOpen() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("切换并打开") {
+                model.switchAndOpenPendingProject()
+            }
+            Button("保留当前 Xcode 打开") {
+                model.openPendingProjectWithCurrentXcode()
+            }
+            Button("取消", role: .cancel) {
+                model.cancelPendingProjectOpen()
+            }
+        } message: {
+            if let request = model.pendingProjectOpen {
+                Text("项目：\(request.profile.name)\n当前：\(request.currentInstallation.name) \(request.currentInstallation.displayVersion)\n推荐：\(request.recommendedInstallation.name) \(request.recommendedInstallation.displayVersion)\n依据：\(request.source.displayName)")
+            }
+        }
         .frame(minWidth: 900, minHeight: 560)
     }
 }

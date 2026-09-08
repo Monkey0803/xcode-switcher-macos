@@ -78,6 +78,95 @@ final class ProjectMatchingTests: XCTestCase {
 
         XCTAssertEqual(result, .missingProject(path: missingPath))
     }
+
+    func testExplicitBindingIsReportedAsResolutionSource() throws {
+        let fixture = try Fixture()
+        let installation = fixture.installation(version: "16.4", name: "Xcode.app")
+        let profile = ProjectProfile(
+            name: "Demo",
+            path: fixture.projectURL.path,
+            xcodeID: installation.id
+        )
+
+        let result = ProjectXcodeMatcher.resolve(
+            profile: profile,
+            installations: [installation],
+            activeInstallationID: nil
+        )
+
+        XCTAssertEqual(
+            result,
+            .resolved(installationID: installation.id, source: .explicitBinding)
+        )
+    }
+
+    func testVersionFileRequirementIsReportedAsResolutionSource() throws {
+        let fixture = try Fixture()
+        try fixture.write("16.4\n", to: ".xcode-version")
+        let installation = fixture.installation(version: "16.4", name: "Xcode.app")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path)
+
+        let result = ProjectXcodeMatcher.resolve(
+            profile: profile,
+            installations: [installation],
+            activeInstallationID: nil
+        )
+
+        guard case let .resolved(installationID, source) = result else {
+            return XCTFail("Expected a resolved Xcode, got \(result)")
+        }
+        XCTAssertEqual(installationID, installation.id)
+        XCTAssertEqual(source, .automaticRequirement(ProjectXcodeRequirement(
+            source: fixture.root.appendingPathComponent(".xcode-version").path,
+            rawValue: "16.4",
+            normalizedVersion: "16.4"
+        )))
+    }
+
+    func testDifferingExplicitBindingRequiresOpenConfirmation() {
+        let result = ProjectXcodeMatcher.openDecision(
+            for: .resolved(installationID: "xcode-16", source: .explicitBinding),
+            activeInstallationID: "xcode-15"
+        )
+
+        XCTAssertEqual(result, .requiresConfirmation(installationID: "xcode-16", source: .explicitBinding))
+    }
+
+    func testDifferingVersionRequirementRequiresOpenConfirmation() {
+        let requirement = ProjectXcodeRequirement(source: "/tmp/.xcode-version", rawValue: "16.4", normalizedVersion: "16.4")
+
+        let result = ProjectXcodeMatcher.openDecision(
+            for: .resolved(installationID: "xcode-16", source: .automaticRequirement(requirement)),
+            activeInstallationID: "xcode-15"
+        )
+
+        XCTAssertEqual(result, .requiresConfirmation(installationID: "xcode-16", source: .automaticRequirement(requirement)))
+    }
+
+    func testActiveRecommendationOpensWithoutConfirmation() {
+        let result = ProjectXcodeMatcher.openDecision(
+            for: .resolved(installationID: "xcode-16", source: .explicitBinding),
+            activeInstallationID: "xcode-16"
+        )
+
+        XCTAssertEqual(result, .open(installationID: "xcode-16"))
+    }
+
+    func testCurrentXcodeFallbackOpensWithoutConfirmation() {
+        let result = ProjectXcodeMatcher.openDecision(
+            for: .resolved(installationID: "xcode-16", source: .currentInstallationFallback),
+            activeInstallationID: "xcode-15"
+        )
+
+        XCTAssertEqual(result, .open(installationID: "xcode-16"))
+    }
+
+    func testResolutionSourceProvidesUserFacingDescription() {
+        let requirement = ProjectXcodeRequirement(source: "/tmp/.tool-versions", rawValue: "xcode 16.4", normalizedVersion: "16.4")
+
+        XCTAssertEqual(ProjectXcodeResolutionSource.explicitBinding.displayName, "项目固定绑定")
+        XCTAssertEqual(ProjectXcodeResolutionSource.automaticRequirement(requirement).displayName, ".tool-versions")
+    }
 }
 
 private final class Fixture {
