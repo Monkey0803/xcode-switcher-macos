@@ -1,10 +1,48 @@
 import Foundation
 
+struct ProjectLocalConfiguration: Codable, Equatable, Sendable {
+    let xcode: String?
+    let workspace: String?
+}
+
+enum ProjectLocalConfigurationStore {
+    static func configurationURL(for projectURL: URL, fileManager: FileManager = .default) -> URL? {
+        var directory = projectURL.deletingLastPathComponent().standardizedFileURL
+        while true {
+            let url = directory.appendingPathComponent(".xcode-switcher.json")
+            if fileManager.fileExists(atPath: url.path) { return url }
+            let parent = directory.deletingLastPathComponent().standardizedFileURL
+            if parent == directory || directory.path == "/" { return nil }
+            directory = parent
+        }
+    }
+
+    static func load(in directory: URL, fileManager: FileManager = .default) -> ProjectLocalConfiguration? {
+        let url = directory.appendingPathComponent(".xcode-switcher.json")
+        guard let data = fileManager.contents(atPath: url.path) else { return nil }
+        return try? JSONDecoder().decode(ProjectLocalConfiguration.self, from: data)
+    }
+
+    static func load(for projectURL: URL, fileManager: FileManager = .default) -> ProjectLocalConfiguration? {
+        guard let url = configurationURL(for: projectURL, fileManager: fileManager),
+              let data = fileManager.contents(atPath: url.path) else { return nil }
+        return try? JSONDecoder().decode(ProjectLocalConfiguration.self, from: data)
+    }
+
+    static func validationIssue(for projectURL: URL, fileManager: FileManager = .default) -> String? {
+        guard let url = configurationURL(for: projectURL, fileManager: fileManager),
+              let data = fileManager.contents(atPath: url.path),
+              (try? JSONDecoder().decode(ProjectLocalConfiguration.self, from: data)) == nil else { return nil }
+        return "项目配置文件格式无效，请检查：\(url.path)"
+    }
+}
+
 enum ProjectXcodeResolution: Equatable, Sendable {
     case resolved(installationID: String, source: ProjectXcodeResolutionSource)
     case missingProject(path: String)
     case missingBoundXcode(path: String)
     case missingRequiredXcode(ProjectXcodeRequirement)
+    case invalidProjectConfiguration(path: String)
     case noInstallation
 
     var installationID: String? {
@@ -22,6 +60,8 @@ enum ProjectXcodeResolution: Equatable, Sendable {
             return "绑定的 Xcode 已不存在：\(URL(fileURLWithPath: path).lastPathComponent)。请重新绑定后再打开。"
         case let .missingRequiredXcode(requirement):
             return "项目要求 Xcode \(requirement.normalizedVersion)，但本机未安装（来自 \(URL(fileURLWithPath: requirement.source).lastPathComponent)）。"
+        case let .invalidProjectConfiguration(path):
+            return "项目配置文件格式无效，请检查：\(path)"
         case .noInstallation:
             return "本机没有可用的 Xcode。"
         }
@@ -30,6 +70,7 @@ enum ProjectXcodeResolution: Equatable, Sendable {
 
 enum ProjectXcodeResolutionSource: Equatable, Sendable {
     case explicitBinding
+    case localConfiguration(String)
     case automaticRequirement(ProjectXcodeRequirement)
     case currentInstallationFallback
     case firstInstallationFallback
@@ -38,6 +79,8 @@ enum ProjectXcodeResolutionSource: Equatable, Sendable {
         switch self {
         case .explicitBinding:
             return "项目固定绑定"
+        case .localConfiguration:
+            return ".xcode-switcher.json"
         case let .automaticRequirement(requirement):
             return URL(fileURLWithPath: requirement.source).lastPathComponent
         case .currentInstallationFallback, .firstInstallationFallback:
@@ -59,7 +102,7 @@ enum ProjectXcodeMatcher {
         guard case let .resolved(installationID, source) = resolution else { return nil }
         guard installationID != activeInstallationID else { return .open(installationID: installationID) }
         switch source {
-        case .explicitBinding, .automaticRequirement:
+        case .explicitBinding, .localConfiguration, .automaticRequirement:
             return .requiresConfirmation(installationID: installationID, source: source)
         case .currentInstallationFallback, .firstInstallationFallback:
             return .open(installationID: installationID)
@@ -122,10 +165,35 @@ enum ProjectXcodeMatcher {
         installations: [XcodeInstallation],
         aliases: [String: String] = [:],
         activeInstallationID: String?,
+        localConfiguration: ProjectLocalConfiguration? = nil,
         fileManager: FileManager = .default
     ) -> ProjectXcodeResolution {
         guard fileManager.fileExists(atPath: profile.path) else {
             return .missingProject(path: profile.path)
+        }
+        if ProjectLocalConfigurationStore.validationIssue(for: profile.url, fileManager: fileManager) != nil,
+           let url = ProjectLocalConfigurationStore.configurationURL(for: profile.url, fileManager: fileManager) {
+            return .invalidProjectConfiguration(path: url.path)
+        }
+        if let selector = localConfiguration?.xcode?.trimmingCharacters(in: .whitespacesAndNewlines), !selector.isEmpty {
+            if let installation = installations.first(where: {
+                $0.id == selector || $0.appURL.path == selector || $0.developerURL.path == selector ||
+                    $0.name.localizedCaseInsensitiveCompare(selector) == .orderedSame ||
+                    aliases[$0.id]?.localizedCaseInsensitiveCompare(selector) == .orderedSame
+            }) {
+                return .resolved(installationID: installation.id, source: .localConfiguration(selector))
+            }
+            if let required = normalizeVersion(selector) {
+                return installations.first(where: { version($0.version, matches: required) })
+                    .map { .resolved(installationID: $0.id, source: .localConfiguration(selector)) }
+                    ?? .missingRequiredXcode(ProjectXcodeRequirement(
+                        source: ProjectLocalConfigurationStore.configurationURL(for: profile.url, fileManager: fileManager)?.path
+                            ?? profile.url.deletingLastPathComponent().appendingPathComponent(".xcode-switcher.json").path,
+                        rawValue: selector,
+                        normalizedVersion: required
+                    ))
+            }
+            return .missingBoundXcode(path: selector)
         }
         if let boundID = profile.xcodeID {
             guard installations.contains(where: { $0.id == boundID }) else {

@@ -29,6 +29,8 @@ cd "$script_dir"
   "$script_dir/Scripts/release_preflight.sh" \
   "$script_dir/Scripts/sign_bundle.sh"
 
+/bin/bash -n "$script_dir/Scripts/shell_environment_e2e.sh"
+
 if release_preflight_output="$(
   /usr/bin/env -i PATH=/usr/bin:/bin \
     /bin/bash "$script_dir/build_release.sh" --preflight 2>&1
@@ -51,5 +53,7 @@ cleanup() {
 trap cleanup EXIT
 /bin/sleep 2
 /bin/kill -0 "$app_pid"
+
+"$script_dir/Scripts/shell_environment_e2e.sh"
 
 printf 'Smoke test passed: unit tests, Apple Silicon app/CLI, Sparkle link, plist, signature, scripts, and packaged launch.\n'

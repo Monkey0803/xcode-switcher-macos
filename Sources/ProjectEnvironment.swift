@@ -30,6 +30,12 @@ enum ProjectDirectoryLocator {
             )) ?? []
             let workspaces = packages.filter { $0.pathExtension == "xcworkspace" }
             let projects = packages.filter { $0.pathExtension == "xcodeproj" }
+            if let preferredWorkspace = ProjectLocalConfigurationStore.load(in: directory)?.workspace,
+               let workspace = workspaces.first(where: {
+                   $0.lastPathComponent == preferredWorkspace || $0.path == directory.appendingPathComponent(preferredWorkspace).path
+               }) {
+                return .project(workspace.standardizedFileURL)
+            }
             if workspaces.count == 1 { return .project(workspaces[0].standardizedFileURL) }
             if workspaces.count > 1 { return .ambiguous(directory: directory.path) }
             if projects.count == 1 { return .project(projects[0].standardizedFileURL) }
@@ -68,6 +74,7 @@ enum ProjectEnvironmentResolver {
         installations: [XcodeInstallation],
         aliases: [String: String] = [:],
         activeInstallationID: String?,
+        localConfiguration: ProjectLocalConfiguration? = nil,
         fileManager: FileManager = .default
     ) -> ProjectEnvironmentResolution {
         let resolution = ProjectXcodeMatcher.resolve(
@@ -75,6 +82,7 @@ enum ProjectEnvironmentResolver {
             installations: installations,
             aliases: aliases,
             activeInstallationID: activeInstallationID,
+            localConfiguration: localConfiguration,
             fileManager: fileManager
         )
         if let issue = resolution.issueDescription { return .issue(issue) }
@@ -86,7 +94,7 @@ enum ProjectEnvironmentResolver {
             return .issue("无法解析项目使用的 Xcode。")
         }
         switch source {
-        case .explicitBinding, .automaticRequirement:
+        case .explicitBinding, .localConfiguration, .automaticRequirement:
             return .output(.exportDeveloperDirectory(installation.developerURL.path))
         case .currentInstallationFallback, .firstInstallationFallback:
             return .output(.restoreOriginal)

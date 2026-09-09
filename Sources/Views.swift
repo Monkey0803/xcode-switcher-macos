@@ -159,6 +159,7 @@ struct ContentView: View {
                     .disabled(model.selectedInstallation == nil || model.selectedInstallation.map { model.isActive($0) } == true || model.isSwitching)
                     .accessibilityIdentifier("activate-selected-xcode-button")
                 Button("回滚上一个") { model.rollbackToPreviousXcode() }
+                    .accessibilityIdentifier("rollback-xcode-button")
                     .disabled(model.configuration.activationHistory.count < 2 || model.isSwitching)
             }
             .padding()
@@ -275,6 +276,7 @@ struct XcodeDetailView: View {
                             Button(model.environmentReportsByID[installation.id] == nil ? "开始体检" : "重新体检") {
                                 model.runEnvironmentDoctor(for: installation)
                             }
+                            .accessibilityIdentifier("environment-doctor-button-\(installation.id)")
                             .disabled(model.isEnvironmentDoctorRunning(for: installation))
                             if model.isEnvironmentDoctorRunning(for: installation) {
                                 ProgressView().controlSize(.small)
@@ -286,6 +288,8 @@ struct XcodeDetailView: View {
                             if model.environmentReportsByID[installation.id] != nil {
                                 Button("复制报告") { model.copyEnvironmentReport(for: installation) }
                                 Button("导出报告…") { model.exportEnvironmentReport(for: installation) }
+                                Button("复制脱敏报告") { model.copyRedactedEnvironmentReport(for: installation) }
+                                Button("导出脱敏报告…") { model.exportRedactedEnvironmentReport(for: installation) }
                             }
                         }
                         if let report = model.environmentReportsByID[installation.id] {
@@ -334,6 +338,7 @@ struct XcodeDetailView: View {
                             Button(model.hasAvailableRuntime(for: installation) ? "Runtime 已安装" : "下载 iOS Runtime") {
                                 model.downloadRuntime()
                             }
+                            .accessibilityIdentifier("download-runtime-button-\(installation.id)")
                             .disabled(model.isDownloadingRuntime || model.hasAvailableRuntime(for: installation))
                             if model.isDownloadingRuntime {
                                 Button("取消") { model.cancelRuntimeDownload() }
@@ -472,26 +477,44 @@ struct MenuBarContentView: View {
 
 struct ProjectsSettingsView: View {
     @EnvironmentObject private var model: XcodeViewModel
+    @State private var filter = ""
+
+    private var visibleProjects: [ProjectProfile] {
+        let query = filter.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return model.configuration.projects }
+        return model.configuration.projects.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.path.localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("项目绑定").font(.title2.bold())
                 Spacer()
+                if !model.invalidProjects.isEmpty {
+                    Button("清理失效项目") { model.removeInvalidProjects() }
+                        .accessibilityIdentifier("remove-invalid-projects-button")
+                }
                 Button("添加项目…") { addProject() }
+                    .accessibilityIdentifier("add-project-button")
             }
             Text("拖拽 .xcodeproj 或 .xcworkspace 到主窗口，也可以在这里添加。每个项目可以固定使用某个 Xcode。")
                 .font(.subheadline).foregroundStyle(.secondary)
+            TextField("搜索项目名称或路径", text: $filter)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("project-search-field")
             if model.configuration.projects.isEmpty {
                 EmptyStateView(title: "还没有项目", systemImage: "folder.badge.plus", description: "添加项目后可一键切换并打开。")
+            } else if visibleProjects.isEmpty {
+                EmptyStateView(title: "没有匹配的项目", systemImage: "magnifyingglass", description: "尝试搜索其他名称或路径。")
             } else {
                 List {
-                    ForEach(model.configuration.projects) { profile in
+                    ForEach(visibleProjects) { profile in
                         ProjectProfileRow(profile: profile)
                     }
-                    .onDelete { offsets in
-                        offsets.map { model.configuration.projects[$0] }.forEach(model.removeProject)
-                    }
+                    .onDelete { offsets in offsets.map { visibleProjects[$0] }.forEach(model.removeProject) }
                 }
             }
         }
@@ -553,6 +576,7 @@ struct ProjectProfileRow: View {
                 Button("应用并打开") { model.applyAndOpen(profile) }
                     .buttonStyle(.borderedProminent)
                     .disabled(model.projectIssue(for: profile) != nil)
+                    .accessibilityIdentifier("open-project-button-\(profile.id.uuidString)")
                 Button { NSWorkspace.shared.activateFileViewerSelecting([profile.url]) } label: { Image(systemName: "folder") }
                     .buttonStyle(.borderless)
             }

@@ -26,4 +26,10 @@ final class CLIOptionsTests: XCTestCase {
         XCTAssertEqual(shellInit.command, "shell-init")
         XCTAssertEqual(shellInit.values, ["zsh"])
     }
+
+    func testErrorOutputIsCodableForMachineClients() throws {
+        let data = try JSONEncoder().encode(CLIErrorOutput(code: "failed", message: "测试错误"))
+        let decoded = try JSONDecoder().decode(CLIErrorOutput.self, from: data)
+        XCTAssertEqual(decoded, CLIErrorOutput(code: "failed", message: "测试错误"))
+    }
 }

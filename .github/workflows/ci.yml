@@ -19,6 +19,8 @@ jobs:
       - name: Test Swift package
         run: swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
       - name: Validate release scripts
-        run: bash -n build_app.sh build_local_release.sh build_release.sh Scripts/release_preflight.sh Scripts/sign_bundle.sh
+        run: bash -n build_app.sh build_local_release.sh build_release.sh Scripts/release_preflight.sh Scripts/sign_bundle.sh Scripts/shell_environment_e2e.sh
       - name: Build local app candidate
         run: ./build_app.sh
+      - name: Verify CLI and zsh project environment
+        run: ./Scripts/shell_environment_e2e.sh

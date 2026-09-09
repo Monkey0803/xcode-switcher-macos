@@ -12,4 +12,20 @@ final class ReleaseCheckTests: XCTestCase {
     func testBuildsUserAgentFromCurrentVersion() {
         XCTAssertEqual(UpdateService.userAgent(for: "1.1.1"), "XcodeSwitcher/1.1.1")
     }
+
+    func testMapsReleaseErrorsToActionableMessages() {
+        XCTAssertEqual(
+            UpdateService.userFacingError(URLError(.timedOut)),
+            "GitHub Releases 请求超时，请稍后重试。"
+        )
+        XCTAssertEqual(
+            UpdateService.userFacingHTTPError(statusCode: 403),
+            "GitHub Releases 请求受到限流，请稍后重试。"
+        )
+    }
+
+    func testRejectsInvalidReleaseTags() {
+        XCTAssertNil(UpdateService.version(from: "release/latest"))
+        XCTAssertEqual(UpdateService.version(from: "v1.4.0"), "1.4.0")
+    }
 }

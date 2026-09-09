@@ -282,6 +282,18 @@ final class XcodeViewModel: ObservableObject {
         persist()
     }
 
+    var invalidProjects: [ProjectProfile] {
+        configuration.projects.filter { !FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    func removeInvalidProjects() {
+        let invalidIDs = Set(invalidProjects.map(\.id))
+        configuration.projects.removeAll { invalidIDs.contains($0.id) }
+        persist()
+        statusMessage = invalidIDs.isEmpty ? "没有失效项目。" : "已移除 \(invalidIDs.count) 个失效项目。"
+        isError = false
+    }
+
     func updateProject(_ profile: ProjectProfile, name: String, xcodeID: String?) {
         guard let index = configuration.projects.firstIndex(where: { $0.id == profile.id }) else { return }
         configuration.projects[index].name = name
@@ -352,7 +364,25 @@ final class XcodeViewModel: ObservableObject {
     }
 
     func automaticMatch(for profile: ProjectProfile) -> ProjectXcodeMatch? {
-        ProjectXcodeMatcher.match(
+        if let local = ProjectLocalConfigurationStore.load(for: profile.url),
+           let selector = local.xcode?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !selector.isEmpty,
+           let installation = installations.first(where: {
+               $0.id == selector || $0.appURL.path == selector || $0.developerURL.path == selector ||
+               $0.name.localizedCaseInsensitiveCompare(selector) == .orderedSame ||
+               configuration.xcodeAliases[$0.id]?.localizedCaseInsensitiveCompare(selector) == .orderedSame
+           }),
+           let normalized = ProjectXcodeMatcher.normalizeVersion(selector) ?? ProjectXcodeMatcher.normalizeVersion(installation.version) {
+            return ProjectXcodeMatch(
+                requirement: ProjectXcodeRequirement(
+                    source: ProjectLocalConfigurationStore.configurationURL(for: profile.url)?.path ?? ".xcode-switcher.json",
+                    rawValue: selector,
+                    normalizedVersion: normalized
+                ),
+                installationID: installation.id
+            )
+        }
+        return ProjectXcodeMatcher.match(
             projectURL: profile.url,
             installations: installations,
             aliases: configuration.xcodeAliases
@@ -368,7 +398,8 @@ final class XcodeViewModel: ObservableObject {
             profile: profile,
             installations: installations,
             aliases: configuration.xcodeAliases,
-            activeInstallationID: activeInstallation?.id
+            activeInstallationID: activeInstallation?.id,
+            localConfiguration: ProjectLocalConfigurationStore.load(for: profile.url)
         )
     }
 
@@ -681,6 +712,14 @@ final class XcodeViewModel: ObservableObject {
         isError = false
     }
 
+    func copyRedactedEnvironmentReport(for installation: XcodeInstallation) {
+        guard let report = environmentReportsByID[installation.id] else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(EnvironmentDoctor.render(report, redacted: true), forType: .string)
+        statusMessage = "脱敏环境诊断报告已复制。"
+        isError = false
+    }
+
     func exportEnvironmentReport(for installation: XcodeInstallation) {
         guard let report = environmentReportsByID[installation.id] else { return }
         let panel = NSSavePanel()
@@ -690,6 +729,22 @@ final class XcodeViewModel: ObservableObject {
         do {
             try EnvironmentDoctor.render(report).write(to: url, atomically: true, encoding: .utf8)
             statusMessage = "环境诊断报告已导出。"
+            isError = false
+        } catch {
+            statusMessage = "报告导出失败：\(error.localizedDescription)"
+            isError = true
+        }
+    }
+
+    func exportRedactedEnvironmentReport(for installation: XcodeInstallation) {
+        guard let report = environmentReportsByID[installation.id] else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(installation.name)-environment-report-redacted.txt"
+        panel.allowedContentTypes = [.plainText]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try EnvironmentDoctor.render(report, redacted: true).write(to: url, atomically: true, encoding: .utf8)
+            statusMessage = "脱敏环境诊断报告已导出。"
             isError = false
         } catch {
             statusMessage = "报告导出失败：\(error.localizedDescription)"

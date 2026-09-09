@@ -60,13 +60,14 @@ private struct XcodeSwitcherCLI {
                         alias: configuration.xcodeAliases[installation.id]
                     ),
                     project: project.path,
-                    requirementSource: ProjectXcodeMatcher.requirement(for: project)?.source
+                    requirementSource: ProjectLocalConfigurationStore.configurationURL(for: project)?.path
+                        ?? ProjectXcodeMatcher.requirement(for: project)?.source
                 ))
             } else {
                 printInstallation(installation, json: false)
-                if let requirement = ProjectXcodeMatcher.requirement(for: project) {
-                    print("source=\(requirement.source)")
-                }
+                let source = ProjectLocalConfigurationStore.configurationURL(for: project)?.path
+                    ?? ProjectXcodeMatcher.requirement(for: project)?.source
+                if let source { print("source=\(source)") }
             }
             return 0
         case "env":
@@ -182,7 +183,8 @@ private struct XcodeSwitcherCLI {
                 for: profile,
                 installations: installations,
                 aliases: configuration.xcodeAliases,
-                activeInstallationID: activeID
+                activeInstallationID: activeID,
+                localConfiguration: ProjectLocalConfigurationStore.load(for: project)
             )
             switch result {
             case let .issue(message): throw CLIError.failed(message)
@@ -268,7 +270,8 @@ private struct XcodeSwitcherCLI {
             profile: profile,
             installations: installations,
             aliases: configuration.xcodeAliases,
-            activeInstallationID: activeID
+            activeInstallationID: activeID,
+            localConfiguration: ProjectLocalConfigurationStore.load(for: project)
         )
     }
 
@@ -319,11 +322,25 @@ private struct XcodeSwitcherCLI {
 @main
 private struct XcodeSwitcherCLIEntryPoint {
     static func main() {
+        let arguments = Array(ProcessInfo.processInfo.arguments.dropFirst())
         do {
-            let status = try XcodeSwitcherCLI().run(arguments: Array(ProcessInfo.processInfo.arguments.dropFirst()))
+            let status = try XcodeSwitcherCLI().run(arguments: arguments)
             exit(status)
         } catch {
-            FileHandle.standardError.write(Data("错误：\(error)\n".utf8))
+            let message = (error as? CLIError)?.description ?? error.localizedDescription
+            if arguments.contains("--json") {
+                let code: String
+                if case CLIError.usage = error { code = "usage" } else { code = "failed" }
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.sortedKeys]
+                let output = CLIErrorOutput(code: code, message: message)
+                if let data = try? encoder.encode(output) {
+                    FileHandle.standardError.write(data)
+                    FileHandle.standardError.write(Data("\n".utf8))
+                }
+            } else {
+                FileHandle.standardError.write(Data("错误：\(message)\n".utf8))
+            }
             exit(2)
         }
     }

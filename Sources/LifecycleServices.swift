@@ -73,14 +73,21 @@ final class UpdateService {
         let endpoint = URL(string: "https://api.github.com/repos/Monkey0803/xcode-switcher-macos/releases/latest")!
         do {
             var request = URLRequest(url: endpoint)
+            request.timeoutInterval = 15
             request.setValue(Self.userAgent(for: currentVersion), forHTTPHeaderField: "User-Agent")
             request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                throw URLError(.badServerResponse)
+            guard let http = response as? HTTPURLResponse else {
+                throw UpdateServiceError.invalidResponse
+            }
+            guard (200..<300).contains(http.statusCode) else {
+                throw UpdateServiceError.httpStatus(http.statusCode)
             }
             let payload = try JSONDecoder().decode(GitHubReleasePayload.self, from: data)
             let latestVersion = Self.version(from: payload.tagName)
+            guard let latestVersion else {
+                throw UpdateServiceError.invalidVersion(payload.tagName)
+            }
             return ReleaseCheckResult(
                 currentVersion: currentVersion,
                 latestVersion: latestVersion,
@@ -94,7 +101,7 @@ final class UpdateService {
                 latestVersion: nil,
                 releaseURL: nil,
                 isUpdateAvailable: false,
-                errorMessage: error.localizedDescription
+                errorMessage: Self.userFacingError(error)
             )
         }
     }
@@ -115,7 +122,25 @@ final class UpdateService {
         "XcodeSwitcher/\(version)"
     }
 
-    private static func version(from tag: String) -> String? {
+    nonisolated static func userFacingError(_ error: Error) -> String {
+        if let error = error as? UpdateServiceError { return error.localizedDescription }
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .timedOut: return "GitHub Releases 请求超时，请稍后重试。"
+            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost:
+                return "无法连接 GitHub Releases，请检查网络后重试。"
+            default: break
+            }
+        }
+        if error is DecodingError { return "GitHub Releases 返回的数据格式无效。" }
+        return error.localizedDescription
+    }
+
+    nonisolated static func userFacingHTTPError(statusCode: Int) -> String {
+        UpdateServiceError.httpStatus(statusCode).localizedDescription
+    }
+
+    nonisolated static func version(from tag: String) -> String? {
         let value = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
         guard value.split(separator: ".").allSatisfy({ Int($0) != nil }) else { return nil }
         return value
@@ -128,6 +153,27 @@ final class UpdateService {
         enum CodingKeys: String, CodingKey {
             case tagName = "tag_name"
             case htmlURL = "html_url"
+        }
+    }
+}
+
+private enum UpdateServiceError: LocalizedError {
+    case invalidResponse
+    case httpStatus(Int)
+    case invalidVersion(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse:
+            return "GitHub Releases 返回了无效响应。"
+        case .httpStatus(403):
+            return "GitHub Releases 请求受到限流，请稍后重试。"
+        case .httpStatus(404):
+            return "GitHub Releases 暂无可用版本。"
+        case let .httpStatus(status):
+            return "GitHub Releases 请求失败（HTTP \(status)）。"
+        case let .invalidVersion(tag):
+            return "GitHub Release 标签无效：\(tag)。"
         }
     }
 }

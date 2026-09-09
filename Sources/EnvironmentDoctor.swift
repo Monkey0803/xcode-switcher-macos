@@ -105,20 +105,25 @@ enum EnvironmentDoctor {
         )
     }
 
-    static func render(_ report: EnvironmentReport) -> String {
+    static func render(_ report: EnvironmentReport, redacted: Bool = false) -> String {
         let formatter = ISO8601DateFormatter()
+        let redact: (String) -> String = { value in
+            guard redacted else { return value }
+            let home = FileManager.default.homeDirectoryForCurrentUser.path
+            return value.replacingOccurrences(of: home, with: "~")
+        }
         var lines = [
             "Xcode Switcher 环境诊断报告",
             "生成时间：\(formatter.string(from: report.generatedAt))",
-            "Xcode：\(report.installationName) \(report.version)",
-            "路径：\(report.installationID)",
+            "Xcode：\(redact(report.installationName)) \(report.version)",
+            "路径：\(redact(report.installationID))",
             "问题数：\(report.issueCount)",
             "",
         ]
         for check in report.checks {
             lines.append("[\(severityLabel(check.severity))] \(check.title)")
-            lines.append(check.detail)
-            if let remediation = check.remediation { lines.append("建议：\(remediation)") }
+            lines.append(redact(check.detail))
+            if let remediation = check.remediation { lines.append("建议：\(redact(remediation))") }
             lines.append("")
         }
         return lines.joined(separator: "\n")

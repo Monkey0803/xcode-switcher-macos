@@ -58,6 +58,7 @@ ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.lo
 
 `use` 和 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`resolve` 与 `doctor` 不改变系统配置。
 所有命令默认输出人类可读文本；`--json` 输出机器可读 JSON，`--dry-run` 只解析并展示 `use`/`open` 将执行的动作，不会切换 Xcode 或打开项目。
+命令失败时，`--json` 会在标准错误输出 `{"code":"usage|failed","message":"…"}`，并返回稳定退出码 `2`。
 
 ### Shell 项目环境
 
@@ -75,6 +76,17 @@ eval "$(xcodeswitcher env /path/to/App.xcworkspace)"
 
 没有项目要求或解析失败时，Hook 会恢复进入 Shell 前的 `DEVELOPER_DIR`。
 
+项目也可以在仓库中保存 `.xcode-switcher.json`，其中 `xcode` 支持版本、别名、Xcode 路径或安装 ID；它的优先级高于 App 内绑定和 `.xcode-version` / `.tool-versions`：
+
+```json
+{
+  "xcode": "16.4",
+  "workspace": "App.xcworkspace"
+}
+```
+
+项目设置会标记失效路径或失效 Xcode 绑定，并提供“清理失效项目”批量移除入口。
+
 ## 正式发布（非 App Store）
 
 本项目不要求发布到 Mac App Store。若只用于本机或团队内部，可直接生成未公证的 ZIP/DMG：
@@ -83,7 +95,22 @@ eval "$(xcodeswitcher env /path/to/App.xcworkspace)"
 ./build_local_release.sh
 ```
 
-产物位于 `release/local/`。这类包不依赖 App Store，但首次运行可能需要用户在“系统设置 → 隐私与安全性”中确认，或右键选择“打开”。Sparkle 自动更新只适用于配置了 HTTPS feed、公钥并完成正式签名的构建。
+产物位于 `release/local/`。这类包不依赖 App Store，但未经过 Developer ID 签名和 Apple 公证时，首次打开可能被 Gatekeeper 拦截。
+
+### 首次打开的处理方式
+
+1. 从 GitHub Releases 下载 ZIP/DMG，并解压或拖入“应用程序”文件夹。
+2. 在 Finder 中按住 Control 点击 `Xcode Switcher.app`，选择“打开”，再在确认对话框中点击“打开”。以后通常可以直接启动。
+3. 如果仍被阻止，打开“系统设置 → 隐私与安全性”，在安全性提示旁点击“仍要打开”，输入登录密码或使用 Touch ID 确认。
+
+仅当你确认文件来自可信的 GitHub Release 且校验过发布者提供的 SHA-256 时，才可使用命令行移除下载隔离标记：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Xcode Switcher.app"
+open "/Applications/Xcode Switcher.app"
+```
+
+不要对来源不明的 App 执行上述命令。Sparkle 自动更新只适用于配置了 HTTPS feed、公钥并完成正式签名的构建。
 
 可选：如果希望公开下载时不出现 Gatekeeper 提示，并启用 Sparkle 自动更新，可在 Keychain 中安装 Developer ID Application 证书，使用 `notarytool store-credentials` 保存公证凭据，并使用 Sparkle 的 `generate_keys` 生成 EdDSA 密钥。然后配置：
 
@@ -127,6 +154,7 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 ```
 
 Smoke Test 会运行核心单元测试，覆盖项目版本匹配、失效绑定保护、进程超时/取消/输出流、多 Target 签名解析、环境报告和旧配置兼容；随后检查 App/CLI Apple Silicon 架构、Sparkle 动态链接、最低系统版本、Info.plist、嵌套签名、发布脚本语法及实际启动。
+其中的 Shell 环境 E2E 会验证 `env`、zsh Hook、环境恢复，以及不改变全局开发者目录。
 
 推送到 `main` 或 `1.2.0` 分支会触发 GitHub Actions CI；也可以在 Actions 页面手动触发。贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，问题报告和功能建议可直接使用 Issue 模板。
 

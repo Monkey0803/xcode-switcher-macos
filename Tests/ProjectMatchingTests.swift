@@ -281,6 +281,81 @@ final class ProjectMatchingTests: XCTestCase {
         XCTAssertTrue(source.contains("__xcodeswitcher_restore_developer_dir"))
         XCTAssertFalse(source.contains("xcode-select"))
     }
+
+    func testLocalConfigurationOverridesVersionFile() throws {
+        let fixture = try Fixture()
+        try fixture.write("16.4\n", to: ".xcode-version")
+        try fixture.write("{\"xcode\":\"15.4\"}\n", to: ".xcode-switcher.json")
+        let preferred = fixture.installation(version: "15.4", name: "Xcode-15.4.app")
+        let fallback = fixture.installation(version: "16.4", name: "Xcode-16.4.app")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path)
+
+        let result = ProjectXcodeMatcher.resolve(
+            profile: profile,
+            installations: [fallback, preferred],
+            activeInstallationID: fallback.id,
+            localConfiguration: ProjectLocalConfigurationStore.load(for: fixture.projectURL)
+        )
+
+        XCTAssertEqual(result, .resolved(installationID: preferred.id, source: .localConfiguration("15.4")))
+    }
+
+    func testLocalConfigurationOverridesAppBindingAndAcceptsAppPath() throws {
+        let fixture = try Fixture()
+        let preferred = fixture.installation(version: "15.4", name: "Preferred.app")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path, xcodeID: "missing")
+        try fixture.write("{\"xcode\":\"\(preferred.appURL.path)\"}\n", to: ".xcode-switcher.json")
+
+        let result = ProjectXcodeMatcher.resolve(
+            profile: profile,
+            installations: [preferred],
+            activeInstallationID: nil,
+            localConfiguration: ProjectLocalConfigurationStore.load(for: fixture.projectURL)
+        )
+
+        XCTAssertEqual(result, .resolved(installationID: preferred.id, source: .localConfiguration(preferred.appURL.path)))
+    }
+
+    func testLocalConfigurationStoreLoadsFromAncestor() throws {
+        let fixture = try Fixture(nestedProject: true)
+        try fixture.write("{\"xcode\":\"16.4\",\"workspace\":\"Demo.xcworkspace\"}\n", to: ".xcode-switcher.json")
+
+        XCTAssertEqual(
+            ProjectLocalConfigurationStore.load(for: fixture.projectURL),
+            ProjectLocalConfiguration(xcode: "16.4", workspace: "Demo.xcworkspace")
+        )
+    }
+
+    func testLocalConfigurationSelectsWorkspaceInAmbiguousDirectory() throws {
+        let fixture = try Fixture()
+        let first = fixture.root.appendingPathComponent("One.xcworkspace", isDirectory: true)
+        let second = fixture.root.appendingPathComponent("Two.xcworkspace", isDirectory: true)
+        try FileManager.default.createDirectory(at: first, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: second, withIntermediateDirectories: true)
+        try fixture.write("{\"workspace\":\"Two.xcworkspace\"}\n", to: ".xcode-switcher.json")
+
+        XCTAssertEqual(
+            ProjectDirectoryLocator.resolve(startingAt: fixture.root),
+            .project(second.standardizedFileURL)
+        )
+    }
+
+    func testInvalidLocalConfigurationIsReported() throws {
+        let fixture = try Fixture()
+        try fixture.write("{invalid\n", to: ".xcode-switcher.json")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path)
+
+        let result = ProjectXcodeMatcher.resolve(
+            profile: profile,
+            installations: [],
+            activeInstallationID: nil
+        )
+
+        XCTAssertEqual(
+            result,
+            .invalidProjectConfiguration(path: fixture.root.appendingPathComponent(".xcode-switcher.json").path)
+        )
+    }
 }
 
 private final class Fixture {

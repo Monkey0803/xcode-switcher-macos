@@ -72,4 +72,26 @@ final class EnvironmentDoctorTests: XCTestCase {
             remediation: nil
         )
     }
+
+    func testRedactedReportHidesHomeDirectory() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let report = EnvironmentReport(
+            installationID: "\(home)/Applications/Xcode.app",
+            installationName: "Xcode",
+            version: "16.4",
+            generatedAt: Date(timeIntervalSince1970: 0),
+            checks: [EnvironmentCheck(
+                id: "path",
+                title: "路径",
+                detail: "\(home)/Applications/Xcode.app/Contents/Developer",
+                severity: .healthy,
+                remediation: "检查 \(home)/Library"
+            )]
+        )
+
+        let output = EnvironmentDoctor.render(report, redacted: true)
+        XCTAssertFalse(output.contains(home))
+        XCTAssertTrue(output.contains("~/Applications/Xcode.app"))
+        XCTAssertTrue(output.contains("~/Library"))
+    }
 }

@@ -64,3 +64,8 @@ struct CLIEnvironmentOutput: Codable, Equatable, Sendable {
     let developer: String?
     let restoreOriginal: Bool
 }
+
+struct CLIErrorOutput: Codable, Equatable, Sendable {
+    let code: String
+    let message: String
+}
