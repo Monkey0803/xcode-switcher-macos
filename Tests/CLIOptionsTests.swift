@@ -16,4 +16,14 @@ final class CLIOptionsTests: XCTestCase {
         XCTAssertFalse(options.dryRun)
         XCTAssertEqual(options.command, "list")
     }
+
+    func testParsesEnvironmentCommands() throws {
+        let env = try CLIOptions.parse(["--json", "env", "/tmp/App.xcodeproj"])
+        XCTAssertEqual(env.command, "env")
+        XCTAssertEqual(env.values, ["/tmp/App.xcodeproj"])
+
+        let shellInit = try CLIOptions.parse(["shell-init", "zsh"])
+        XCTAssertEqual(shellInit.command, "shell-init")
+        XCTAssertEqual(shellInit.values, ["zsh"])
+    }
 }

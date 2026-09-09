@@ -58,3 +58,9 @@ struct CLIResolveOutput: Codable, Equatable, Sendable {
     let project: String
     let requirementSource: String?
 }
+
+struct CLIEnvironmentOutput: Codable, Equatable, Sendable {
+    let project: String?
+    let developer: String?
+    let restoreOriginal: Bool
+}

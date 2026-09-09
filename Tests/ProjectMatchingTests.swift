@@ -167,6 +167,120 @@ final class ProjectMatchingTests: XCTestCase {
         XCTAssertEqual(ProjectXcodeResolutionSource.explicitBinding.displayName, "项目固定绑定")
         XCTAssertEqual(ProjectXcodeResolutionSource.automaticRequirement(requirement).displayName, ".tool-versions")
     }
+
+    func testDirectoryLocatorFindsProject() throws {
+        let fixture = try Fixture()
+        XCTAssertEqual(
+            ProjectDirectoryLocator.resolve(startingAt: fixture.root),
+            .project(fixture.projectURL.standardizedFileURL)
+        )
+    }
+
+    func testDirectoryLocatorPrefersWorkspace() throws {
+        let fixture = try Fixture()
+        let workspace = fixture.root.appendingPathComponent("Demo.xcworkspace", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+
+        XCTAssertEqual(
+            ProjectDirectoryLocator.resolve(startingAt: fixture.root),
+            .project(workspace.standardizedFileURL)
+        )
+    }
+
+    func testDirectoryLocatorFindsAncestorProject() throws {
+        let fixture = try Fixture(nestedProject: true)
+        let nestedDirectory = fixture.root.appendingPathComponent("Sources/App/Child", isDirectory: true)
+        try FileManager.default.createDirectory(at: nestedDirectory, withIntermediateDirectories: true)
+
+        XCTAssertEqual(
+            ProjectDirectoryLocator.resolve(startingAt: nestedDirectory),
+            .project(fixture.projectURL.standardizedFileURL)
+        )
+    }
+
+    func testDirectoryLocatorReturnsNoneWithoutProject() throws {
+        let fixture = try Fixture()
+        try FileManager.default.removeItem(at: fixture.projectURL)
+        XCTAssertEqual(ProjectDirectoryLocator.resolve(startingAt: fixture.root), .none)
+    }
+
+    func testDirectoryLocatorRejectsAmbiguousWorkspaces() throws {
+        let fixture = try Fixture()
+        for name in ["One.xcworkspace", "Two.xcworkspace"] {
+            try FileManager.default.createDirectory(
+                at: fixture.root.appendingPathComponent(name, isDirectory: true),
+                withIntermediateDirectories: true
+            )
+        }
+
+        XCTAssertEqual(
+            ProjectDirectoryLocator.resolve(startingAt: fixture.root),
+            .ambiguous(directory: fixture.root.path)
+        )
+    }
+
+    func testProjectEnvironmentExportsExplicitBinding() throws {
+        let fixture = try Fixture()
+        let installation = fixture.installation(version: "16.4", name: "Xcode.app")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path, xcodeID: installation.id)
+
+        let result = ProjectEnvironmentResolver.resolve(
+            for: profile,
+            installations: [installation],
+            activeInstallationID: nil
+        )
+
+        XCTAssertEqual(
+            result,
+            .output(.exportDeveloperDirectory(installation.developerURL.path))
+        )
+        if case let .output(output) = result {
+            XCTAssertEqual(output.shellSource, "export DEVELOPER_DIR='\(installation.developerURL.path)'")
+        }
+    }
+
+    func testProjectEnvironmentRestoresForUnboundProject() throws {
+        let fixture = try Fixture()
+        let installation = fixture.installation(version: "16.4", name: "Xcode.app")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path)
+
+        let result = ProjectEnvironmentResolver.resolve(
+            for: profile,
+            installations: [installation],
+            activeInstallationID: installation.id
+        )
+
+        XCTAssertEqual(result, .output(.restoreOriginal))
+        XCTAssertEqual(ProjectEnvironmentOutput.restoreOriginal.shellSource, "unset DEVELOPER_DIR")
+    }
+
+    func testProjectEnvironmentEscapesApostropheInPath() throws {
+        let fixture = try Fixture()
+        let installation = fixture.installation(version: "16.4", name: "Xcode's.app")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path, xcodeID: installation.id)
+
+        let result = ProjectEnvironmentResolver.resolve(
+            for: profile,
+            installations: [installation],
+            activeInstallationID: nil
+        )
+
+        guard case let .output(output) = result else { return XCTFail("Expected environment output") }
+        XCTAssertEqual(
+            output.shellSource,
+            "export DEVELOPER_DIR='\(installation.developerURL.path.replacingOccurrences(of: "'", with: "'\"'\"'"))'"
+        )
+    }
+
+    func testZshHookIsIdempotentAndDoesNotChangeGlobalSelection() {
+        let source = ZshProjectEnvironmentHook.source
+        XCTAssertTrue(source.contains("chpwd_functions"))
+        XCTAssertTrue(source.contains("precmd_functions"))
+        XCTAssertTrue(source.contains("xcodeswitcher env \"$PWD\""))
+        XCTAssertTrue(source.contains("__xcodeswitcher_original_developer_dir"))
+        XCTAssertTrue(source.contains("__xcodeswitcher_restore_developer_dir"))
+        XCTAssertFalse(source.contains("xcode-select"))
+    }
 }
 
 private final class Fixture {

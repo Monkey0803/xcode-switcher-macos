@@ -69,6 +69,14 @@ private struct XcodeSwitcherCLI {
                 }
             }
             return 0
+        case "env":
+            return try environment(values: values, json: options.json)
+        case "shell-init":
+            guard values.count == 1, values[0].lowercased() == "zsh" else {
+                throw CLIError.usage("用法：xcodeswitcher shell-init zsh")
+            }
+            print(ZshProjectEnvironmentHook.source, terminator: "")
+            return 0
         case "doctor":
             let installation = try values.first.map(findInstallation) ?? activeOrFirst()
             let report = EnvironmentDoctor.inspect(
@@ -136,6 +144,65 @@ private struct XcodeSwitcherCLI {
             return 0
         default:
             throw CLIError.usage("未知命令：\(command)\n\n\(Self.help)")
+        }
+    }
+
+    private func environment(values: [String], json: Bool) throws -> Int32 {
+        let inputURL: URL
+        if let path = values.first {
+            inputURL = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardizedFileURL
+        } else {
+            inputURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).standardizedFileURL
+        }
+        if values.first != nil,
+           ["xcodeproj", "xcworkspace"].contains(inputURL.pathExtension),
+           !FileManager.default.fileExists(atPath: inputURL.path) {
+            throw CLIError.failed("项目路径已失效，请移除后重新添加：\(inputURL.path)")
+        }
+        switch ProjectDirectoryLocator.resolve(startingAt: inputURL) {
+        case .none:
+            if json {
+                printJSON(CLIEnvironmentOutput(project: nil, developer: nil, restoreOriginal: true))
+            } else {
+                print(ProjectEnvironmentOutput.restoreOriginal.shellSource)
+            }
+            return 0
+        case let .ambiguous(directory):
+            throw CLIError.failed("目录包含多个 Xcode 项目，请显式指定项目路径：\(directory)")
+        case let .project(project):
+            let savedProfile = configuration.projects.first {
+                $0.url.standardizedFileURL == project.standardizedFileURL
+            }
+            let profile = savedProfile ?? ProjectProfile(
+                name: project.deletingPathExtension().lastPathComponent,
+                path: project.path
+            )
+            let activeID = installations.first { $0.developerURL.path == activeDeveloperPath }?.id
+            let result = ProjectEnvironmentResolver.resolve(
+                for: profile,
+                installations: installations,
+                aliases: configuration.xcodeAliases,
+                activeInstallationID: activeID
+            )
+            switch result {
+            case let .issue(message): throw CLIError.failed(message)
+            case let .output(output):
+                if json {
+                    let developer: String?
+                    switch output {
+                    case let .exportDeveloperDirectory(path): developer = path
+                    case .restoreOriginal: developer = nil
+                    }
+                    printJSON(CLIEnvironmentOutput(
+                        project: project.path,
+                        developer: developer,
+                        restoreOriginal: output == .restoreOriginal
+                    ))
+                } else {
+                    print(output.shellSource)
+                }
+                return 0
+            }
         }
     }
 
@@ -238,11 +305,14 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher [--json] list
       xcodeswitcher [--json] current
       xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>
+      xcodeswitcher [--json] env [目录或项目路径]
+      xcodeswitcher shell-init zsh
       xcodeswitcher [--json] doctor [版本、别名或路径]
       xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>
       xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>
 
     --json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。
+    env 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。
     """
 }
 

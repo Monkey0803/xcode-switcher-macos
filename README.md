@@ -59,6 +59,22 @@ ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.lo
 `use` 和 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`resolve` 与 `doctor` 不改变系统配置。
 所有命令默认输出人类可读文本；`--json` 输出机器可读 JSON，`--dry-run` 只解析并展示 `use`/`open` 将执行的动作，不会切换 Xcode 或打开项目。
 
+### Shell 项目环境
+
+可以让 zsh 在进入项目目录时自动设置项目要求的 `DEVELOPER_DIR`：
+
+```zsh
+eval "$(xcodeswitcher shell-init zsh)"
+```
+
+这行命令需要由用户自行加入 `.zshrc`，只影响当前 Shell，不会修改全局 `xcode-select`。目录解析会沿父目录查找项目；同级同时存在 workspace 和 project 时优先 workspace，多个 workspace 或 project 时需要显式指定：
+
+```zsh
+eval "$(xcodeswitcher env /path/to/App.xcworkspace)"
+```
+
+没有项目要求或解析失败时，Hook 会恢复进入 Shell 前的 `DEVELOPER_DIR`。
+
 ## 正式发布（非 App Store）
 
 本项目不要求发布到 Mac App Store。若只用于本机或团队内部，可直接生成未公证的 ZIP/DMG：

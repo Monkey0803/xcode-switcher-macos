@@ -76,6 +76,7 @@ menu_icon_source="$script_dir/build/MenuBarIcon-source.png"
   "$script_dir/Sources/ProjectMatching.swift" \
   "$script_dir/Sources/Services.swift" \
   "$script_dir/Sources/EnvironmentDoctor.swift" \
+  "$script_dir/Sources/ProjectEnvironment.swift" \
   "$script_dir/Sources/CLIModels.swift" \
   "$script_dir/SourcesCLI/main.swift" \
   -o "$cli_arm64"
