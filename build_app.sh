@@ -15,10 +15,17 @@ mkdir -p "$macos_dir" "$resources_dir" "$frameworks_dir"
 cp "$script_dir/Resources/Info.plist" "$app_bundle/Contents/Info.plist"
 /bin/rm -f "$macos_dir/XcodeSwitcher"
 
-/usr/bin/xcrun swift package resolve
-sparkle_framework="$(/usr/bin/find "$script_dir/.build/artifacts" -type d -name Sparkle.framework -print -quit)"
-if [[ -z "$sparkle_framework" ]]; then
-  printf '错误：未找到 Swift Package Manager 下载的 Sparkle.framework。\n' >&2
+# SPARKLE_FRAMEWORK_PATH lets a caller supply an already-downloaded
+# Sparkle.framework and skip `swift package resolve` entirely, which is what an
+# offline build (Homebrew formulae build without network access) needs.
+if [[ -n "${SPARKLE_FRAMEWORK_PATH:-}" ]]; then
+  sparkle_framework="$SPARKLE_FRAMEWORK_PATH"
+else
+  /usr/bin/xcrun swift package resolve
+  sparkle_framework="$(/usr/bin/find "$script_dir/.build/artifacts" -type d -name Sparkle.framework -print -quit)"
+fi
+if [[ -z "$sparkle_framework" || ! -d "$sparkle_framework" ]]; then
+  printf '错误：未找到 Sparkle.framework（可设置 SPARKLE_FRAMEWORK_PATH 指定路径）。\n' >&2
   exit 1
 fi
 /usr/bin/ditto "$sparkle_framework" "$frameworks_dir/Sparkle.framework"
