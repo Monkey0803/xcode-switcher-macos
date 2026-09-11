@@ -21,10 +21,10 @@ struct ProcessResult: Sendable {
     }
 
     var failureDescription: String {
-        if cancelled { return "操作已取消。" }
-        if timedOut { return "操作超时。" }
+        if cancelled { return String(localized: "操作已取消。") }
+        if timedOut { return String(localized: "操作超时。") }
         if !stderr.isEmpty { return stderr }
-        return "命令执行失败（退出码 \(status)）。"
+        return String(localized: "命令执行失败（退出码 \(status)）。")
     }
 }
 
@@ -322,7 +322,7 @@ enum XcodeTooling {
             environment: environment,
             timeout: 20
         )
-        let sdk = sdkResult.succeeded && !sdkResult.stdout.isEmpty ? sdkResult.stdout : "未知"
+        let sdk = sdkResult.succeeded && !sdkResult.stdout.isEmpty ? sdkResult.stdout : XcodeDetails.unknownValue
         let swiftResult = ProcessRunner.run(
             executable: "/usr/bin/xcrun",
             arguments: ["swift", "--version"],
@@ -332,7 +332,7 @@ enum XcodeTooling {
         let swift = swiftResult.stdout
             .split(separator: "\n")
             .first(where: { $0.lowercased().contains("swift version") })
-            .map(String.init) ?? "未检测到"
+            .map(String.init) ?? String(localized: "未检测到")
         return XcodeDetails(swiftVersion: swift, sdkVersion: sdk, isCommandLineTools: false)
     }
 
@@ -433,7 +433,7 @@ private final class XcodeAuthorizationSession: @unchecked Sendable {
                 rightsStatus = copyExecuteRights(for: toolPath, authorization: authorization)
             }
             guard rightsStatus == errAuthorizationSuccess else {
-                throw authorizationError(rightsStatus, action: "获取管理员授权")
+                throw authorizationError(rightsStatus, action: String(localized: "获取管理员授权"))
             }
 
             let executeStatus = executeWithPrivileges(
@@ -445,7 +445,7 @@ private final class XcodeAuthorizationSession: @unchecked Sendable {
                 if executeStatus == errAuthorizationInvalidRef {
                     resetAuthorization()
                 }
-                throw authorizationError(executeStatus, action: "执行 Xcode 切换")
+                throw authorizationError(executeStatus, action: String(localized: "执行 Xcode 切换"))
             }
         }
     }
@@ -455,7 +455,7 @@ private final class XcodeAuthorizationSession: @unchecked Sendable {
         var authorization: AuthorizationRef?
         let status = AuthorizationCreate(nil, nil, [], &authorization)
         guard status == errAuthorizationSuccess, let authorization else {
-            throw authorizationError(status, action: "创建授权会话")
+            throw authorizationError(status, action: String(localized: "创建授权会话"))
         }
         self.authorization = authorization
         return authorization
@@ -495,7 +495,7 @@ private final class XcodeAuthorizationSession: @unchecked Sendable {
         NSError(
             domain: "XcodeSwitcher.Authorization",
             code: Int(status),
-            userInfo: [NSLocalizedDescriptionKey: "\(action)失败（错误码 \(status)）。"]
+            userInfo: [NSLocalizedDescriptionKey: String(localized: "\(action)失败（错误码 \(status)）。")]
         )
     }
 
@@ -549,16 +549,15 @@ private final class XcodeAuthorizationSession: @unchecked Sendable {
     }
 }
 
-// Decision (2026-09-11): `xcode-select --switch` needs root, and this app is
-// distributed directly from GitHub rather than through the App Store, so the
-// sandbox is not a constraint. The supported replacement for this deprecated
-// symbol is a privileged helper registered with `SMAppService.daemon(plistName:)`,
-// but Apple requires every app containing a LaunchDaemon to be code signed and
-// notarized ("Apps that contain LaunchDaemons must be notarized", SMAppService.h),
-// while this project still ships ad-hoc signed direct-distribution builds. Keeping
-// the existing authorization session is therefore the lower-risk choice; revisit
-// once Developer ID signing plus notarization is the primary distribution path.
-// Meanwhile the root-free `DEVELOPER_DIR` route is offered directly in the UI.
+// Decision (2026-09-11, final): this deprecated symbol stays. `xcode-select
+// --switch` needs root, and the supported replacement is a privileged helper
+// registered with `SMAppService.daemon(plistName:)` — but Apple requires every
+// app containing a LaunchDaemon to be code signed and notarized ("Apps that
+// contain LaunchDaemons must be notarized", SMAppService.h), while this project
+// keeps shipping ad-hoc signed direct-distribution builds. The maintainer
+// decided the migration is not worth that cost, so no privileged helper will be
+// added. The root-free `DEVELOPER_DIR` route stays available in the UI for
+// anyone who would rather not authorize a system-wide switch.
 //
 // Swift marks this legacy symbol unavailable. Keep the compatibility
 // declaration local so the authorization session can reuse its token on
@@ -699,7 +698,7 @@ enum XcodeActions {
 
     private static func performXcodeSettingsScript(processName: String) -> Result<Void, XcodeSettingsError> {
         guard let script = NSAppleScript(source: xcodeSettingsScript(processName: processName)) else {
-            return .failure(.automationFailed("无法创建系统自动化脚本"))
+            return .failure(.automationFailed(String(localized: "无法创建系统自动化脚本")))
         }
         var error: NSDictionary?
         let result = script.executeAndReturnError(&error)
@@ -712,7 +711,7 @@ enum XcodeActions {
         case "missing-settings-item":
             return .failure(.settingsItemNotFound)
         default:
-            return .failure(.automationFailed("脚本未返回预期结果"))
+            return .failure(.automationFailed(String(localized: "脚本未返回预期结果")))
         }
     }
 
@@ -721,9 +720,9 @@ enum XcodeActions {
             return message
         }
         if let number = error[NSAppleScript.errorNumber] as? Int {
-            return "错误码 \(number)"
+            return String(localized: "错误码 \(number)")
         }
-        return "未知错误"
+        return String(localized: "未知错误")
     }
 
     private static func shellQuote(_ value: String) -> String {
@@ -740,13 +739,13 @@ enum XcodeSettingsError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .cannotLaunch:
-            return "无法打开该 Xcode。"
+            return String(localized: "无法打开该 Xcode。")
         case .accessibilityPermissionMissing:
-            return "需要辅助功能权限才能自动打开 Xcode 的 Settings 窗口，请在系统设置中授权后重试。"
+            return String(localized: "需要辅助功能权限才能自动打开 Xcode 的 Settings 窗口，请在系统设置中授权后重试。")
         case .settingsItemNotFound:
-            return "没有在 Xcode 菜单中找到 Settings 项，请在 Xcode 中手动打开。"
+            return String(localized: "没有在 Xcode 菜单中找到 Settings 项，请在 Xcode 中手动打开。")
         case let .automationFailed(detail):
-            return "无法自动打开 Xcode 的 Settings 窗口（\(detail)），请在 Xcode 中手动打开。"
+            return String(localized: "无法自动打开 Xcode 的 Settings 窗口（\(detail)），请在 Xcode 中手动打开。")
         }
     }
 }

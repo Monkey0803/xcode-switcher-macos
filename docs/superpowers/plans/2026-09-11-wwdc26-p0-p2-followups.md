@@ -37,7 +37,7 @@
 
 ## 后续项（本轮未实施，附理由）
 
-### 1. 提权方式：已决定保留 `AuthorizationExecuteWithPrivileges`（方案 A）
+### 1. 提权方式：保留 `AuthorizationExecuteWithPrivileges`，不再迁移（已结案）
 
 现状：`Sources/Services.swift` 通过 `@_silgen_name` 调用一个自 10.7 起废弃的符号。该决定与理由已写入代码注释，便于后续维护者看到上下文。
 
@@ -52,7 +52,7 @@
 - 本机现状：`security find-identity -v -p codesigning` 只有 `Apple Development` 与 `Apple Distribution` 证书，**没有任何 `Developer ID Application`**；`xcrun notarytool` 也未存储凭证。仓库的 `Scripts/release_preflight.sh` 已经强制要求 `Developer ID Application` 证书，`build_release.sh` 已包含 `notarytool submit`，所以缺的是证书与凭证，不是脚本。
 - 结论：**方案 C 目前无法端到端验证**，而 `build_app.sh` 的 ad-hoc 直接分发构建注册 daemon 必然失败，因此 C 还需要为 ad-hoc 构建保留回退分支，等于两套代码路径。
 
-**决定**：保留现状（方案 A）+ 文档化。在不上架 App Store 的前提下，这条的唯一压力来自未来 macOS 可能移除该符号，而不是审核；替换它的收益低于上述风险。**触发重新评估的条件**：拿到 Developer ID Application 证书、notarytool 凭证，并让「正式签名 + 公证构建」成为主要分发路径。届时按方案 C 实施：helper target、`Contents/Library/LaunchDaemons/<label>.plist`（用 `BundleProgram` 指向包内可执行文件）、XPC 只暴露 `switchDeveloperDirectory(path:)`、`SMAppService.daemon(plistName:).register()`，并为 ad-hoc 构建保留现有 `AuthorizationCreate` 路径。
+**结论（2026-09-11，维护者确认）**：**不做**这次迁移——不为一个已废弃但可用的符号引入签名/公证依赖与特权 helper。保留现状（方案 A）+ 文档化，不需要再评估。在不上架 App Store 的前提下，这条的唯一压力来自未来 macOS 可能移除该符号，而不是审核；替换它的收益低于上述风险。以下方案 C 仅作记录，**不计划实施**：helper target、`Contents/Library/LaunchDaemons/<label>.plist`（用 `BundleProgram` 指向包内可执行文件）、XPC 只暴露 `switchDeveloperDirectory(path:)`、`SMAppService.daemon(plistName:).register()`，并为 ad-hoc 构建保留现有 `AuthorizationCreate` 路径。
 
 **未采用的备选**：`osascript -e 'do shell script "…" with administrator privileges'`。它不需要任何签名或公证，ad-hoc 构建也能用，但每次都是新进程、很可能每次切换都要重新授权，会丢掉现有「同一次运行内首次授权后可连续切换」的体验（未实测，因为需要真的弹出管理员授权对话框）。
 

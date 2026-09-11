@@ -1005,7 +1005,7 @@
 			<key>name</key>
 			<string>Release</string>
 		</dict>
-		<key>33F9B045A50AB3FEE9765046</key>
+		<key>5E523B24E9D726655CD04CF4</key>
 		<dict>
 			<key>isa</key>
 			<string>XCBuildConfiguration</string>
@@ -1014,7 +1014,7 @@
 				<key>CODE_SIGN_ENTITLEMENTS</key>
 				<string>Resources/Debug.entitlements</string>
 				<key>CURRENT_PROJECT_VERSION</key>
-				<string>1</string>
+				<string>2</string>
 				<key>EXECUTABLE_NAME</key>
 				<string>XcodeSwitcherApp</string>
 				<key>INFOPLIST_FILE</key>
@@ -1025,7 +1025,7 @@
 					<string>@executable_path/../Frameworks</string>
 				</array>
 				<key>MARKETING_VERSION</key>
-				<string>1.3.0</string>
+				<string>1.4.0</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
 				<string>com.yostar.xcodeswitcher</string>
 				<key>PRODUCT_MODULE_NAME</key>
@@ -1038,14 +1038,14 @@
 			<key>name</key>
 			<string>Debug</string>
 		</dict>
-		<key>0EB557C946812BB14694A58A</key>
+		<key>2458D4408178517FAE35E2B5</key>
 		<dict>
 			<key>isa</key>
 			<string>XCBuildConfiguration</string>
 			<key>buildSettings</key>
 			<dict>
 				<key>CURRENT_PROJECT_VERSION</key>
-				<string>1</string>
+				<string>2</string>
 				<key>EXECUTABLE_NAME</key>
 				<string>XcodeSwitcherApp</string>
 				<key>INFOPLIST_FILE</key>
@@ -1056,7 +1056,7 @@
 					<string>@executable_path/../Frameworks</string>
 				</array>
 				<key>MARKETING_VERSION</key>
-				<string>1.3.0</string>
+				<string>1.4.0</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
 				<string>com.yostar.xcodeswitcher</string>
 				<key>PRODUCT_MODULE_NAME</key>
@@ -1113,7 +1113,7 @@
 			<key>name</key>
 			<string>Release</string>
 		</dict>
-		<key>8E09F4E7A415714230C5B200</key>
+		<key>97A86D6E7B9DECB2CC42B67C</key>
 		<dict>
 			<key>isa</key>
 			<string>XCBuildConfiguration</string>
@@ -1125,11 +1125,13 @@
 				<string>xcodeswitcher</string>
 				<key>SKIP_INSTALL</key>
 				<string>YES</string>
+				<key>SWIFT_EMIT_LOC_STRINGS</key>
+				<string>YES</string>
 			</dict>
 			<key>name</key>
 			<string>Debug</string>
 		</dict>
-		<key>516295BE37B91DB49032EC28</key>
+		<key>73A79BB5F7DF66BC421605FA</key>
 		<dict>
 			<key>isa</key>
 			<string>XCBuildConfiguration</string>
@@ -1140,6 +1142,8 @@
 				<key>PRODUCT_NAME</key>
 				<string>xcodeswitcher</string>
 				<key>SKIP_INSTALL</key>
+				<string>YES</string>
+				<key>SWIFT_EMIT_LOC_STRINGS</key>
 				<string>YES</string>
 			</dict>
 			<key>name</key>
@@ -1165,8 +1169,8 @@
 			<string>XCConfigurationList</string>
 			<key>buildConfigurations</key>
 			<array>
-				<string>33F9B045A50AB3FEE9765046</string>
-				<string>0EB557C946812BB14694A58A</string>
+				<string>5E523B24E9D726655CD04CF4</string>
+				<string>2458D4408178517FAE35E2B5</string>
 			</array>
 			<key>defaultConfigurationIsVisible</key>
 			<string>0</string>
@@ -1179,8 +1183,8 @@
 			<string>XCConfigurationList</string>
 			<key>buildConfigurations</key>
 			<array>
-				<string>8E09F4E7A415714230C5B200</string>
-				<string>516295BE37B91DB49032EC28</string>
+				<string>97A86D6E7B9DECB2CC42B67C</string>
+				<string>73A79BB5F7DF66BC421605FA</string>
 			</array>
 			<key>defaultConfigurationIsVisible</key>
 			<string>0</string>

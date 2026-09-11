@@ -8,6 +8,10 @@ translation tasks — the same arrangement recommended by WWDC 2026 session 213
 ## Source and targets
 
 - Source language: **zh-Hans** (the key *is* the Simplified Chinese string).
+- The catalog is shared by the app and the bundled `xcodeswitcher` CLI: run from
+  inside the app bundle, the CLI's `Bundle.main` resolves to the enclosing `.app`,
+  so the same `Contents/Resources/<lang>.lproj` applies. Both targets emit
+  `.stringsdata` and `Scripts/sync_string_catalog.sh` merges them.
 - Current target: **en** (English).
 
 ## Audience and tone

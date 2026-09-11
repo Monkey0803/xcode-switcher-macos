@@ -740,7 +740,7 @@ final class XcodeViewModel: ObservableObject {
         guard let runtimes = runtimesByID[installation.id] else { return false }
         if let sdkVersion = detailsByID[installation.id]?.sdkVersion,
            !sdkVersion.isEmpty,
-           sdkVersion != "未知" {
+           sdkVersion != XcodeDetails.unknownValue {
             return runtimes.contains { $0.isAvailable && $0.version == sdkVersion }
         }
         return runtimes.contains(where: { $0.isAvailable })
@@ -862,13 +862,20 @@ final class XcodeViewModel: ObservableObject {
         }
     }
 
+    /// Turns a stored value into what the UI shows. The "unknown" sentinel is
+    /// stored untranslated (logic compares it) and localized only here.
+    private static func displayValue(_ raw: String?) -> String {
+        guard let raw, !raw.isEmpty else { return String(localized: "检测中…") }
+        return raw == XcodeDetails.unknownValue ? String(localized: "未知") : raw
+    }
+
     func diagnostics(for installation: XcodeInstallation) -> [XcodeDiagnostic] {
         let details = detailsByID[installation.id]
         return [
             XcodeDiagnostic(title: String(localized: "应用路径"), value: installation.appURL.path, isWarning: false),
             XcodeDiagnostic(title: String(localized: "Developer 路径"), value: installation.developerURL.path, isWarning: false),
             XcodeDiagnostic(title: String(localized: "当前激活"), value: installation.developerURL.path == activeDeveloperPath ? String(localized: "是") : String(localized: "否"), isWarning: installation.developerURL.path != activeDeveloperPath),
-            XcodeDiagnostic(title: String(localized: "iPhoneOS SDK"), value: details?.sdkVersion ?? String(localized: "检测中…"), isWarning: false),
+            XcodeDiagnostic(title: String(localized: "iPhoneOS SDK"), value: Self.displayValue(details?.sdkVersion), isWarning: false),
             XcodeDiagnostic(title: String(localized: "Swift"), value: details?.swiftVersion ?? String(localized: "检测中…"), isWarning: false),
             XcodeDiagnostic(title: String(localized: "xcode-select 当前路径"), value: commandLineToolsPath, isWarning: false)
         ]

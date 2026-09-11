@@ -113,17 +113,17 @@ enum EnvironmentDoctor {
             return value.replacingOccurrences(of: home, with: "~")
         }
         var lines = [
-            "Xcode Switcher 环境诊断报告",
-            "生成时间：\(formatter.string(from: report.generatedAt))",
+            String(localized: "Xcode Switcher 环境诊断报告"),
+            String(localized: "生成时间：\(formatter.string(from: report.generatedAt))"),
             "Xcode：\(redact(report.installationName)) \(report.version)",
-            "路径：\(redact(report.installationID))",
-            "问题数：\(report.issueCount)",
+            String(localized: "路径：\(redact(report.installationID))"),
+            String(localized: "问题数：\(report.issueCount)"),
             "",
         ]
         for check in report.checks {
             lines.append("[\(severityLabel(check.severity))] \(check.title)")
             lines.append(redact(check.detail))
-            if let remediation = check.remediation { lines.append("建议：\(redact(remediation))") }
+            if let remediation = check.remediation { lines.append(String(localized: "建议：\(redact(remediation))")) }
             lines.append("")
         }
         return lines.joined(separator: "\n")
@@ -131,10 +131,10 @@ enum EnvironmentDoctor {
 
     static func severityLabel(_ severity: EnvironmentCheckSeverity) -> String {
         switch severity {
-        case .healthy: return "正常"
-        case .informational: return "信息"
-        case .warning: return "警告"
-        case .error: return "错误"
+        case .healthy: return String(localized: "正常")
+        case .informational: return String(localized: "信息")
+        case .warning: return String(localized: "警告")
+        case .error: return String(localized: "错误")
         }
     }
 

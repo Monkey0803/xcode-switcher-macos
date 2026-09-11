@@ -33,7 +33,7 @@ enum ProjectLocalConfigurationStore {
         guard let url = configurationURL(for: projectURL, fileManager: fileManager),
               let data = fileManager.contents(atPath: url.path),
               (try? JSONDecoder().decode(ProjectLocalConfiguration.self, from: data)) == nil else { return nil }
-        return "项目配置文件格式无效，请检查：\(url.path)"
+        return String(localized: "项目配置文件格式无效，请检查：\(url.path)")
     }
 }
 
@@ -55,15 +55,15 @@ enum ProjectXcodeResolution: Equatable, Sendable {
         case .resolved:
             return nil
         case let .missingProject(path):
-            return "项目路径已失效，请移除后重新添加：\(path)"
+            return String(localized: "项目路径已失效，请移除后重新添加：\(path)")
         case let .missingBoundXcode(path):
-            return "绑定的 Xcode 已不存在：\(URL(fileURLWithPath: path).lastPathComponent)。请重新绑定后再打开。"
+            return String(localized: "绑定的 Xcode 已不存在：\(URL(fileURLWithPath: path).lastPathComponent)。请重新绑定后再打开。")
         case let .missingRequiredXcode(requirement):
-            return "项目要求 Xcode \(requirement.normalizedVersion)，但本机未安装（来自 \(URL(fileURLWithPath: requirement.source).lastPathComponent)）。"
+            return String(localized: "项目要求 Xcode \(requirement.normalizedVersion)，但本机未安装（来自 \(URL(fileURLWithPath: requirement.source).lastPathComponent)）。")
         case let .invalidProjectConfiguration(path):
-            return "项目配置文件格式无效，请检查：\(path)"
+            return String(localized: "项目配置文件格式无效，请检查：\(path)")
         case .noInstallation:
-            return "本机没有可用的 Xcode。"
+            return String(localized: "本机没有可用的 Xcode。")
         }
     }
 }
@@ -78,13 +78,13 @@ enum ProjectXcodeResolutionSource: Equatable, Sendable {
     var displayName: String {
         switch self {
         case .explicitBinding:
-            return "项目固定绑定"
+            return String(localized: "项目固定绑定")
         case .localConfiguration:
             return ".xcode-switcher.json"
         case let .automaticRequirement(requirement):
             return URL(fileURLWithPath: requirement.source).lastPathComponent
         case .currentInstallationFallback, .firstInstallationFallback:
-            return "默认选择"
+            return String(localized: "默认选择")
         }
     }
 }

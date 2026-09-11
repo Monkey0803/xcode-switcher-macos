@@ -156,3 +156,36 @@ session 213 的建议逐条落实：
 - `Scripts/verify_string_catalog.sh`：校验占位符多重集（`%@` 与 `%1$@` 视为等价）、换行数量、译文非空、复数变体齐全、无遗留 `stale` 条目。已接入 CI 的 `xcode` job。
 - `Scripts/sync_string_catalog.sh` 会在字符串消失时把条目标记为 `stale` 而不是删除；stale 条目由校验脚本报出并手工清理（已清理 1 条：旧的 Simulator 动作模板键）。
 - `xcstringstool sync` 会为**含多个占位符**的键自动生成源语言条目并用位置参数（`%1$@`）——这是 Apple 的做法，便于译者重排参数；校验脚本已按此放宽源语言的比较。
+
+## 发布链路迁移到 `xcodebuild archive`
+
+`Scripts/archive_app.sh` 用 `xcodebuild archive`（Release）产出 `build/XcodeSwitcher.xcarchive`，并校验 bundle 契约：主可执行文件名、内嵌 CLI、Sparkle.framework、图标、arm64。`build_local_release.sh` 与 `build_release.sh` 都改为基于归档产物，不再用 `build_app.sh` 手工拼装。
+
+正式分发流程：归档 → 把 `SUFeedURL` / `SUPublicEDKey` 注入归档内的 Info.plist（这两个值不在仓库里）→ `-exportArchive`（Developer ID，`ExportOptions` 由脚本按签名身份解析 Team ID 后生成）→ 公证 zip、staple、DMG、公证 DMG、`spctl` 评估、生成 appcast。`-exportArchive` 会重新签名，因此注入的键也在签名覆盖范围内。
+
+**验证范围（重要）**：
+
+- 已验证：`xcodebuild archive` 成功、归档 bundle 结构与 Debug 路径一致（含 `en.lproj` 与 `zh-Hans.lproj`）、`codesign --verify --deep --strict` 通过、`build_local_release.sh` 端到端产出 zip 与 DMG、`build_release.sh --preflight` 在无凭证时按预期失败并提示全部必需变量。
+- **已验证（2026-09-11，在不具备证书的前提下尽可能做）**：
+  - 脚本生成的 `ExportOptions` plist 合法，`method` / `destination` / `signingStyle` / `signingCertificate` / `teamID` 五个键**均被 Xcode 接受**。
+  - macOS 上 `method` 的合法取值为 `app-store-connect`、`developer-id`、`debugging`、`mac-application`、`validation`（`ad-hoc` 是 iOS 的取值，在 macOS 上会被拒绝）。
+  - 密钥注入步骤可用：按脚本方式向归档内 app 的 Info.plist 写入 `SUFeedURL` / `SUPublicEDKey` 后能被读回，且 `-exportArchive` 会重新签名，覆盖该改动。
+  - `release_preflight.sh` 会在证书缺失时**提前失败**并报「钥匙串中不存在签名身份」，脚本根本走不到导出步骤。
+  - 证书缺失时 Xcode 的报错清晰可操作：`No certificate for team … matching 'Developer ID Application: …' found`。
+  - 由此加固：导出后的 bundle 改为**按目录发现**而非硬编码 `Xcode Switcher.app`（名字由产品名派生，猜错只会在发版时才暴露）。
+- **仍未验证**：`-exportArchive` 真正跑完，以及其后的公证、staple、DMG、appcast。原因是本机**没有任何可用的导出证书**：`Developer ID Application` 数量为 0，`method: debugging` 需要 "Mac Development" 证书（本机只有 Apple Development），`app-store-connect` 需要 provisioning profile；`notarytool` 也无凭证。首次正式发布会是这部分的第一次实测——请预留调试时间。
+
+**要补齐验证，需要**：一份 `Developer ID Application` 证书（团队管理员创建后导入钥匙串）+ `notarytool store-credentials` 保存的凭证，之后 `build_release.sh` 即可在有 `SU_FEED_URL`、`SPARKLE_PUBLIC_KEY`、`SPARKLE_DOWNLOAD_URL_PREFIX` 的情况下完整跑通。
+
+### 本地化与 CLI
+
+CLI 与 app 共用同一份 catalog：`xcodeswitcher` 位于 `Contents/MacOS/` 时 `Bundle.main` 解析到外层 app bundle，`String(localized:)` 直接命中 `Contents/Resources/<lang>.lproj`。因此 CLI target 只需开启 `SWIFT_EMIT_LOC_STRINGS`，`sync_string_catalog.sh` 合并 app 与 CLI 两个 target 的 `.stringsdata` 即可。若把 CLI 单独拷到别处运行，则回退到源语言字符串。
+
+## Homebrew 分发（评估结论）
+
+**官方 `homebrew/cask` 走不通**：Homebrew 的 Acceptable Casks 要求「Gatekeeper 能评估的可执行产物必须通过其 Gatekeeper 检查」，而本项目的 ad-hoc 产物 `spctl --assess` 判定为 rejected。同一份文档指出，开源图形软件从源码构建时属于 formula。
+
+实测结论（详见 `Formula/xcode-switcher.rb` 头部注释）：
+
+- `Casks/xcode-switcher.rb`：指向 GitHub Release 的预编译 zip，`brew audit --cask` **通过（exit 0）**——因为不要求公证，这类定义只能放在自定义 tap 里。
+- `Formula/xcode-switcher.rb`：Sparkle 作为 `resource`（校验和与 Sparkle 自身 Package.swift 一致）、离线构建路径可用；但 `brew install` 在 active Xcode 为 **27** 时会失败——SDK 27 的 `@State` 宏经 `swift-plugin-server` 展开，被 Homebrew 的 formula 构建沙箱拒绝，且只对 cask 与 Linux 提供了沙箱开关。同一份源码用 **macOS 26 SDK（Xcode 26.3）** 可正常构建，故该组合预期可用，但未经 brew 验证（Homebrew 的 superenv 不传递 `DEVELOPER_DIR`）。

@@ -26,6 +26,7 @@ cd "$script_dir"
   "$script_dir/build_app.sh" \
   "$script_dir/build_release.sh" \
   "$script_dir/build_local_release.sh" \
+  "$script_dir/Scripts/archive_app.sh" \
   "$script_dir/Scripts/build_icons.sh" \
   "$script_dir/Scripts/release_preflight.sh" \
   "$script_dir/Scripts/sign_bundle.sh" \

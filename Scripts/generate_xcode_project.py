@@ -37,8 +37,8 @@ CLI_PRODUCT = "xcodeswitcher"
 
 BUNDLE_IDENTIFIER = "com.yostar.xcodeswitcher"
 DEPLOYMENT_TARGET = "13.0"
-MARKETING_VERSION = "1.3.0"
-BUILD_NUMBER = "1"
+MARKETING_VERSION = "1.4.0"
+BUILD_NUMBER = "2"
 SWIFT_VERSION = "5.0"
 SPARKLE_VERSION = "2.9.6"
 LOCALIZABLE_CATALOG = "Localizable.xcstrings"
@@ -593,6 +593,10 @@ def build_objects() -> tuple[dict, str]:
         "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_IDENTIFIER + ".cli",
         "PRODUCT_NAME": CLI_PRODUCT,
         "SKIP_INSTALL": "YES",
+        # The CLI shares the app's String Catalog: run from inside the app bundle,
+        # Bundle.main resolves to the enclosing .app, so String(localized:) finds
+        # Contents/Resources/<lang>.lproj. Extraction must be on for its own file.
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
     }
     cli_debug = configuration("Debug", cli_settings)
     cli_release = configuration("Release", dict(cli_settings))

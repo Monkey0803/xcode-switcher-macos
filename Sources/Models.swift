@@ -134,8 +134,14 @@ struct AppConfiguration: Codable {
 }
 
 struct XcodeDetails: Sendable {
-    var swiftVersion = "未知"
-    var sdkVersion = "未知"
+    /// Sentinel for "could not be determined". Deliberately **not** localized and
+    /// never shown as-is: `XcodeViewModel.hasAvailableRuntime` compares against it,
+    /// so translating the stored value would silently change which branch runs.
+    /// Localize only at display time.
+    static let unknownValue = "未知"
+
+    var swiftVersion = XcodeDetails.unknownValue
+    var sdkVersion = XcodeDetails.unknownValue
     var isCommandLineTools = false
 }
 

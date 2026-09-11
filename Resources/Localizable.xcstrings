@@ -31,6 +31,22 @@
         }
       }
     },
+    "%@失败（错误码 %d）。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@失败（错误码 %2$d）。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ failed (error code %d)."
+          }
+        }
+      }
+    },
     "%lld 个版本": {
       "localizations": {
         "en": {
@@ -154,6 +170,26 @@
     "Xcode": {},
     "Xcode License": {},
     "Xcode Switcher": {},
+    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\nenv and shell-init zsh only read the project environment and never change xcode-select."
+          }
+        }
+      }
+    },
+    "Xcode Switcher 环境诊断报告": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode Switcher environment diagnostics report"
+          }
+        }
+      }
+    },
     "Xcode 工具链": {
       "localizations": {
         "en": {
@@ -170,6 +206,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Xcode search folders"
+          }
+        }
+      }
+    },
+    "[dry-run] 将使用 %@ 打开 %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "[dry-run] 将使用 %1$@ 打开 %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[dry-run] would open %@ with %@"
+          }
+        }
+      }
+    },
+    "[dry-run] 将激活 %@ %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "[dry-run] 将激活 %1$@ %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[dry-run] would activate %@ %@"
           }
         }
       }
@@ -247,6 +315,16 @@
         }
       }
     },
+    "信息": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Info"
+          }
+        }
+      }
+    },
     "全局快捷键：%@": {
       "localizations": {
         "en": {
@@ -287,6 +365,16 @@
         }
       }
     },
+    "切换命令完成，但 Developer 目录验证失败。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The switch command finished, but the Developer directory could not be verified."
+          }
+        }
+      }
+    },
     "切换命令完成，但未能验证当前开发者目录。": {
       "localizations": {
         "en": {
@@ -313,6 +401,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Switch System Default and Open"
+          }
+        }
+      }
+    },
+    "创建授权会话": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating the authorization session"
           }
         }
       }
@@ -423,6 +521,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enable global shortcut"
+          }
+        }
+      }
+    },
+    "命令执行失败（退出码 %d）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The command failed (exit code %d)."
           }
         }
       }
@@ -665,6 +773,22 @@
         }
       }
     },
+    "已使用 %@ 打开 %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已使用 %1$@ 打开 %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opened %@ with %@"
+          }
+        }
+      }
+    },
     "已关闭登录时启动。": {
       "localizations": {
         "en": {
@@ -869,6 +993,22 @@
         }
       }
     },
+    "已激活 %@ %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已激活 %1$@ %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activated %@ %@"
+          }
+        }
+      }
+    },
     "已激活并验证 Xcode %@。": {
       "localizations": {
         "en": {
@@ -963,6 +1103,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Run Check"
+          }
+        }
+      }
+    },
+    "当前 Developer 目录未对应已发现的 Xcode：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current Developer directory does not match any discovered Xcode: %@"
           }
         }
       }
@@ -1183,6 +1333,16 @@
         }
       }
     },
+    "执行 Xcode 切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switching Xcode"
+          }
+        }
+      }
+    },
     "执行 xcode-select --switch，需要管理员授权，并会改变全机的开发者目录：所有终端、脚本与新开的 Xcode 都会受影响。": {
       "localizations": {
         "en": {
@@ -1263,6 +1423,26 @@
         }
       }
     },
+    "操作已取消。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The operation was canceled."
+          }
+        }
+      }
+    },
+    "操作超时。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The operation timed out."
+          }
+        }
+      }
+    },
     "收藏": {
       "localizations": {
         "en": {
@@ -1313,6 +1493,16 @@
         }
       }
     },
+    "无法创建系统自动化脚本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not create the system automation script"
+          }
+        }
+      }
+    },
     "无法打开 GitHub Releases。": {
       "localizations": {
         "en": {
@@ -1353,12 +1543,32 @@
         }
       }
     },
+    "无法打开该 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open that Xcode."
+          }
+        }
+      }
+    },
     "无法打开钥匙串访问。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Could not open Keychain Access."
+          }
+        }
+      }
+    },
+    "无法自动打开 Xcode 的 Settings 窗口（%@），请在 Xcode 中手动打开。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open Xcode Settings automatically (%@). Open it manually in Xcode."
           }
         }
       }
@@ -1413,6 +1623,26 @@
         }
       }
     },
+    "未发现 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Xcode found."
+          }
+        }
+      }
+    },
+    "未找到 Xcode：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode not found: %@"
+          }
+        }
+      }
+    },
     "未找到代码签名证书。请确认已在钥匙串中安装证书。": {
       "localizations": {
         "en": {
@@ -1433,6 +1663,16 @@
         }
       }
     },
+    "未检测到": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not detected"
+          }
+        }
+      }
+    },
     "未检测到 Simulator Runtime。": {
       "localizations": {
         "en": {
@@ -1449,6 +1689,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Simulator devices detected. Create one in Xcode or with simctl."
+          }
+        }
+      }
+    },
+    "未知": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown"
+          }
+        }
+      }
+    },
+    "未知命令：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown command: %@"
+          }
+        }
+      }
+    },
+    "未知错误": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown error"
+          }
+        }
+      }
+    },
+    "未配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not configured"
+          }
+        }
+      }
+    },
+    "本机没有可用的 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Xcode is available on this Mac."
           }
         }
       }
@@ -1649,6 +1939,16 @@
         }
       }
     },
+    "正常": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
     "没有匹配的项目": {
       "localizations": {
         "en": {
@@ -1675,6 +1975,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Xcode is available to open the project."
+          }
+        }
+      }
+    },
+    "没有在 Xcode 菜单中找到 Settings 项，请在 Xcode 中手动打开。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Settings item was found in the Xcode menu; open it manually in Xcode."
           }
         }
       }
@@ -1821,6 +2131,16 @@
         }
       }
     },
+    "生成时间：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generated: %@"
+          }
+        }
+      }
+    },
     "用推荐版本打开（不改系统设置）": {
       "localizations": {
         "en": {
@@ -1831,12 +2151,42 @@
         }
       }
     },
+    "用法：xcodeswitcher shell-init zsh": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage: xcodeswitcher shell-init zsh"
+          }
+        }
+      }
+    },
+    "用法：xcodeswitcher use <版本、别名或路径>": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage: xcodeswitcher use <version, alias or path>"
+          }
+        }
+      }
+    },
     "登录时启动": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Launch at login"
+          }
+        }
+      }
+    },
+    "目录包含多个 Xcode 项目，请显式指定项目路径：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The directory contains several Xcode projects; specify the project path explicitly: %@"
           }
         }
       }
@@ -1921,6 +2271,36 @@
         }
       }
     },
+    "绑定的 Xcode 已不存在：%@。请重新绑定后再打开。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bound Xcode no longer exists: %@. Rebind it before opening."
+          }
+        }
+      }
+    },
+    "缺少项目路径。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing project path."
+          }
+        }
+      }
+    },
+    "脚本未返回预期结果": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The script did not return the expected result"
+          }
+        }
+      }
+    },
     "脱敏环境诊断报告已复制。": {
       "localizations": {
         "en": {
@@ -1957,6 +2337,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Check for updates automatically"
+          }
+        }
+      }
+    },
+    "获取管理员授权": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obtaining administrator authorization"
+          }
+        }
+      }
+    },
+    "警告": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warning"
           }
         }
       }
@@ -2057,6 +2457,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rescan, or add a search folder in Settings."
+          }
+        }
+      }
+    },
+    "路径：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Path: %@"
           }
         }
       }
@@ -2201,6 +2611,46 @@
         }
       }
     },
+    "错误": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error"
+          }
+        }
+      }
+    },
+    "错误码 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error code %lld"
+          }
+        }
+      }
+    },
+    "错误：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error: %@"
+          }
+        }
+      }
+    },
+    "问题数：%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Issues: %lld"
+          }
+        }
+      }
+    },
     "需要先把 App 内的 CLI 放到 PATH，例如链接到 ~/.local/bin：": {
       "localizations": {
         "en": {
@@ -2221,6 +2671,16 @@
         }
       }
     },
+    "需要辅助功能权限才能自动打开 Xcode 的 Settings 窗口，请在系统设置中授权后重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opening Xcode Settings automatically needs Accessibility permission. Grant it in System Settings and try again."
+          }
+        }
+      }
+    },
     "项目": {
       "localizations": {
         "en": {
@@ -2237,6 +2697,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Project name"
+          }
+        }
+      }
+    },
+    "项目固定绑定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pinned to the project"
           }
         }
       }
@@ -2271,6 +2741,22 @@
         }
       }
     },
+    "项目要求 Xcode %@，但本机未安装（来自 %@）。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "项目要求 Xcode %1$@，但本机未安装（来自 %2$@）。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The project requires Xcode %@, which is not installed (from %@)."
+          }
+        }
+      }
+    },
     "项目设置…": {
       "localizations": {
         "en": {
@@ -2287,6 +2773,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "The project path does not exist: %@"
+          }
+        }
+      }
+    },
+    "项目路径已失效，请移除后重新添加：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The project path is no longer valid; remove it and add it again: %@"
+          }
+        }
+      }
+    },
+    "项目配置文件格式无效，请检查：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The project configuration file is invalid; check %@"
           }
         }
       }
@@ -2343,6 +2849,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "/Applications, ~/Applications and Spotlight are scanned by default; the folders below are scanned recursively."
+          }
+        }
+      }
+    },
+    "默认选择": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default selection"
           }
         }
       }
