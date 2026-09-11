@@ -12,22 +12,31 @@ enum ProjectDirectoryLocator {
         fileManager: FileManager = .default
     ) -> ProjectDirectoryResolution {
         let standardized = url.standardizedFileURL
+
+        // An .xcodeproj/.xcworkspace is a directory package. A regular *file*
+        // with that extension is not a project, so it must not be treated as one.
+        var isDirectory = ObjCBool(false)
         if ["xcodeproj", "xcworkspace"].contains(standardized.pathExtension),
-           fileManager.fileExists(atPath: standardized.path) {
+           fileManager.fileExists(atPath: standardized.path, isDirectory: &isDirectory),
+           isDirectory.boolValue {
             return .project(standardized)
         }
 
         var directory = standardized
-        var isDirectory = ObjCBool(false)
         guard fileManager.fileExists(atPath: directory.path, isDirectory: &isDirectory) else { return .none }
         if !isDirectory.boolValue { directory = directory.deletingLastPathComponent() }
 
         while true {
-            let packages = (try? fileManager.contentsOfDirectory(
+            let entries = (try? fileManager.contentsOfDirectory(
                 at: directory,
                 includingPropertiesForKeys: [.isDirectoryKey],
                 options: [.skipsHiddenFiles]
             )) ?? []
+            // Same rule for children: a file named "Foo.xcodeproj" is not a package.
+            let packages = entries.filter { entry in
+                var entryIsDirectory = ObjCBool(false)
+                return fileManager.fileExists(atPath: entry.path, isDirectory: &entryIsDirectory) && entryIsDirectory.boolValue
+            }
             let workspaces = packages.filter { $0.pathExtension == "xcworkspace" }
             let projects = packages.filter { $0.pathExtension == "xcodeproj" }
             if let preferredWorkspace = ProjectLocalConfigurationStore.load(in: directory)?.workspace,

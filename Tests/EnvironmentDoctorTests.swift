@@ -22,6 +22,7 @@ final class EnvironmentDoctorTests: XCTestCase {
     }
 
     func testRenderedReportIncludesRemediationAndStableSeverityLabels() {
+        let remediation = "下载 iOS Runtime。"
         let report = EnvironmentReport(
             installationID: "/Applications/Xcode.app",
             installationName: "Xcode",
@@ -33,15 +34,19 @@ final class EnvironmentDoctorTests: XCTestCase {
                     title: "Simulator Runtime",
                     detail: "未检测到可用 Runtime。",
                     severity: .warning,
-                    remediation: "下载 iOS Runtime。"
+                    remediation: remediation
                 ),
             ]
         )
 
         let text = EnvironmentDoctor.render(report)
-        XCTAssertTrue(text.contains("[警告] Simulator Runtime"))
-        XCTAssertTrue(text.contains("问题数：1"))
-        XCTAssertTrue(text.contains("建议：下载 iOS Runtime。"))
+        // Assert through the same localization lookup the report uses, so the
+        // expectation holds whichever language the test process runs in.
+        XCTAssertTrue(text.contains("[" + String(localized: "警告") + "] Simulator Runtime"))
+        XCTAssertTrue(text.contains(String(localized: "问题数：\(1)")))
+        // `render` localizes the prefix and interpolates the remediation, so the
+        // expectation has to use the same shape to hit the same key.
+        XCTAssertTrue(text.contains(String(localized: "建议：\(remediation)")))
     }
 
     func testLegacyConfigurationUsesSecondStageDefaults() throws {

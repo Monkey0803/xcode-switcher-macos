@@ -40,7 +40,7 @@ private struct XcodeSwitcherCLI {
             return installations.isEmpty ? 1 : 0
         case "current":
             guard let active = installations.first(where: { $0.developerURL.path == activeDeveloperPath }) else {
-                throw CLIError.failed("当前 Developer 目录未对应已发现的 Xcode：\(activeDeveloperPath ?? "未配置")")
+                throw CLIError.failed(String(localized: "当前 Developer 目录未对应已发现的 Xcode：\(activeDeveloperPath ?? String(localized: "未配置"))"))
             }
             printInstallation(active, json: options.json)
             return 0
@@ -50,7 +50,7 @@ private struct XcodeSwitcherCLI {
             if let issue = resolution.issueDescription { throw CLIError.failed(issue) }
             guard let id = resolution.installationID,
                   let installation = installations.first(where: { $0.id == id }) else {
-                throw CLIError.failed("无法解析项目使用的 Xcode。")
+                throw CLIError.failed(String(localized: "无法解析项目使用的 Xcode。"))
             }
             if options.json {
                 printJSON(CLIResolveOutput(
@@ -74,7 +74,7 @@ private struct XcodeSwitcherCLI {
             return try environment(values: values, json: options.json)
         case "shell-init":
             guard values.count == 1, values[0].lowercased() == "zsh" else {
-                throw CLIError.usage("用法：xcodeswitcher shell-init zsh")
+                throw CLIError.usage(String(localized: "用法：xcodeswitcher shell-init zsh"))
             }
             print(ZshProjectEnvironmentHook.source, terminator: "")
             return 0
@@ -91,7 +91,7 @@ private struct XcodeSwitcherCLI {
             }
             return report.highestSeverity == .error ? 2 : (report.issueCount > 0 ? 1 : 0)
         case "use":
-            guard let selector = values.first else { throw CLIError.usage("用法：xcodeswitcher use <版本、别名或路径>") }
+            guard let selector = values.first else { throw CLIError.usage(String(localized: "用法：xcodeswitcher use <版本、别名或路径>")) }
             let installation = try findInstallation(selector)
             if options.dryRun {
                 let output = CLIOperationOutput(
@@ -104,16 +104,16 @@ private struct XcodeSwitcherCLI {
                     project: nil,
                     dryRun: true
                 )
-                if options.json { printJSON(output) } else { print("[dry-run] 将激活 \(installation.name) \(installation.displayVersion)") }
+                if options.json { printJSON(output) } else { print(String(localized: "[dry-run] 将激活 \(installation.name) \(installation.displayVersion)")) }
                 return 0
             }
             if installation.developerURL.path != activeDeveloperPath {
                 try XcodeActivator.activate(installation)
             }
             guard XcodeLocator.activeDeveloperPath() == installation.developerURL.path else {
-                throw CLIError.failed("切换命令完成，但 Developer 目录验证失败。")
+                throw CLIError.failed(String(localized: "切换命令完成，但 Developer 目录验证失败。"))
             }
-            print("已激活 \(installation.name) \(installation.displayVersion)")
+            print(String(localized: "已激活 \(installation.name) \(installation.displayVersion)"))
             return 0
         case "open":
             let project = try projectURL(from: values)
@@ -121,7 +121,7 @@ private struct XcodeSwitcherCLI {
             if let issue = resolution.issueDescription { throw CLIError.failed(issue) }
             guard let id = resolution.installationID,
                   let installation = installations.first(where: { $0.id == id }) else {
-                throw CLIError.failed("无法解析项目使用的 Xcode。")
+                throw CLIError.failed(String(localized: "无法解析项目使用的 Xcode。"))
             }
             if options.dryRun {
                 let output = CLIOperationOutput(
@@ -134,17 +134,17 @@ private struct XcodeSwitcherCLI {
                     project: project.path,
                     dryRun: true
                 )
-                if options.json { printJSON(output) } else { print("[dry-run] 将使用 \(installation.name) 打开 \(project.path)") }
+                if options.json { printJSON(output) } else { print(String(localized: "[dry-run] 将使用 \(installation.name) 打开 \(project.path)")) }
                 return 0
             }
             if installation.developerURL.path != activeDeveloperPath {
                 try XcodeActivator.activate(installation)
             }
             XcodeActions.open(project, with: installation)
-            print("已使用 \(installation.name) 打开 \(project.lastPathComponent)")
+            print(String(localized: "已使用 \(installation.name) 打开 \(project.lastPathComponent)"))
             return 0
         default:
-            throw CLIError.usage("未知命令：\(command)\n\n\(Self.help)")
+            throw CLIError.usage("\(String(localized: "未知命令：\(command)"))\n\n\(Self.help)")
         }
     }
 
@@ -158,7 +158,7 @@ private struct XcodeSwitcherCLI {
         if values.first != nil,
            ["xcodeproj", "xcworkspace"].contains(inputURL.pathExtension),
            !FileManager.default.fileExists(atPath: inputURL.path) {
-            throw CLIError.failed("项目路径已失效，请移除后重新添加：\(inputURL.path)")
+            throw CLIError.failed(String(localized: "项目路径已失效，请移除后重新添加：\(inputURL.path)"))
         }
         switch ProjectDirectoryLocator.resolve(startingAt: inputURL) {
         case .none:
@@ -169,7 +169,7 @@ private struct XcodeSwitcherCLI {
             }
             return 0
         case let .ambiguous(directory):
-            throw CLIError.failed("目录包含多个 Xcode 项目，请显式指定项目路径：\(directory)")
+            throw CLIError.failed(String(localized: "目录包含多个 Xcode 项目，请显式指定项目路径：\(directory)"))
         case let .project(project):
             let savedProfile = configuration.projects.first {
                 $0.url.standardizedFileURL == project.standardizedFileURL
@@ -251,10 +251,10 @@ private struct XcodeSwitcherCLI {
     }
 
     private func projectURL(from values: [String]) throws -> URL {
-        guard let path = values.first else { throw CLIError.usage("缺少项目路径。") }
+        guard let path = values.first else { throw CLIError.usage(String(localized: "缺少项目路径。")) }
         let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardizedFileURL
         guard ["xcodeproj", "xcworkspace"].contains(url.pathExtension) else {
-            throw CLIError.usage("请选择 .xcodeproj 或 .xcworkspace。")
+            throw CLIError.usage(String(localized: "请选择 .xcodeproj 或 .xcworkspace。"))
         }
         return url
     }
@@ -277,7 +277,7 @@ private struct XcodeSwitcherCLI {
 
     private func activeOrFirst() throws -> XcodeInstallation {
         if let active = installations.first(where: { $0.developerURL.path == activeDeveloperPath }) { return active }
-        guard let first = installations.first else { throw CLIError.failed("未发现 Xcode。") }
+        guard let first = installations.first else { throw CLIError.failed(String(localized: "未发现 Xcode。")) }
         return first
     }
 
@@ -294,14 +294,14 @@ private struct XcodeSwitcherCLI {
            let match = installations.first(where: { ProjectXcodeMatcher.version($0.version, matches: version) }) {
             return match
         }
-        throw CLIError.failed("未找到 Xcode：\(selector)")
+        throw CLIError.failed(String(localized: "未找到 Xcode：\(selector)"))
     }
 
     private static func loadConfiguration() -> AppConfiguration {
         AppConfigurationStore.shared.load()
     }
 
-    static let help = """
+    static let help = String(localized: """
     Xcode Switcher CLI
 
     用法：
@@ -316,7 +316,7 @@ private struct XcodeSwitcherCLI {
 
     --json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。
     env 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。
-    """
+    """)
 }
 
 @main
@@ -339,7 +339,7 @@ private struct XcodeSwitcherCLIEntryPoint {
                     FileHandle.standardError.write(Data("\n".utf8))
                 }
             } else {
-                FileHandle.standardError.write(Data("错误：\(message)\n".utf8))
+                FileHandle.standardError.write(Data((String(localized: "错误：\(message)") + "\n").utf8))
             }
             exit(2)
         }

@@ -156,3 +156,18 @@ session 213 的建议逐条落实：
 - `Scripts/verify_string_catalog.sh`：校验占位符多重集（`%@` 与 `%1$@` 视为等价）、换行数量、译文非空、复数变体齐全、无遗留 `stale` 条目。已接入 CI 的 `xcode` job。
 - `Scripts/sync_string_catalog.sh` 会在字符串消失时把条目标记为 `stale` 而不是删除；stale 条目由校验脚本报出并手工清理（已清理 1 条：旧的 Simulator 动作模板键）。
 - `xcstringstool sync` 会为**含多个占位符**的键自动生成源语言条目并用位置参数（`%1$@`）——这是 Apple 的做法，便于译者重排参数；校验脚本已按此放宽源语言的比较。
+
+## 发布链路迁移到 `xcodebuild archive`
+
+`Scripts/archive_app.sh` 用 `xcodebuild archive`（Release）产出 `build/XcodeSwitcher.xcarchive`，并校验 bundle 契约：主可执行文件名、内嵌 CLI、Sparkle.framework、图标、arm64。`build_local_release.sh` 与 `build_release.sh` 都改为基于归档产物，不再用 `build_app.sh` 手工拼装。
+
+正式分发流程：归档 → 把 `SUFeedURL` / `SUPublicEDKey` 注入归档内的 Info.plist（这两个值不在仓库里）→ `-exportArchive`（Developer ID，`ExportOptions` 由脚本按签名身份解析 Team ID 后生成）→ 公证 zip、staple、DMG、公证 DMG、`spctl` 评估、生成 appcast。`-exportArchive` 会重新签名，因此注入的键也在签名覆盖范围内。
+
+**验证范围（重要）**：
+
+- 已验证：`xcodebuild archive` 成功、归档 bundle 结构与 Debug 路径一致（含 `en.lproj` 与 `zh-Hans.lproj`）、`codesign --verify --deep --strict` 通过、`build_local_release.sh` 端到端产出 zip 与 DMG、`build_release.sh --preflight` 在无凭证时按预期失败并提示全部必需变量。
+- **未验证**：Developer ID 导出与公证。本机没有 `Developer ID Application` 证书、也没有 notarytool 凭证，所以 `-exportArchive` 及其后的公证/DMG/appcast 步骤只做了静态审查，从未真正运行过。首次正式发布会是这部分的第一次实测——请预留调试时间。
+
+### 本地化与 CLI
+
+CLI 与 app 共用同一份 catalog：`xcodeswitcher` 位于 `Contents/MacOS/` 时 `Bundle.main` 解析到外层 app bundle，`String(localized:)` 直接命中 `Contents/Resources/<lang>.lproj`。因此 CLI target 只需开启 `SWIFT_EMIT_LOC_STRINGS`，`sync_string_catalog.sh` 合并 app 与 CLI 两个 target 的 `.stringsdata` 即可。若把 CLI 单独拷到别处运行，则回退到源语言字符串。

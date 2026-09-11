@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 - 2026-09-11
 
 对照 WWDC 2026 的优化与稳定性改进：
 
@@ -22,6 +22,10 @@
 - 项目推荐版本与当前版本不一致时，确认对话框改为三个选项：切换系统默认并打开、用推荐版本打开（不改系统设置）、取消。新增的中间选项直接用指定 Xcode 打开工程，不执行 `xcode-select --switch`；原来的「保留当前 Xcode 打开」已移除，避免与它语义重叠。
 - 记录提权方式的决定：在不上架 App Store 的前提下仍保留 `AuthorizationExecuteWithPrivileges`——Apple 要求含 LaunchDaemon 的应用必须签名并公证，而本项目仍提供 ad-hoc 签名的直接分发构建；触发重新评估的条件写入代码注释与设计文档。
 - 新增 `XcodeSwitcher.xcodeproj`（由 `Scripts/generate_xcode_project.py` 生成，可重复生成且结果一致），包含 app、`xcodeswitcher` CLI 与单元测试三个 target；`xcodebuild build` / `xcodebuild test` 与原有的 `swift test`、`build_app.sh` 并存，产物结构一致。
+- 发布链路改为 `xcodebuild archive`：新增 `Scripts/archive_app.sh`（归档并校验 bundle 结构、arm64、CLI、Sparkle、图标），`build_local_release.sh` 与 `build_release.sh` 都走归档；正式分发用 `-exportArchive`（Developer ID）后再公证、做 DMG 与 appcast。`--preflight` 行为保持不变。
+- CLI 本地化：`xcodeswitcher` 位于 app bundle 内时 `Bundle.main` 解析到外层 app，因此复用同一份 String Catalog；CLI 帮助、错误与状态消息，以及 `EnvironmentDoctor` 报告、`ProjectMatching` 诊断、`Services` 失败描述都已可本地化（catalog 273 条 `en`）。
+- 修正一个本地化会触发的真实缺陷：`sdkVersion` 曾用字面量 `"未知"` 作哨兵值参与比较，一旦本地化会让英文下走错分支；现改为具名常量 `XcodeDetails.unknownValue`，只在展示时翻译。
+- 测试断言改为语言无关（用同一处 `String(localized:)` 构造期望值），并在 `-testLanguage en` 下实测通过——修复前英文环境下确有断言失败。
 - 按 WWDC 2026 session 213 的流程补上英文翻译：`Resources/Localizable.xcstrings` 现有 237 个键，其中 220 条提供 `en` 译文（其余为纯技术名或仅占位符的键，按术语表有意保留源值）；`en` 已加入工程 `knownRegions`，构建会产出 `en.lproj/Localizable.strings`。
 - 新增 `TRANSLATION.md`（术语表、不可翻译清单、语气与占位符规则）并从 `AGENTS.md` 引用，对应 session 213 建议的按需上下文。
 - 新增 `Scripts/verify_string_catalog.sh`：校验占位符与换行数量一致、译文非空、无遗留 stale 条目，并已接入 CI。

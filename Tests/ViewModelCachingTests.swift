@@ -55,7 +55,9 @@ struct ViewModelCachingTests {
 
         fixture.model.invalidateProjectSnapshots()
         let refreshed = try #require(fixture.model.projectIssue(for: profile))
-        #expect(refreshed.contains("配置文件格式无效"))
+        // The message is localized, so assert the language-independent part: it names
+        // the offending configuration file.
+        #expect(refreshed.contains(".xcode-switcher.json"))
         #expect(refreshed != first)
     }
 

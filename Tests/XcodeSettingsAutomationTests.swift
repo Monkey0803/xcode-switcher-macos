@@ -39,9 +39,17 @@ struct XcodeSettingsAutomationTests {
             #expect(!description.isEmpty)
         }
 
-        #expect(XcodeSettingsError.cannotLaunch.errorDescription?.contains("无法打开") == true)
-        #expect(XcodeSettingsError.accessibilityPermissionMissing.errorDescription?.contains("辅助功能") == true)
-        #expect(XcodeSettingsError.settingsItemNotFound.errorDescription?.contains("手动") == true)
+        // Compare against the same localization lookups the errors use, so these
+        // expectations hold whichever language the test process runs in.
+        #expect(XcodeSettingsError.cannotLaunch.errorDescription == String(localized: "无法打开该 Xcode。"))
+        #expect(
+            XcodeSettingsError.accessibilityPermissionMissing.errorDescription
+                == String(localized: "需要辅助功能权限才能自动打开 Xcode 的 Settings 窗口，请在系统设置中授权后重试。")
+        )
+        #expect(
+            XcodeSettingsError.settingsItemNotFound.errorDescription
+                == String(localized: "没有在 Xcode 菜单中找到 Settings 项，请在 Xcode 中手动打开。")
+        )
         // The underlying automation error must survive into the message.
         #expect(XcodeSettingsError.automationFailed("boom").errorDescription?.contains("boom") == true)
     }

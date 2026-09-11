@@ -164,7 +164,7 @@ final class ProjectMatchingTests: XCTestCase {
     func testResolutionSourceProvidesUserFacingDescription() {
         let requirement = ProjectXcodeRequirement(source: "/tmp/.tool-versions", rawValue: "xcode 16.4", normalizedVersion: "16.4")
 
-        XCTAssertEqual(ProjectXcodeResolutionSource.explicitBinding.displayName, "项目固定绑定")
+        XCTAssertEqual(ProjectXcodeResolutionSource.explicitBinding.displayName, String(localized: "项目固定绑定"))
         XCTAssertEqual(ProjectXcodeResolutionSource.automaticRequirement(requirement).displayName, ".tool-versions")
     }
 
@@ -202,6 +202,40 @@ final class ProjectMatchingTests: XCTestCase {
         let fixture = try Fixture()
         try FileManager.default.removeItem(at: fixture.projectURL)
         XCTAssertEqual(ProjectDirectoryLocator.resolve(startingAt: fixture.root), .none)
+    }
+
+    /// An .xcodeproj/.xcworkspace is a directory package; a regular file with the
+    /// same extension must not be mistaken for one.
+    func testDirectoryLocatorIgnoresRegularFilesPassedDirectly() throws {
+        let fixture = try Fixture()
+        try FileManager.default.removeItem(at: fixture.projectURL)
+        let projectFile = fixture.root.appendingPathComponent("Demo.xcodeproj")
+        let workspaceFile = fixture.root.appendingPathComponent("Demo.xcworkspace")
+        try Data().write(to: projectFile)
+        try Data().write(to: workspaceFile)
+
+        XCTAssertEqual(ProjectDirectoryLocator.resolve(startingAt: projectFile), .none)
+        XCTAssertEqual(ProjectDirectoryLocator.resolve(startingAt: workspaceFile), .none)
+    }
+
+    func testDirectoryLocatorIgnoresRegularFileChildren() throws {
+        let fixture = try Fixture()
+        try FileManager.default.removeItem(at: fixture.projectURL)
+        try Data().write(to: fixture.root.appendingPathComponent("Demo.xcodeproj"))
+        try Data().write(to: fixture.root.appendingPathComponent("Demo.xcworkspace"))
+
+        XCTAssertEqual(ProjectDirectoryLocator.resolve(startingAt: fixture.root), .none)
+    }
+
+    func testDirectoryLocatorInspectsRootDirectoryChildren() {
+        let projectURL = URL(fileURLWithPath: "/Demo.xcodeproj", isDirectory: true)
+        XCTAssertEqual(
+            ProjectDirectoryLocator.resolve(
+                startingAt: URL(fileURLWithPath: "/", isDirectory: true),
+                fileManager: RootChildrenFileManager(projectURL: projectURL)
+            ),
+            .project(projectURL)
+        )
     }
 
     func testDirectoryLocatorRejectsAmbiguousWorkspaces() throws {
@@ -388,5 +422,30 @@ private final class Fixture {
             version: version,
             build: ""
         )
+    }
+}
+
+/// Reports a single project package directly under the filesystem root, which the
+/// real filesystem cannot be asked to create in a test.
+private final class RootChildrenFileManager: FileManager {
+    private let projectURL: URL
+
+    init(projectURL: URL) {
+        self.projectURL = projectURL
+        super.init()
+    }
+
+    override func fileExists(atPath path: String, isDirectory: UnsafeMutablePointer<ObjCBool>?) -> Bool {
+        guard path == "/" || path == projectURL.path else { return false }
+        isDirectory?.pointee = true
+        return true
+    }
+
+    override func contentsOfDirectory(
+        at url: URL,
+        includingPropertiesForKeys keys: [URLResourceKey]?,
+        options mask: FileManager.DirectoryEnumerationOptions = []
+    ) throws -> [URL] {
+        url.path == "/" ? [projectURL] : []
     }
 }
