@@ -166,7 +166,16 @@ session 213 的建议逐条落实：
 **验证范围（重要）**：
 
 - 已验证：`xcodebuild archive` 成功、归档 bundle 结构与 Debug 路径一致（含 `en.lproj` 与 `zh-Hans.lproj`）、`codesign --verify --deep --strict` 通过、`build_local_release.sh` 端到端产出 zip 与 DMG、`build_release.sh --preflight` 在无凭证时按预期失败并提示全部必需变量。
-- **未验证**：Developer ID 导出与公证。本机没有 `Developer ID Application` 证书、也没有 notarytool 凭证，所以 `-exportArchive` 及其后的公证/DMG/appcast 步骤只做了静态审查，从未真正运行过。首次正式发布会是这部分的第一次实测——请预留调试时间。
+- **已验证（2026-09-11，在不具备证书的前提下尽可能做）**：
+  - 脚本生成的 `ExportOptions` plist 合法，`method` / `destination` / `signingStyle` / `signingCertificate` / `teamID` 五个键**均被 Xcode 接受**。
+  - macOS 上 `method` 的合法取值为 `app-store-connect`、`developer-id`、`debugging`、`mac-application`、`validation`（`ad-hoc` 是 iOS 的取值，在 macOS 上会被拒绝）。
+  - 密钥注入步骤可用：按脚本方式向归档内 app 的 Info.plist 写入 `SUFeedURL` / `SUPublicEDKey` 后能被读回，且 `-exportArchive` 会重新签名，覆盖该改动。
+  - `release_preflight.sh` 会在证书缺失时**提前失败**并报「钥匙串中不存在签名身份」，脚本根本走不到导出步骤。
+  - 证书缺失时 Xcode 的报错清晰可操作：`No certificate for team … matching 'Developer ID Application: …' found`。
+  - 由此加固：导出后的 bundle 改为**按目录发现**而非硬编码 `Xcode Switcher.app`（名字由产品名派生，猜错只会在发版时才暴露）。
+- **仍未验证**：`-exportArchive` 真正跑完，以及其后的公证、staple、DMG、appcast。原因是本机**没有任何可用的导出证书**：`Developer ID Application` 数量为 0，`method: debugging` 需要 "Mac Development" 证书（本机只有 Apple Development），`app-store-connect` 需要 provisioning profile；`notarytool` 也无凭证。首次正式发布会是这部分的第一次实测——请预留调试时间。
+
+**要补齐验证，需要**：一份 `Developer ID Application` 证书（团队管理员创建后导入钥匙串）+ `notarytool store-credentials` 保存的凭证，之后 `build_release.sh` 即可在有 `SU_FEED_URL`、`SPARKLE_PUBLIC_KEY`、`SPARKLE_DOWNLOAD_URL_PREFIX` 的情况下完整跑通。
 
 ### 本地化与 CLI
 

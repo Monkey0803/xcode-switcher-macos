@@ -6,7 +6,6 @@ script_dir="$(cd "$(dirname "$0")" && pwd -P)"
 archive_path="$script_dir/build/XcodeSwitcher.xcarchive"
 archive_app="$archive_path/Products/Applications/Xcode Switcher.app"
 export_dir="$script_dir/build/exported"
-app_bundle="$export_dir/Xcode Switcher.app"
 release_dir="$script_dir/release"
 updates_dir="$release_dir/updates"
 
@@ -61,6 +60,14 @@ trap cleanup_export_options EXIT
   -archivePath "$archive_path" \
   -exportOptionsPlist "$export_options" \
   -exportPath "$export_dir"
+
+# Discover the exported bundle instead of assuming its name: Xcode derives it from
+# the product name, and a wrong assumption would only surface at release time.
+app_bundle="$(/usr/bin/find "$export_dir" -maxdepth 1 -name "*.app" -print -quit)"
+if [[ ! -d "$app_bundle" ]]; then
+  printf '错误：导出目录中没有 .app：%s\n' "$export_dir" >&2
+  exit 1
+fi
 
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$app_bundle"
 
