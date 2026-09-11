@@ -61,13 +61,17 @@ open "build/Xcode Switcher.app"
 | `Casks/xcode-switcher.rb` | 安装 GitHub Release 的预编译 zip | 用户首次启动需放行 Gatekeeper，或安装时加 `--no-quarantine` |
 | `Formula/xcode-switcher.rb` | 从源码构建，产物无 quarantine 属性 | 需要 Xcode 26+；受 Homebrew 构建沙箱限制，尚需在 active Xcode 为 26 的机器上验证（见文件头注释） |
 
-把两者放进一个名为 `homebrew-xcode-switcher` 的 tap 仓库后：
+两者已放进 tap 仓库 [Monkey0803/homebrew-xcode-switcher](https://github.com/Monkey0803/homebrew-xcode-switcher)（本仓库中的 `Casks/` 与 `Formula/` 是其源头）：
 
 ```bash
 brew tap Monkey0803/xcode-switcher
-brew install --cask xcode-switcher     # 预编译产物
-brew install xcode-switcher            # 从源码构建
+brew trust Monkey0803/xcode-switcher   # Homebrew 6 起拒绝加载未信任的第三方 tap
+
+brew install --cask --no-quarantine xcode-switcher   # 预编译产物
+brew install xcode-switcher                          # 从源码构建
 ```
+
+`brew trust` 与 `--no-quarantine` 都是 Homebrew 6 之后的行为，缺一不可：前者让第三方 tap 的定义能加载，后者跳过 Gatekeeper 隔离属性。
 
 发新版本后需要 bump cask 的两行：
 
