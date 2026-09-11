@@ -1,6 +1,6 @@
 cask "xcode-switcher" do
-  version "1.3.0,1"
-  sha256 "8a9fd41e66867b5b685f7be800d8dc2f4b72fef72e2c633ed7474e29d24192f2"
+  version "1.4.0,2"
+  sha256 "c6b224238e61d59bc12a9c11e08e07f97759b0b71ff8fcc5ff43bddd8709b21c"
 
   url "https://github.com/Monkey0803/xcode-switcher-macos/releases/download/v#{version.csv.first}/Xcode-Switcher-#{version.csv.first}-#{version.csv.second}-local.zip"
   name "Xcode Switcher"
