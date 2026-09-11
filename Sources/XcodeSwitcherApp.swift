@@ -27,8 +27,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let model = XcodeViewModel()
     private var statusItem: NSStatusItem!
     private let menu = NSMenu()
-    private var refreshTimer: Timer?
     private var settingsWindow: NSWindow?
+    private var directoryMonitors: [DispatchSourceFileSystemObject] = []
+    private var directoryRefreshTask: Task<Void, Never>?
+    private let monitorQueue = DispatchQueue(label: "com.yostar.xcodeswitcher.directory-monitor")
+
+    /// Windows are told apart by identifier rather than by title so the code does
+    /// not depend on user-visible, localized strings.
+    private static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherMainWindow")
+    private static let settingsWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherSettingsWindow")
 
     override init() {
         super.init()
@@ -45,11 +52,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
         model.refresh()
         rebuildMenu()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            guard let appDelegate = self else { return }
-            Task { @MainActor in appDelegate.model.refresh(silently: true) }
-        }
+        model.onSearchPathsChanged = { [weak self] in self?.startWatchingSearchPaths() }
+        startWatchingSearchPaths()
         applyMenuBarOnly(model.configuration.menuBarOnly)
+    }
+
+    /// Watches the folders that can gain or lose an Xcode installation, so the
+    /// app reacts to real changes instead of re-running a Spotlight scan on a
+    /// repeating timer while it sits idle in the menu bar.
+    private func startWatchingSearchPaths() {
+        stopWatchingSearchPaths()
+        let folders = [
+            "/Applications",
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications", isDirectory: true).path
+        ] + model.configuration.customSearchPaths
+
+        for folder in Set(folders) where FileManager.default.fileExists(atPath: folder) {
+            let descriptor = open(folder, O_EVTONLY)
+            guard descriptor >= 0 else { continue }
+            let source = DispatchSource.makeFileSystemObjectSource(
+                fileDescriptor: descriptor,
+                eventMask: [.write, .delete, .rename, .extend],
+                queue: monitorQueue
+            )
+            source.setEventHandler { [weak self] in
+                Task { @MainActor in self?.scheduleRefreshAfterDirectoryChange() }
+            }
+            source.setCancelHandler { _ = close(descriptor) }
+            source.resume()
+            directoryMonitors.append(source)
+        }
+    }
+
+    private func stopWatchingSearchPaths() {
+        directoryMonitors.forEach { $0.cancel() }
+        directoryMonitors.removeAll()
+        directoryRefreshTask?.cancel()
+        directoryRefreshTask = nil
+    }
+
+    /// Coalesces the burst of filesystem events a single install or move emits.
+    private func scheduleRefreshAfterDirectoryChange() {
+        directoryRefreshTask?.cancel()
+        directoryRefreshTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self?.model.refresh(silently: true)
+        }
     }
 
     private static func menuBarIcon() -> NSImage? {
@@ -61,23 +110,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        refreshTimer?.invalidate()
+        stopWatchingSearchPaths()
         GlobalShortcutService.shared.stop()
+        // Apply an edit that is still inside the project-edit debounce window.
+        model.flushPendingProjectUpdate()
     }
 
-    func menuWillOpen(_ menu: NSMenu) { rebuildMenu() }
+    func menuWillOpen(_ menu: NSMenu) {
+        // Replaces the repeating timer: refresh only when the menu is actually
+        // opened and the cached list has gone stale.
+        model.refreshIfStale()
+        rebuildMenu()
+    }
 
     private func rebuildMenu() {
         menu.removeAllItems()
         if let active = model.activeInstallation {
-            let activeItem = NSMenuItem(title: "当前：\(active.name) \(active.displayVersion)", action: nil, keyEquivalent: "")
+            let activeItem = NSMenuItem(title: String(localized: "当前：\(active.name) \(active.displayVersion)"), action: nil, keyEquivalent: "")
             activeItem.isEnabled = false
             menu.addItem(activeItem)
             menu.addItem(.separator())
         }
 
         if model.installations.isEmpty {
-            let empty = NSMenuItem(title: "未发现 Xcode", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: String(localized: "未发现 Xcode"), action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.addItem(empty)
         } else {
@@ -95,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if !model.configuration.projects.isEmpty {
             menu.addItem(.separator())
-            let projectsItem = NSMenuItem(title: "项目", action: nil, keyEquivalent: "")
+            let projectsItem = NSMenuItem(title: String(localized: "项目"), action: nil, keyEquivalent: "")
             let projectsMenu = NSMenu(title: "项目")
             for profile in model.configuration.projects.prefix(12) {
                 let issue = model.projectIssue(for: profile)
@@ -124,25 +180,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(projectsItem)
         }
         menu.addItem(.separator())
-        let open = NSMenuItem(title: "打开主窗口", action: #selector(openMainWindow), keyEquivalent: "")
+        let open = NSMenuItem(title: String(localized: "打开主窗口"), action: #selector(openMainWindow), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
-        let refresh = NSMenuItem(title: "重新扫描", action: #selector(refreshXcodes), keyEquivalent: "")
+        let refresh = NSMenuItem(title: String(localized: "重新扫描"), action: #selector(refreshXcodes), keyEquivalent: "")
         refresh.target = self
         menu.addItem(refresh)
-        let settings = NSMenuItem(title: "设置…", action: #selector(openSettings), keyEquivalent: ",")
+        let settings = NSMenuItem(title: String(localized: "设置…"), action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        let updates = NSMenuItem(title: "检查更新…", action: #selector(checkForUpdates), keyEquivalent: "")
+        let updates = NSMenuItem(title: String(localized: "检查更新…"), action: #selector(checkForUpdates), keyEquivalent: "")
         updates.target = self
         updates.isEnabled = !model.isCheckingRelease
         updates.toolTip = model.updateServiceMessage
         menu.addItem(updates)
         menu.addItem(.separator())
-        let shortcut = NSMenuItem(title: "全局快捷键：\(model.globalShortcutDisplayName)", action: nil, keyEquivalent: "")
+        let shortcut = NSMenuItem(title: String(localized: "全局快捷键：\(model.globalShortcutDisplayName)"), action: nil, keyEquivalent: "")
         shortcut.isEnabled = false
         menu.addItem(shortcut)
-        let quit = NSMenuItem(title: "退出 Xcode Switcher", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: String(localized: "退出 Xcode Switcher"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         menu.addItem(quit)
     }
@@ -178,7 +234,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.setActivationPolicy(enabled ? .accessory : .regular)
         if enabled {
             DispatchQueue.main.async {
-                NSApp.windows.filter { $0.title != "Xcode Switcher 设置" }.forEach { $0.orderOut(nil) }
+                // Only the main window belongs to menu-bar-only mode; the Settings
+                // window keeps its own lifecycle.
+                NSApp.windows
+                    .filter { $0.identifier != Self.settingsWindowIdentifier }
+                    .forEach { $0.orderOut(nil) }
             }
         } else {
             presentMainWindow()
@@ -186,8 +246,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func presentMainWindow(focusSearch: Bool = false) {
+        model.refreshIfStale()
         NSApp.activate(ignoringOtherApps: true)
-        guard let window = NSApp.windows.first(where: { $0.title != "Xcode Switcher 设置" }) ?? NSApp.windows.first else { return }
+        guard let window = NSApp.windows.first(where: { $0.identifier != Self.settingsWindowIdentifier }) ?? NSApp.windows.first else { return }
+        window.identifier = Self.mainWindowIdentifier
         window.makeKeyAndOrderFront(nil)
         if focusSearch {
             DispatchQueue.main.async { [weak self] in
@@ -210,6 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             defer: false
         )
         window.title = "Xcode Switcher 设置"
+        window.identifier = Self.settingsWindowIdentifier
         window.contentViewController = NSHostingController(rootView: content)
         window.center()
         window.isReleasedWhenClosed = false

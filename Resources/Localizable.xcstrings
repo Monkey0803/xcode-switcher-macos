@@ -1,0 +1,2352 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "%@ %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · Team %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · Team %2$@"
+          }
+        }
+      }
+    },
+    "%lld 个版本": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld version"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld versions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Command Line Tools": {},
+    "Configuration": {},
+    "CoreSimulator 可正常响应。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CoreSimulator is responding."
+          }
+        }
+      }
+    },
+    "Developer 路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Developer path"
+          }
+        }
+      }
+    },
+    "Finder": {},
+    "License 已接受。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "License accepted."
+          }
+        }
+      }
+    },
+    "Provisioning Profiles": {},
+    "Rosetta 2": {},
+    "Runtime 已安装": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runtime installed"
+          }
+        }
+      }
+    },
+    "Scheme": {},
+    "Shell 集成（不需要管理员授权）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shell integration (no administrator authorization)"
+          }
+        }
+      }
+    },
+    "Simulator %@ 操作完成。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator %@ finished."
+          }
+        }
+      }
+    },
+    "Simulator Runtime": {},
+    "Simulator 操作失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator action failed: %@"
+          }
+        }
+      }
+    },
+    "Simulator 服务": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator service"
+          }
+        }
+      }
+    },
+    "Simulator 设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator devices"
+          }
+        }
+      }
+    },
+    "Swift": {},
+    "Xcode": {},
+    "Xcode License": {},
+    "Xcode Switcher": {},
+    "Xcode 工具链": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode toolchain"
+          }
+        }
+      }
+    },
+    "Xcode 搜索目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode search folders"
+          }
+        }
+      }
+    },
+    "iOS Simulator Runtime 下载命令已完成。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The iOS Simulator Runtime download finished."
+          }
+        }
+      }
+    },
+    "iPhoneOS SDK": {},
+    "xcode-select 当前路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current xcode-select path"
+          }
+        }
+      }
+    },
+    "~/Library/Developer/Xcode/UserData/Provisioning Profiles": {},
+    "~/Library/MobileDevice/Provisioning Profiles": {},
+    "下载 iOS Runtime": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download iOS Runtime"
+          }
+        }
+      }
+    },
+    "下载失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download failed: %@"
+          }
+        }
+      }
+    },
+    "不可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        }
+      }
+    },
+    "不改系统设置（不需要管理员授权）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without changing system settings (no administrator authorization)"
+          }
+        }
+      }
+    },
+    "仅在菜单栏运行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menu bar only"
+          }
+        }
+      }
+    },
+    "全局快捷键：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Global shortcut: %@"
+          }
+        }
+      }
+    },
+    "公钥证书已导出并在 Finder 中显示。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The public certificate was exported and revealed in Finder."
+          }
+        }
+      }
+    },
+    "关闭": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shut Down"
+          }
+        }
+      }
+    },
+    "关闭 Simulator/Xcode 后重试，必要时重启 CoreSimulator 服务。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit Simulator and Xcode and try again, restarting the CoreSimulator service if needed."
+          }
+        }
+      }
+    },
+    "切换命令完成，但未能验证当前开发者目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The switch command finished, but the current developer directory could not be verified."
+          }
+        }
+      }
+    },
+    "切换失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch failed: %@"
+          }
+        }
+      }
+    },
+    "切换系统默认并打开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch System Default and Open"
+          }
+        }
+      }
+    },
+    "到期 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expires %@"
+          }
+        }
+      }
+    },
+    "刷新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        }
+      }
+    },
+    "取消": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "取消收藏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unfavorite"
+          }
+        }
+      }
+    },
+    "取消收藏 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unfavorite %@"
+          }
+        }
+      }
+    },
+    "只影响新打开的那个终端会话，不改 xcode-select。想让它在进入项目目录时自动生效，可在「设置 → Shell 集成」启用 zsh Hook。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affects only the terminal session you open, and never changes xcode-select. To make it apply automatically when you enter a project directory, enable the zsh hook in Settings → Shell integration."
+          }
+        }
+      }
+    },
+    "可用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available"
+          }
+        }
+      }
+    },
+    "否": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
+          }
+        }
+      }
+    },
+    "启动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Boot"
+          }
+        }
+      }
+    },
+    "启动与更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startup & Updates"
+          }
+        }
+      }
+    },
+    "启用全局快捷键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable global shortcut"
+          }
+        }
+      }
+    },
+    "回滚上一个": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roll Back to Previous"
+          }
+        }
+      }
+    },
+    "在 Finder 中显示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal in Finder"
+          }
+        }
+      }
+    },
+    "在 Finder 中显示 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal %@ in Finder"
+          }
+        }
+      }
+    },
+    "在 Finder 中检查 Xcode 所在磁盘的可用空间。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check free space on the disk that holds Xcode in Finder."
+          }
+        }
+      }
+    },
+    "在 zsh 中加入下面这行后，进入绑定了 Xcode 的项目目录会自动设置 DEVELOPER_DIR。它只影响当前 Shell，不会执行 xcode-select --switch，因此不需要授权，也不改变全机设置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add the line below to zsh and entering a project directory bound to an Xcode sets DEVELOPER_DIR automatically. It affects only the current shell and never runs xcode-select --switch, so it needs no authorization and does not change machine-wide settings."
+          }
+        }
+      }
+    },
+    "复制": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        }
+      }
+    },
+    "复制 export DEVELOPER_DIR 命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy export DEVELOPER_DIR Command"
+          }
+        }
+      }
+    },
+    "复制 export DEVELOPER_DIR='…'，粘贴到任意终端即可让该会话使用这个 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copies export DEVELOPER_DIR='…'; paste it into any terminal to use this Xcode in that session"
+          }
+        }
+      }
+    },
+    "复制 export 命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy export Command"
+          }
+        }
+      }
+    },
+    "复制报告": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Report"
+          }
+        }
+      }
+    },
+    "复制脱敏报告": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Redacted Report"
+          }
+        }
+      }
+    },
+    "复制链接命令": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Link Command"
+          }
+        }
+      }
+    },
+    "安装路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install path"
+          }
+        }
+      }
+    },
+    "完成于 %@ · %lld 项需要关注": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Finished %@ · %lld item needs attention"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Finished %@ · %lld items need attention"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成于 %1$@ · %2$lld 项需要关注"
+          }
+        }
+      }
+    },
+    "导入失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import failed: %@"
+          }
+        }
+      }
+    },
+    "导入配置…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import Configuration…"
+          }
+        }
+      }
+    },
+    "导出失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export failed: %@"
+          }
+        }
+      }
+    },
+    "导出并显示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export and Reveal"
+          }
+        }
+      }
+    },
+    "导出报告…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Report…"
+          }
+        }
+      }
+    },
+    "导出脱敏报告…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Redacted Report…"
+          }
+        }
+      }
+    },
+    "导出配置…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export Configuration…"
+          }
+        }
+      }
+    },
+    "尝试搜索其他名称或路径。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try another name or path."
+          }
+        }
+      }
+    },
+    "已关闭登录时启动。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch at login turned off."
+          }
+        }
+      }
+    },
+    "已发现 %lld 个 Xcode。": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Found %lld Xcode installation."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Found %lld Xcode installations."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "已取消 iOS Simulator Runtime 下载。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS Simulator Runtime download canceled."
+          }
+        }
+      }
+    },
+    "已启用登录时启动。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch at login turned on."
+          }
+        }
+      }
+    },
+    "已在 %@ 中打开 Settings。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opened Settings in %@."
+          }
+        }
+      }
+    },
+    "已复制 CLI 链接命令。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLI link command copied."
+          }
+        }
+      }
+    },
+    "已复制 Shell 集成命令，请添加到 ~/.zshrc。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shell integration command copied. Add it to ~/.zshrc."
+          }
+        }
+      }
+    },
+    "已复制 export 命令。粘贴到终端即可让该会话使用 Xcode %@，不会修改系统设置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "export command copied. Paste it into a terminal to use Xcode %@ in that session without changing system settings."
+          }
+        }
+      }
+    },
+    "已恢复上次配置备份。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restored the previous configuration backup."
+          }
+        }
+      }
+    },
+    "已打开 %@，正在显示 Xcode Settings…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opened %@, showing Xcode Settings…"
+          }
+        }
+      }
+    },
+    "已打开 GitHub Releases 下载页。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opened the GitHub Releases download page."
+          }
+        }
+      }
+    },
+    "已打开 Xcode %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opened Xcode %@."
+          }
+        }
+      }
+    },
+    "已打开终端，DEVELOPER_DIR 指向 Xcode %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminal opened with DEVELOPER_DIR pointing at Xcode %@."
+          }
+        }
+      }
+    },
+    "已打开钥匙串访问。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opened Keychain Access."
+          }
+        }
+      }
+    },
+    "已添加项目 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added project %@."
+          }
+        }
+      }
+    },
+    "已添加项目 %@，但未安装其要求的 Xcode %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added project %@, but the Xcode %@ it requires is not installed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已添加项目 %1$@，但未安装其要求的 Xcode %2$@。"
+          }
+        }
+      }
+    },
+    "已添加项目 %@，自动匹配 Xcode %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added project %@, automatically matched to Xcode %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已添加项目 %1$@，自动匹配 Xcode %2$@。"
+          }
+        }
+      }
+    },
+    "已激活": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
+          }
+        }
+      }
+    },
+    "已激活并验证 Xcode %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activated and verified Xcode %@."
+          }
+        }
+      }
+    },
+    "已用 Xcode %@ 打开 %@，未修改系统开发者目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opened %@ with Xcode %@ without changing the system developer directory."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已用 Xcode %1$@ 打开 %2$@，未修改系统开发者目录。"
+          }
+        }
+      }
+    },
+    "已移除 %lld 个失效项目。": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Removed %lld missing project."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Removed %lld missing projects."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "已过期": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expired"
+          }
+        }
+      }
+    },
+    "应用并打开": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply and Open"
+          }
+        }
+      }
+    },
+    "应用路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App path"
+          }
+        }
+      }
+    },
+    "建议：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggestion: %@"
+          }
+        }
+      }
+    },
+    "开始体检": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run Check"
+          }
+        }
+      }
+    },
+    "当前 Mac 架构为 %@，无需检查 Rosetta。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac uses %@, so Rosetta does not need checking."
+          }
+        }
+      }
+    },
+    "当前 Xcode 已有可用的 iOS Simulator Runtime。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current Xcode already has an available iOS Simulator Runtime."
+          }
+        }
+      }
+    },
+    "当前激活": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currently active"
+          }
+        }
+      }
+    },
+    "当前：%@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current: %@ %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前：%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "录制全局快捷键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record global shortcut"
+          }
+        }
+      }
+    },
+    "快捷键": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcuts"
+          }
+        }
+      }
+    },
+    "快捷键组合": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut combination"
+          }
+        }
+      }
+    },
+    "恢复上次备份": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore Last Backup"
+          }
+        }
+      }
+    },
+    "恢复配置失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring the configuration failed: %@"
+          }
+        }
+      }
+    },
+    "所选 Xcode 已处于激活状态。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected Xcode is already active."
+          }
+        }
+      }
+    },
+    "打开 GitHub Releases": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open GitHub Releases"
+          }
+        }
+      }
+    },
+    "打开 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Xcode"
+          }
+        }
+      }
+    },
+    "打开 Xcode Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Xcode Settings"
+          }
+        }
+      }
+    },
+    "打开 Xcode 阅读并接受 License。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Xcode to read and accept the License."
+          }
+        }
+      }
+    },
+    "打开主窗口": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Main Window"
+          }
+        }
+      }
+    },
+    "打开已注入 DEVELOPER_DIR 的终端": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Terminal with DEVELOPER_DIR"
+          }
+        }
+      }
+    },
+    "打开目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Folder"
+          }
+        }
+      }
+    },
+    "打开终端（注入 DEVELOPER_DIR）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Terminal (DEVELOPER_DIR injected)"
+          }
+        }
+      }
+    },
+    "打开该 Xcode，或执行 xcodebuild -runFirstLaunch。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open that Xcode, or run xcodebuild -runFirstLaunch."
+          }
+        }
+      }
+    },
+    "打开辅助功能设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Accessibility Settings"
+          }
+        }
+      }
+    },
+    "打开钥匙串访问": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Keychain Access"
+          }
+        }
+      }
+    },
+    "执行 xcode-select --switch，需要管理员授权，并会改变全机的开发者目录：所有终端、脚本与新开的 Xcode 都会受影响。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs xcode-select --switch, which requires administrator authorization and changes the machine-wide developer directory: every terminal, script and newly opened Xcode is affected."
+          }
+        }
+      }
+    },
+    "报告导出失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporting the report failed: %@"
+          }
+        }
+      }
+    },
+    "抹掉": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erase"
+          }
+        }
+      }
+    },
+    "抹掉 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erase %@"
+          }
+        }
+      }
+    },
+    "抹掉 Simulator 设备？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erase Simulator device?"
+          }
+        }
+      }
+    },
+    "拖拽 .xcodeproj 或 .xcworkspace 到主窗口，也可以在这里添加。每个项目可以固定使用某个 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag an .xcodeproj or .xcworkspace into the main window, or add one here. Each project can be pinned to a particular Xcode."
+          }
+        }
+      }
+    },
+    "搜索版本或路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search by version or path"
+          }
+        }
+      }
+    },
+    "搜索项目名称或路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search by project name or path"
+          }
+        }
+      }
+    },
+    "收藏": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite"
+          }
+        }
+      }
+    },
+    "收藏 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite %@"
+          }
+        }
+      }
+    },
+    "收藏当前版本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite the current version"
+          }
+        }
+      }
+    },
+    "无效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid"
+          }
+        }
+      }
+    },
+    "无法修改登录项：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not change the login item: %@"
+          }
+        }
+      }
+    },
+    "无法打开 GitHub Releases。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open GitHub Releases."
+          }
+        }
+      }
+    },
+    "无法打开 Xcode Settings。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open Xcode Settings."
+          }
+        }
+      }
+    },
+    "无法打开所选 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open the selected Xcode."
+          }
+        }
+      }
+    },
+    "无法打开终端。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open Terminal."
+          }
+        }
+      }
+    },
+    "无法打开钥匙串访问。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open Keychain Access."
+          }
+        }
+      }
+    },
+    "无法解析项目使用的 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not determine which Xcode the project uses."
+          }
+        }
+      }
+    },
+    "是": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes"
+          }
+        }
+      }
+    },
+    "有效": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valid"
+          }
+        }
+      }
+    },
+    "未发现 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Xcode Found"
+          }
+        }
+      }
+    },
+    "未发现 Xcode.app。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Xcode.app found."
+          }
+        }
+      }
+    },
+    "未找到代码签名证书。请确认已在钥匙串中安装证书。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No code signing certificate found. Make sure a certificate is installed in the keychain."
+          }
+        }
+      }
+    },
+    "未找到本机 Provisioning Profile。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No provisioning profiles found on this Mac."
+          }
+        }
+      }
+    },
+    "未检测到 Simulator Runtime。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Simulator Runtime detected."
+          }
+        }
+      }
+    },
+    "未检测到 Simulator 设备。可在 Xcode 或 simctl 中创建。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Simulator devices detected. Create one in Xcode or with simctl."
+          }
+        }
+      }
+    },
+    "根据 %@ 自动匹配 Xcode %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatically matched to Xcode %@ based on %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "根据 %1$@ 自动匹配 Xcode %2$@"
+          }
+        }
+      }
+    },
+    "检查 Xcode 安装完整性或重新安装对应平台组件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check that the Xcode installation is complete, or reinstall the matching platform component."
+          }
+        }
+      }
+    },
+    "检查更新…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for Updates…"
+          }
+        }
+      }
+    },
+    "检查证书、Provisioning Profile 与项目签名配置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspect certificates, provisioning profiles and project signing settings."
+          }
+        }
+      }
+    },
+    "检测中…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking…"
+          }
+        }
+      }
+    },
+    "正在下载 iOS Simulator Runtime…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading the iOS Simulator Runtime…"
+          }
+        }
+      }
+    },
+    "正在体检 Xcode %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking Xcode %@…"
+          }
+        }
+      }
+    },
+    "正在关闭 Simulator %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shutting down Simulator %@…"
+          }
+        }
+      }
+    },
+    "正在启动 Simulator %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Booting Simulator %@…"
+          }
+        }
+      }
+    },
+    "正在录制": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording"
+          }
+        }
+      }
+    },
+    "正在扫描本机安装的 Xcode…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanning for Xcode installations…"
+          }
+        }
+      }
+    },
+    "正在抹掉 Simulator %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erasing Simulator %@…"
+          }
+        }
+      }
+    },
+    "正在检查 GitHub Releases…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking GitHub Releases…"
+          }
+        }
+      }
+    },
+    "正在检查工具链、License、Runtime、Simulator、Rosetta 和磁盘空间…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking the toolchain, License, Runtime, Simulator, Rosetta and disk space…"
+          }
+        }
+      }
+    },
+    "正在检查更新…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking for updates…"
+          }
+        }
+      }
+    },
+    "正在请求管理员授权…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requesting administrator authorization…"
+          }
+        }
+      }
+    },
+    "正在读取运行时…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading runtimes…"
+          }
+        }
+      }
+    },
+    "正在读取钥匙串…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading the keychain…"
+          }
+        }
+      }
+    },
+    "正在读取项目签名配置…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading project signing settings…"
+          }
+        }
+      }
+    },
+    "没有匹配的项目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Matching Projects"
+          }
+        }
+      }
+    },
+    "没有可回滚的上一个 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no previous Xcode to roll back to."
+          }
+        }
+      }
+    },
+    "没有可用于打开项目的 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Xcode is available to open the project."
+          }
+        }
+      }
+    },
+    "没有失效项目。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No missing projects."
+          }
+        }
+      }
+    },
+    "添加搜索目录…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Search Folder…"
+          }
+        }
+      }
+    },
+    "添加项目…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Project…"
+          }
+        }
+      }
+    },
+    "添加项目后可一键切换并打开。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once added, a project can be switched and opened in one step."
+          }
+        }
+      }
+    },
+    "清理失效项目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Missing Projects"
+          }
+        }
+      }
+    },
+    "激活所选 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate Selected Xcode"
+          }
+        }
+      }
+    },
+    "版本别名（可选）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version alias (optional)"
+          }
+        }
+      }
+    },
+    "环境体检": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment Check"
+          }
+        }
+      }
+    },
+    "环境体检完成，发现 %lld 项需要关注。": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Environment check finished: %lld item needs attention."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Environment check finished: %lld items need attention."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "环境体检完成，未发现问题。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment check finished with no issues."
+          }
+        }
+      }
+    },
+    "环境诊断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment Diagnostics"
+          }
+        }
+      }
+    },
+    "环境诊断报告已复制。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment diagnostics report copied."
+          }
+        }
+      }
+    },
+    "环境诊断报告已导出。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment diagnostics report exported."
+          }
+        }
+      }
+    },
+    "用推荐版本打开（不改系统设置）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open with Recommended Xcode (no system change)"
+          }
+        }
+      }
+    },
+    "登录时启动": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch at login"
+          }
+        }
+      }
+    },
+    "确认 Xcode.app 完整，并重新选择 Developer 目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify that Xcode.app is complete and select the Developer directory again."
+          }
+        }
+      }
+    },
+    "磁盘空间": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disk space"
+          }
+        }
+      }
+    },
+    "签名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing"
+          }
+        }
+      }
+    },
+    "签名管理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code Signing"
+          }
+        }
+      }
+    },
+    "签名证书（Keychain）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing Certificates (Keychain)"
+          }
+        }
+      }
+    },
+    "管理 Xcode 版本与项目环境": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Xcode versions and project environments"
+          }
+        }
+      }
+    },
+    "系统级切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System-wide Switch"
+          }
+        }
+      }
+    },
+    "绑定版本已丢失": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The pinned Xcode is missing"
+          }
+        }
+      }
+    },
+    "脱敏环境诊断报告已复制。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redacted environment diagnostics report copied."
+          }
+        }
+      }
+    },
+    "脱敏环境诊断报告已导出。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redacted environment diagnostics report exported."
+          }
+        }
+      }
+    },
+    "自动匹配 / 跟随当前": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic / Follow current"
+          }
+        }
+      }
+    },
+    "自动检查更新": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for updates automatically"
+          }
+        }
+      }
+    },
+    "设为系统默认 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make Default Xcode"
+          }
+        }
+      }
+    },
+    "设置…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings…"
+          }
+        }
+      }
+    },
+    "设置分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings category"
+          }
+        }
+      }
+    },
+    "证书和私钥由 macOS 钥匙串管理，没有普通 Finder 文件路径。导出按钮只导出公钥 .cer，不会导出私钥。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificates and private keys are managed by the macOS keychain and have no ordinary Finder path. The export button writes only the public .cer, never the private key."
+          }
+        }
+      }
+    },
+    "证书导出失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exporting the certificate failed: %@"
+          }
+        }
+      }
+    },
+    "该项目已经添加。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That project has already been added."
+          }
+        }
+      }
+    },
+    "请按下快捷键…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Press a shortcut…"
+          }
+        }
+      }
+    },
+    "请选择 .xcodeproj 或 .xcworkspace。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose an .xcodeproj or .xcworkspace."
+          }
+        }
+      }
+    },
+    "请选择项目以读取签名配置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a project to read its signing settings."
+          }
+        }
+      }
+    },
+    "请重新扫描，或在设置中添加搜索目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rescan, or add a search folder in Settings."
+          }
+        }
+      }
+    },
+    "还没有绑定项目，请先在“项目”页添加 .xcodeproj 或 .xcworkspace。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No projects yet. Add an .xcodeproj or .xcworkspace on the Projects tab first."
+          }
+        }
+      }
+    },
+    "还没有项目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Projects Yet"
+          }
+        }
+      }
+    },
+    "这会删除设备中的应用和数据，且无法撤销。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This deletes the apps and data on the device and cannot be undone."
+          }
+        }
+      }
+    },
+    "退出 Xcode Switcher": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit Xcode Switcher"
+          }
+        }
+      }
+    },
+    "选择一个 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select an Xcode"
+          }
+        }
+      }
+    },
+    "选择项目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a project"
+          }
+        }
+      }
+    },
+    "通用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        }
+      }
+    },
+    "配置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration"
+          }
+        }
+      }
+    },
+    "配置保存失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving the configuration failed: %@"
+          }
+        }
+      }
+    },
+    "配置包含收藏、项目绑定、搜索目录、快捷键和最近切换记录；每次保存前会保留一份备份，历史备份最多保留 10 份。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The configuration holds favorites, project bindings, search folders, shortcuts and recent switches. A backup is kept before every save, with at most 10 historical backups."
+          }
+        }
+      }
+    },
+    "配置已导入。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration imported."
+          }
+        }
+      }
+    },
+    "配置已导出。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configuration exported."
+          }
+        }
+      }
+    },
+    "重新体检": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run Check Again"
+          }
+        }
+      }
+    },
+    "重新扫描": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rescan"
+          }
+        }
+      }
+    },
+    "需要先把 App 内的 CLI 放到 PATH，例如链接到 ~/.local/bin：": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bundled CLI must be on your PATH first, for example by linking it into ~/.local/bin:"
+          }
+        }
+      }
+    },
+    "需要在系统设置中允许 Xcode Switcher 使用辅助功能，然后重新打开 App。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Xcode Switcher to use Accessibility in System Settings, then reopen the app."
+          }
+        }
+      }
+    },
+    "项目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projects"
+          }
+        }
+      }
+    },
+    "项目名称": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project name"
+          }
+        }
+      }
+    },
+    "项目推荐使用另一版本的 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This project recommends a different Xcode"
+          }
+        }
+      }
+    },
+    "项目签名诊断": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project Signing Diagnostics"
+          }
+        }
+      }
+    },
+    "项目绑定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project Bindings"
+          }
+        }
+      }
+    },
+    "项目设置…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project Settings…"
+          }
+        }
+      }
+    },
+    "项目路径不存在：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The project path does not exist: %@"
+          }
+        }
+      }
+    },
+    "项目：%@\n当前：%@ %@\n推荐：%@ %@\n依据：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project: %@\nCurrent: %@ %@\nRecommended: %@ %@\nBased on: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项目：%1$@\n当前：%2$@ %3$@\n推荐：%4$@ %5$@\n依据：%6$@"
+          }
+        }
+      }
+    },
+    "首次使用时，macOS 可能要求授予辅助功能权限。快捷键会唤起主窗口并聚焦搜索框。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS may ask for Accessibility permission the first time. The shortcut brings up the main window and focuses the search field."
+          }
+        }
+      }
+    },
+    "首次启动任务已完成。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First launch tasks are complete."
+          }
+        }
+      }
+    },
+    "首次启动组件": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First launch components"
+          }
+        }
+      }
+    },
+    "默认扫描 /Applications、~/Applications 和 Spotlight；下面的目录会递归扫描。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/Applications, ~/Applications and Spotlight are scanned by default; the folders below are scanned recursively."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

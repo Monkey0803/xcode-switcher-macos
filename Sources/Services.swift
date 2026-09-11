@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Darwin
 import Foundation
 import Security
 
@@ -27,21 +28,73 @@ struct ProcessResult: Sendable {
     }
 }
 
-private final class DataBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var stored = Data()
+/// One captured standard-output or standard-error stream.
+///
+/// Reads are non-blocking and driven by `poll`, so a child that hands its pipe
+/// to a surviving grandchild (for example `xcodebuild -downloadPlatform`) can
+/// never block the caller on a pipe that will not reach EOF.
+private struct ProcessOutputStream {
+    let fileDescriptor: Int32
+    private let handle: FileHandle
+    private var captured = Data()
+    private(set) var isOpen = true
 
-    var data: Data {
-        get { lock.withLock { stored } }
-        set { lock.withLock { stored = newValue } }
+    init(_ handle: FileHandle) {
+        self.handle = handle
+        self.fileDescriptor = handle.fileDescriptor
+        let flags = fcntl(fileDescriptor, F_GETFL, 0)
+        if flags >= 0 {
+            _ = fcntl(fileDescriptor, F_SETFL, flags | O_NONBLOCK)
+        }
     }
 
-    func append(_ data: Data) {
-        lock.withLock { stored.append(data) }
+    var text: String { String(data: captured, encoding: .utf8) ?? "" }
+
+    /// Drains everything currently buffered and returns the number of bytes read.
+    @discardableResult
+    mutating func drain(progress: (@Sendable (String) -> Void)?) -> Int {
+        guard isOpen else { return 0 }
+        var total = 0
+        var buffer = [UInt8](repeating: 0, count: 65_536)
+        while true {
+            let count = buffer.withUnsafeMutableBytes { bytes in
+                Darwin.read(fileDescriptor, bytes.baseAddress, bytes.count)
+            }
+            if count > 0 {
+                let data = Data(buffer[0..<count])
+                captured.append(data)
+                total += count
+                if let progress, let chunk = String(data: data, encoding: .utf8), !chunk.isEmpty {
+                    progress(chunk)
+                }
+                continue
+            }
+            if count == 0 {
+                close()
+                return total
+            }
+            if errno == EINTR { continue }
+            // EAGAIN only means the pipe is momentarily empty; every other
+            // failure means the descriptor is no longer usable.
+            if errno != EAGAIN && errno != EWOULDBLOCK { close() }
+            return total
+        }
+    }
+
+    mutating func close() {
+        guard isOpen else { return }
+        isOpen = false
+        try? handle.close()
     }
 }
 
 enum ProcessRunner {
+    /// Time allowed to collect output the child already wrote after it exits.
+    private static let outputDrainGrace: TimeInterval = 0.3
+    /// Time allowed for a process to exit after `SIGTERM` before `SIGKILL`.
+    private static let terminationGrace: TimeInterval = 1.0
+    private static let pollIntervalMilliseconds: Int32 = 50
+
     static func run(
         executable: String,
         arguments: [String],
@@ -58,66 +111,115 @@ enum ProcessRunner {
         process.environment = mergedEnvironment
         process.currentDirectoryURL = currentDirectory
 
-        let output = Pipe()
-        let errorOutput = Pipe()
-        process.standardOutput = output
-        process.standardError = errorOutput
+        let standardOutput = Pipe()
+        let standardError = Pipe()
+        process.standardOutput = standardOutput
+        process.standardError = standardError
 
+        let startedAt = Date()
         do {
             try process.run()
-            let group = DispatchGroup()
-            let stdoutBox = DataBox()
-            let stderrBox = DataBox()
-            group.enter()
-            DispatchQueue.global(qos: .utility).async {
-                while true {
-                    let data = output.fileHandleForReading.availableData
-                    guard !data.isEmpty else { break }
-                    stdoutBox.append(data)
-                    if let text = String(data: data, encoding: .utf8), !text.isEmpty { progress?(text) }
-                }
-                group.leave()
-            }
-            group.enter()
-            DispatchQueue.global(qos: .utility).async {
-                while true {
-                    let data = errorOutput.fileHandleForReading.availableData
-                    guard !data.isEmpty else { break }
-                    stderrBox.append(data)
-                    if let text = String(data: data, encoding: .utf8), !text.isEmpty { progress?(text) }
-                }
-                group.leave()
-            }
-            let startedAt = Date()
-            var timedOut = false
-            var cancelled = false
-            while process.isRunning {
-                if Task.isCancelled {
-                    cancelled = true
-                    process.terminate()
-                    break
-                }
-                if let timeout, Date().timeIntervalSince(startedAt) >= timeout {
-                    timedOut = true
-                    process.terminate()
-                    break
-                }
-                Thread.sleep(forTimeInterval: 0.05)
-            }
-            process.waitUntilExit()
-            group.wait()
-            let stdout = String(data: stdoutBox.data, encoding: .utf8) ?? ""
-            let stderr = String(data: stderrBox.data, encoding: .utf8) ?? ""
-            return ProcessResult(
-                status: process.terminationStatus,
-                stdout: stdout.trimmingCharacters(in: .whitespacesAndNewlines),
-                stderr: stderr.trimmingCharacters(in: .whitespacesAndNewlines),
-                timedOut: timedOut,
-                cancelled: cancelled
-            )
         } catch {
             return ProcessResult(status: -1, stdout: "", stderr: error.localizedDescription)
         }
+
+        // The parent must release its own write ends, otherwise the read ends
+        // never observe EOF after the child exits.
+        standardOutput.fileHandleForWriting.closeFile()
+        standardError.fileHandleForWriting.closeFile()
+
+        var streams = [
+            ProcessOutputStream(standardOutput.fileHandleForReading),
+            ProcessOutputStream(standardError.fileHandleForReading)
+        ]
+
+        let deadline = timeout.map { startedAt.addingTimeInterval($0) }
+        var timedOut = false
+        var cancelled = false
+        var lastActivity = startedAt
+
+        while true {
+            let now = Date()
+            if Task.isCancelled {
+                cancelled = true
+                break
+            }
+            if let deadline, now >= deadline {
+                timedOut = true
+                break
+            }
+            if !process.isRunning {
+                let streamsClosed = !streams.contains { $0.isOpen }
+                // A surviving grandchild can keep a pipe open forever; stop once
+                // the direct child is gone and its remaining output has drained.
+                if streamsClosed || now.timeIntervalSince(lastActivity) >= outputDrainGrace {
+                    break
+                }
+            }
+            if drain(&streams, progress: progress) > 0 {
+                lastActivity = Date()
+            }
+        }
+
+        if cancelled || timedOut {
+            terminate(process)
+        }
+        process.waitUntilExit()
+
+        return ProcessResult(
+            status: process.terminationStatus,
+            stdout: streams[0].text.trimmingCharacters(in: .whitespacesAndNewlines),
+            stderr: streams[1].text.trimmingCharacters(in: .whitespacesAndNewlines),
+            timedOut: timedOut,
+            cancelled: cancelled
+        )
+    }
+
+    /// Waits for readable output and drains it. Returns the number of bytes read.
+    @discardableResult
+    private static func drain(
+        _ streams: inout [ProcessOutputStream],
+        progress: (@Sendable (String) -> Void)?
+    ) -> Int {
+        var descriptors: [pollfd] = []
+        var streamIndices: [Int] = []
+        for (index, stream) in streams.enumerated() where stream.isOpen {
+            descriptors.append(pollfd(fd: stream.fileDescriptor, events: Int16(POLLIN), revents: 0))
+            streamIndices.append(index)
+        }
+
+        guard !descriptors.isEmpty else {
+            // Nothing left to read: stay responsive to cancellation and to the
+            // child exiting instead of spinning on an empty descriptor set.
+            Thread.sleep(forTimeInterval: TimeInterval(pollIntervalMilliseconds) / 1000)
+            return 0
+        }
+
+        guard poll(&descriptors, nfds_t(descriptors.count), pollIntervalMilliseconds) > 0 else {
+            return 0
+        }
+
+        var total = 0
+        for (position, descriptor) in descriptors.enumerated() {
+            let events = Int32(descriptor.revents)
+            guard events & POLLIN != 0 || events & POLLHUP != 0 || events & POLLERR != 0 else { continue }
+            total += streams[streamIndices[position]].drain(progress: progress)
+        }
+        return total
+    }
+
+    /// Ends the process, escalating to `SIGKILL` so the caller can never block
+    /// on a child that ignores `SIGTERM`.
+    private static func terminate(_ process: Process) {
+        guard process.isRunning else { return }
+        process.terminate()
+        let deadline = Date().addingTimeInterval(terminationGrace)
+        while process.isRunning && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        guard process.isRunning else { return }
+        kill(process.processIdentifier, SIGKILL)
+        process.waitUntilExit()
     }
 
     static func output(executable: String, arguments: [String], environment: [String: String] = [:]) -> String? {
@@ -447,6 +549,17 @@ private final class XcodeAuthorizationSession: @unchecked Sendable {
     }
 }
 
+// Decision (2026-09-11): `xcode-select --switch` needs root, and this app is
+// distributed directly from GitHub rather than through the App Store, so the
+// sandbox is not a constraint. The supported replacement for this deprecated
+// symbol is a privileged helper registered with `SMAppService.daemon(plistName:)`,
+// but Apple requires every app containing a LaunchDaemon to be code signed and
+// notarized ("Apps that contain LaunchDaemons must be notarized", SMAppService.h),
+// while this project still ships ad-hoc signed direct-distribution builds. Keeping
+// the existing authorization session is therefore the lower-risk choice; revisit
+// once Developer ID signing plus notarization is the primary distribution path.
+// Meanwhile the root-free `DEVELOPER_DIR` route is offered directly in the UI.
+//
 // Swift marks this legacy symbol unavailable. Keep the compatibility
 // declaration local so the authorization session can reuse its token on
 // supported macOS versions without persisting credentials.
@@ -534,39 +647,107 @@ enum XcodeActions {
         }
     }
 
-    static func openXcodeSettings(for installation: XcodeInstallation) -> Bool {
-        guard NSWorkspace.shared.open(installation.appURL) else { return false }
-
-        // Xcode does not expose a public URL scheme for its Settings window.
-        // Open its application menu and choose Settings. This is independent
-        // of the user's display language and requires Accessibility permission.
+    /// Xcode exposes no public URL scheme for its Settings window, so this drives
+    /// its menu bar through System Events. That needs Accessibility permission and
+    /// depends on the menu layout, so the outcome is reported instead of assumed.
+    static func openXcodeSettings(
+        for installation: XcodeInstallation,
+        completion: @escaping @Sendable (Result<Void, XcodeSettingsError>) -> Void
+    ) {
+        guard NSWorkspace.shared.open(installation.appURL) else {
+            completion(.failure(.cannotLaunch))
+            return
+        }
+        guard AXIsProcessTrusted() else {
+            completion(.failure(.accessibilityPermissionMissing))
+            return
+        }
         let processName = installation.name
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            let source = """
-            tell application "System Events"
-                tell process \(XcodeActivator.appleScriptQuote(processName))
-                    click menu bar item 2 of menu bar 1
-                    tell menu 1 of menu bar item 2 of menu bar 1
-                        repeat with menuItem in menu items
-                            set itemTitle to title of menuItem
-                            if itemTitle contains "Settings" or itemTitle contains "设置" then
-                                click menuItem
-                                exit repeat
-                            end if
-                        end repeat
-                    end tell
-                end tell
-            end tell
-            """
-            guard let script = NSAppleScript(source: source) else { return }
-            var error: NSDictionary?
-            script.executeAndReturnError(&error)
+            completion(performXcodeSettingsScript(processName: processName))
         }
-        return true
+    }
+
+    /// Kept separate from the runner so the script syntax can be compiled and
+    /// validated in tests without ever executing it.
+    static func xcodeSettingsScript(processName: String) -> String {
+        """
+        tell application "System Events"
+            tell process \(XcodeActivator.appleScriptQuote(processName))
+                set appMenuBarItem to menu bar item 2 of menu bar 1
+                click appMenuBarItem
+                set didClickSettings to false
+                tell menu 1 of appMenuBarItem
+                    repeat with menuItem in menu items
+                        set itemTitle to title of menuItem
+                        if itemTitle contains "Settings" or itemTitle contains "设置" then
+                            click menuItem
+                            set didClickSettings to true
+                            exit repeat
+                        end if
+                    end repeat
+                end tell
+                if didClickSettings then
+                    return "ok"
+                else
+                    return "missing-settings-item"
+                end if
+            end tell
+        end tell
+        """
+    }
+
+    private static func performXcodeSettingsScript(processName: String) -> Result<Void, XcodeSettingsError> {
+        guard let script = NSAppleScript(source: xcodeSettingsScript(processName: processName)) else {
+            return .failure(.automationFailed("无法创建系统自动化脚本"))
+        }
+        var error: NSDictionary?
+        let result = script.executeAndReturnError(&error)
+        if let error, error.count > 0 {
+            return .failure(.automationFailed(describe(error)))
+        }
+        switch result.stringValue {
+        case "ok":
+            return .success(())
+        case "missing-settings-item":
+            return .failure(.settingsItemNotFound)
+        default:
+            return .failure(.automationFailed("脚本未返回预期结果"))
+        }
+    }
+
+    private static func describe(_ error: NSDictionary) -> String {
+        if let message = error[NSAppleScript.errorMessage] as? String, !message.isEmpty {
+            return message
+        }
+        if let number = error[NSAppleScript.errorNumber] as? Int {
+            return "错误码 \(number)"
+        }
+        return "未知错误"
     }
 
     private static func shellQuote(_ value: String) -> String {
         "'\(value.replacingOccurrences(of: "'", with: "'\\\"'\\\"'"))'"
+    }
+}
+
+enum XcodeSettingsError: LocalizedError, Sendable {
+    case cannotLaunch
+    case accessibilityPermissionMissing
+    case settingsItemNotFound
+    case automationFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .cannotLaunch:
+            return "无法打开该 Xcode。"
+        case .accessibilityPermissionMissing:
+            return "需要辅助功能权限才能自动打开 Xcode 的 Settings 窗口，请在系统设置中授权后重试。"
+        case .settingsItemNotFound:
+            return "没有在 Xcode 菜单中找到 Settings 项，请在 Xcode 中手动打开。"
+        case let .automationFailed(detail):
+            return "无法自动打开 Xcode 的 Settings 窗口（\(detail)），请在 Xcode 中手动打开。"
+        }
     }
 }
 
@@ -647,13 +828,15 @@ final class AppConfigurationStore: @unchecked Sendable {
         return configuration
     }
 
-    func save(_ configuration: AppConfiguration) {
+    /// Writes the configuration and keeps a bounded history of previous versions.
+    /// Throws so callers can surface a failure instead of silently losing edits.
+    func save(_ configuration: AppConfiguration) throws {
         var configuration = configuration
         configuration.migrate()
-        guard let data = try? Self.encoder.encode(configuration) else { return }
-        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let data = try Self.encoder.encode(configuration)
+        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         backupExistingFile()
-        try? data.write(to: fileURL, options: .atomic)
+        try data.write(to: fileURL, options: .atomic)
     }
 
     func export(_ configuration: AppConfiguration, to url: URL) throws {
@@ -684,18 +867,53 @@ final class AppConfigurationStore: @unchecked Sendable {
     func restoreBackup() throws -> AppConfiguration {
         guard hasBackup else { throw CocoaError(.fileNoSuchFile) }
         let configuration = try `import`(from: backupURL)
-        save(configuration)
+        try save(configuration)
         return configuration
     }
 
     private func backupExistingFile() {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
-        try? FileManager.default.removeItem(at: backupURL)
-        try? FileManager.default.copyItem(at: fileURL, to: backupURL)
+        guard let current = try? Data(contentsOf: fileURL) else { return }
         try? FileManager.default.createDirectory(at: backupDirectoryURL, withIntermediateDirectories: true)
-        let historicalURL = backupDirectoryURL.appendingPathComponent("configuration-\(UUID().uuidString).json")
-        try? FileManager.default.copyItem(at: fileURL, to: historicalURL)
+
+        // The rolling `.bak` is what "恢复上次备份" restores, so it is always current.
+        try? current.write(to: backupURL, options: .atomic)
+
+        // The historical directory is capped, and content that is already archived
+        // is not archived again, so repeated saves cannot grow it without bound.
+        // The comparison checks every entry rather than only the newest one:
+        // modification timestamps are not unique for rapid saves, so "newest"
+        // cannot be relied on to identify the content that was last archived.
+        let archived = historicalBackupURLs().contains { (try? Data(contentsOf: $0)) == current }
+        if archived { return }
+        // The timestamp prefix keeps the archive sorted chronologically; the
+        // suffix keeps saves that land in the same microsecond distinct.
+        let stamp = String(format: "%.6f", Date().timeIntervalSince1970)
+        let suffix = String(UUID().uuidString.prefix(8))
+        let historicalURL = backupDirectoryURL.appendingPathComponent("configuration-\(stamp)-\(suffix).json")
+        try? current.write(to: historicalURL, options: .atomic)
+        for stale in historicalBackupURLs().dropFirst(Self.historicalBackupLimit) {
+            try? FileManager.default.removeItem(at: stale)
+        }
     }
+
+    /// Historical backups, newest first.
+    private func historicalBackupURLs() -> [URL] {
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: backupDirectoryURL,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+        return contents
+            .filter { $0.lastPathComponent.hasPrefix("configuration-") && $0.pathExtension == "json" }
+            .sorted { lhs, rhs in
+                let lhsDate = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let rhsDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                if lhsDate != rhsDate { return lhsDate > rhsDate }
+                return lhs.lastPathComponent > rhs.lastPathComponent
+            }
+    }
+
+    private static let historicalBackupLimit = 10
 
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()

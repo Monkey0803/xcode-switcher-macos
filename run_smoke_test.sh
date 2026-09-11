@@ -26,8 +26,11 @@ cd "$script_dir"
   "$script_dir/build_app.sh" \
   "$script_dir/build_release.sh" \
   "$script_dir/build_local_release.sh" \
+  "$script_dir/Scripts/build_icons.sh" \
   "$script_dir/Scripts/release_preflight.sh" \
-  "$script_dir/Scripts/sign_bundle.sh"
+  "$script_dir/Scripts/sign_bundle.sh" \
+  "$script_dir/Scripts/sync_string_catalog.sh" \
+  "$script_dir/Scripts/verify_string_catalog.sh"
 
 /bin/bash -n "$script_dir/Scripts/shell_environment_e2e.sh"
 

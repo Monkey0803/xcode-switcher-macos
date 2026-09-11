@@ -11,16 +11,47 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    runs-on: macos-14
+  xcode:
+    name: Xcode project
+    # The macOS 26 SDK is required: NSGlassEffectView is a macOS 26 API, and a
+    # runtime `#available` check does not help a compiler that cannot see the
+    # symbol at all. macos-14 (macOS 14 SDK) can no longer build this project.
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Test Swift package
-        run: swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
-      - name: Validate release scripts
-        run: bash -n build_app.sh build_local_release.sh build_release.sh Scripts/release_preflight.sh Scripts/sign_bundle.sh Scripts/shell_environment_e2e.sh
-      - name: Build local app candidate
-        run: ./build_app.sh
-      - name: Verify CLI and zsh project environment
-        run: ./Scripts/shell_environment_e2e.sh
+
+      - name: Build and test
+        run: |
+          xcodebuild -project XcodeSwitcher.xcodeproj \
+            -scheme "Xcode Switcher" \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            build test
+
+      - name: Verify the string catalog
+        run: ./Scripts/verify_string_catalog.sh
+
+      - name: Verify the string catalog is in sync with the sources
+        run: |
+          ./Scripts/sync_string_catalog.sh
+          # `git diff` alone would be vacuous for a file that is not tracked yet,
+          # so use status: it also fails when the catalog was never committed.
+          if [ -n "$(git status --porcelain -- Resources/Localizable.xcstrings)" ]; then
+            echo "Resources/Localizable.xcstrings 与源码不一致或尚未提交，请提交同步结果。" >&2
+            git --no-pager diff -- Resources/Localizable.xcstrings | head -50
+            exit 1
+          fi
+
+  scripts:
+    name: Script build path
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # run_smoke_test.sh covers swift test, build_app.sh, bundle/signature and
+      # architecture checks, the CLI, the zsh environment E2E, and a packaged
+      # launch — the same sequence used locally.
+      - name: Run smoke test
+        run: ./run_smoke_test.sh

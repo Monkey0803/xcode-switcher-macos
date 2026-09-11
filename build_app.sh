@@ -65,6 +65,42 @@ menu_icon_source="$script_dir/build/MenuBarIcon-source.png"
   "$script_dir"/Sources/*.swift \
   -o "$app_arm64"
 
+# Sources the CLI shares with the app, and the files that are genuinely app-only
+# (SwiftUI views, AppKit lifecycle, Sparkle, Keychain UI). Every file in Sources/
+# must appear in exactly one of these lists: a new shared file that is not added
+# to the CLI build would otherwise only fail once someone runs the CLI.
+cli_shared_sources=(
+  Models.swift
+  ProjectMatching.swift
+  Services.swift
+  EnvironmentDoctor.swift
+  ProjectEnvironment.swift
+  CLIModels.swift
+)
+cli_app_only_sources=(
+  SigningServices.swift
+  ViewModel.swift
+  Views.swift
+  XcodeSwitcherApp.swift
+  LifecycleServices.swift
+)
+
+for source_file in "$script_dir"/Sources/*.swift; do
+  source_name="$(basename "$source_file")"
+  if [[ " ${cli_app_only_sources[*]} " == *" $source_name "* ]]; then
+    continue
+  fi
+  if [[ " ${cli_shared_sources[*]} " != *" $source_name "* ]]; then
+    printf '错误：%s 未登记为 CLI 共享源文件或应用专属文件。请更新 build_app.sh。\n' "$source_name" >&2
+    exit 1
+  fi
+done
+
+cli_source_arguments=()
+for source_name in "${cli_shared_sources[@]}"; do
+  cli_source_arguments+=("$script_dir/Sources/$source_name")
+done
+
 /usr/bin/xcrun swiftc -O \
   -parse-as-library \
   -target arm64-apple-macosx13.0 \
@@ -72,13 +108,8 @@ menu_icon_source="$script_dir/build/MenuBarIcon-source.png"
   -warnings-as-errors \
   -framework AppKit \
   -framework Security \
-  "$script_dir/Sources/Models.swift" \
-  "$script_dir/Sources/ProjectMatching.swift" \
-  "$script_dir/Sources/Services.swift" \
-  "$script_dir/Sources/EnvironmentDoctor.swift" \
-  "$script_dir/Sources/ProjectEnvironment.swift" \
-  "$script_dir/Sources/CLIModels.swift" \
-  "$script_dir/SourcesCLI/main.swift" \
+  "${cli_source_arguments[@]}" \
+  "$script_dir/SourcesCLI/CLIEntryPoint.swift" \
   -o "$cli_arm64"
 
 cp "$app_arm64" "$macos_dir/XcodeSwitcherApp"

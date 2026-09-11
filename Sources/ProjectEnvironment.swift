@@ -124,6 +124,13 @@ __xcodeswitcher_restore_developer_dir() {
 }
 
 __xcodeswitcher_update_developer_dir() {
+  # DEVELOPER_DIR only depends on the working directory, so re-evaluating before
+  # every prompt would spawn one process per command for no benefit.
+  if [[ "${__xcodeswitcher_last_directory:-}" == "$PWD" ]]; then
+    return
+  fi
+  __xcodeswitcher_last_directory="$PWD"
+
   local output error_file source
   error_file="${TMPDIR:-/tmp}/xcodeswitcher-env-error.$$"
   output="$(xcodeswitcher env "$PWD" 2>"$error_file")"
@@ -146,12 +153,9 @@ __xcodeswitcher_update_developer_dir() {
   fi
 }
 
-typeset -ga chpwd_functions precmd_functions
+typeset -ga chpwd_functions
 if (( ${chpwd_functions[(I)__xcodeswitcher_update_developer_dir]:-0} == 0 )); then
   chpwd_functions+=(__xcodeswitcher_update_developer_dir)
-fi
-if (( ${precmd_functions[(I)__xcodeswitcher_update_developer_dir]:-0} == 0 )); then
-  precmd_functions+=(__xcodeswitcher_update_developer_dir)
 fi
 __xcodeswitcher_update_developer_dir
 """#

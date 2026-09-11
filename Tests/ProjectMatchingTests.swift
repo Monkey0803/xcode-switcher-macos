@@ -275,7 +275,10 @@ final class ProjectMatchingTests: XCTestCase {
     func testZshHookIsIdempotentAndDoesNotChangeGlobalSelection() {
         let source = ZshProjectEnvironmentHook.source
         XCTAssertTrue(source.contains("chpwd_functions"))
-        XCTAssertTrue(source.contains("precmd_functions"))
+        // Registering the hook as a prompt hook would spawn the CLI once per
+        // command, while DEVELOPER_DIR only ever depends on PWD.
+        XCTAssertFalse(source.contains("precmd_functions"))
+        XCTAssertTrue(source.contains("__xcodeswitcher_last_directory"))
         XCTAssertTrue(source.contains("xcodeswitcher env \"$PWD\""))
         XCTAssertTrue(source.contains("__xcodeswitcher_original_developer_dir"))
         XCTAssertTrue(source.contains("__xcodeswitcher_restore_developer_dir"))

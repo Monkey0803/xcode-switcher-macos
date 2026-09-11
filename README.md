@@ -15,7 +15,10 @@
 - 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode，一键切换并打开项目。
 - 自动读取项目或上级目录中的 `.xcode-version`、`.tool-versions`，匹配对应 Xcode；绑定版本或项目路径失效时会阻止误开并给出提示。
 - 一键打开指定 Xcode，或打开注入对应 `DEVELOPER_DIR` 的 Terminal。
-- 配置导入导出，保存搜索目录、收藏、别名、项目绑定、快捷键组合、快捷键开关和切换历史；每次保存前自动备份并可恢复。
+- 在 macOS 26 及以上按 Liquid Glass 呈现：自绘的快捷键录制控件改用 `NSGlassEffectView`，主要操作按钮使用 glass 样式；更早系统保持原有外观（最低支持 macOS 13）。macOS 上 Liquid Glass 是 AppKit 能力，SwiftUI 仅提供 glass 按钮样式。
+- 明确区分两条路径：**系统级切换**执行 `xcode-select --switch`，需要管理员授权并影响全机的开发者目录；**不改系统设置**的方式（打开注入 `DEVELOPER_DIR` 的终端、一键复制 `export` 命令、zsh 项目 Hook、用指定 Xcode 直接打开工程）不需要授权，只影响当前会话或当前项目。详情页与设置页都会说明这一点。
+- 配置导入导出，保存搜索目录、收藏、别名、项目绑定、快捷键组合、快捷键开关和切换历史；每次保存前自动备份并可一键恢复，历史备份最多保留 10 份且内容未变化时不重复归档；保存失败会在界面上提示。
+- 自动发现 Xcode 的方式是监听 `/Applications`、`~/Applications` 与自定义搜索目录的变化，并在打开菜单或窗口时按需刷新，不再定时全量扫描。
 - 签名管理页读取 Keychain 代码签名证书、Provisioning Profile，并支持按 Scheme、Configuration、Target 查看项目签名配置。
 - 证书支持导出公钥 `.cer` 并在 Finder 中显示；Profile 支持直接打开其 Finder 路径。
 - Runtime 下载显示命令进度，支持主动取消，并为外部命令设置超时保护。
@@ -27,13 +30,50 @@
 
 ## 构建与运行
 
+> 构建需要 **Xcode 26 或更新**（macOS 26 SDK）：Liquid Glass 适配用到的 `NSGlassEffectView` 是 macOS 26 API，`#available` 无法让旧 SDK 通过编译。「最低支持 macOS 13」指的是运行时。
+
+推荐用 Xcode 工程（`XcodeSwitcher.xcodeproj`），它包含 app、`xcodeswitcher` CLI 和单元测试三个 target：
+
 ```bash
 cd /Users/huxiaohui/Documents/scripts/xcode-switcher-macos
+xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
+  -configuration Debug -derivedDataPath build/DerivedData build
+xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
+  -configuration Debug -derivedDataPath build/DerivedData test   # 53 XCTest + 15 Swift Testing
+open "build/DerivedData/Build/Products/Debug/Xcode Switcher.app"
+```
+
+也可以继续用原有的脚本路径，它不依赖 Xcode 工程：
+
+```bash
 ./build_app.sh
 open "build/Xcode Switcher.app"
 ```
 
-构建脚本会解析固定版本的 Sparkle 依赖，编译 `Sources/` 下的全部 Swift 文件，并按 Sparkle 官方要求的嵌套顺序执行 ad-hoc 签名。开发签名仅为本地运行启用 Library Validation 调试例外；正式 Developer ID 构建不会携带该例外。构建产物是 `build/Xcode Switcher.app`，可以拖到“应用程序”文件夹后双击使用。未提供正式更新地址和公钥的开发构建会明确禁用“检查更新”。
+脚本会解析固定版本的 Sparkle 依赖，编译 `Sources/` 下的全部 Swift 文件，并按 Sparkle 官方要求的嵌套顺序执行 ad-hoc 签名。开发签名仅为本地运行启用 Library Validation 调试例外；正式 Developer ID 构建不会携带该例外。未提供正式更新地址和公钥的开发构建会明确禁用“检查更新”。两条路径产出的 app bundle 结构一致（`XcodeSwitcherApp`、内嵌 `xcodeswitcher`、嵌入并签名的 Sparkle、图标）。
+
+### 本地化（String Catalog）
+
+界面文案集中在 `Resources/Localizable.xcstrings`，源语言为 `zh-Hans`。SwiftUI 的 `Text("…")` 字面量会被编译器自动提取；以普通 `String` 传递的文案（状态栏消息、模型层标签、菜单项）在代码里用 `String(localized:)` 标注，因此同样会被提取。
+
+```bash
+# 构建 app 后把编译器提取的结果合并回 catalog
+xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
+  -configuration Debug -derivedDataPath build/DerivedData build
+./Scripts/sync_string_catalog.sh
+```
+
+`xcodebuild` 只产出 `.stringsdata`，**不会**把结果写回源目录的 catalog——那一步在 Xcode IDE 里发生。`Scripts/sync_string_catalog.sh` 调用 `xcstringstool sync` 完成同样的合并，所以在 CI 里也能复现，不依赖有人用 Xcode 打开工程。添加语言时在 catalog 里补 `localizations`，构建会自动产出对应的 `<lang>.lproj/Localizable.strings`。
+
+当前语言：界面源语言为 `zh-Hans`，并提供 **English** 译文（237 个键中 220 条已翻译）。翻译术语与规则见 [TRANSLATION.md](TRANSLATION.md)；`Scripts/verify_string_catalog.sh` 会校验占位符一致性，并已接入 CI。
+
+```bash
+# 校验 catalog（占位符、换行、stale 条目）
+./Scripts/verify_string_catalog.sh
+```
+
+工程文件由 `Scripts/generate_xcode_project.py` 生成（XML 格式的 `project.pbxproj`，重复生成结果完全一致）。改动 target、构建配置或源文件后请重新运行它，而不是手改工程文件。
+
 
 ## CLI
 
@@ -68,13 +108,15 @@ ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.lo
 eval "$(xcodeswitcher shell-init zsh)"
 ```
 
-这行命令需要由用户自行加入 `.zshrc`，只影响当前 Shell，不会修改全局 `xcode-select`。目录解析会沿父目录查找项目；同级同时存在 workspace 和 project 时优先 workspace，多个 workspace 或 project 时需要显式指定：
+这行命令需要由用户自行加入 `.zshrc`，只影响当前 Shell，不会修改全局 `xcode-select`。App 的「设置 → Shell 集成」会直接给出这行命令和把 CLI 链接到 PATH 的命令，都可以一键复制。目录解析会沿父目录查找项目；同级同时存在 workspace 和 project 时优先 workspace，多个 workspace 或 project 时需要显式指定：
 
 ```zsh
 eval "$(xcodeswitcher env /path/to/App.xcworkspace)"
 ```
 
 没有项目要求或解析失败时，Hook 会恢复进入 Shell 前的 `DEVELOPER_DIR`。
+
+Hook 只在切换目录时重新解析，同一目录不会每条命令都启动一次 `xcodeswitcher`。因此修改了项目里的 `.xcode-version` 或 `.xcode-switcher.json` 后，需要重新进入该目录，或手动执行 `eval "$(xcodeswitcher env "$PWD")"` 才会生效。
 
 项目也可以在仓库中保存 `.xcode-switcher.json`，其中 `xcode` 支持版本、别名、Xcode 路径或安装 ID；它的优先级高于 App 内绑定和 `.xcode-version` / `.tool-versions`：
 

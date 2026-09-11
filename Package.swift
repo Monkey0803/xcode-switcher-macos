@@ -22,7 +22,15 @@ let package = Package(
         .testTarget(
             name: "XcodeSwitcherTests",
             dependencies: ["XcodeSwitcher"],
-            path: "Tests"
+            path: "Tests",
+            linkerSettings: [
+                // The test bundle links the app target and therefore Sparkle.
+                // The Swift Build backend drops Sparkle.framework in the
+                // products directory but only puts PackageFrameworks on the
+                // bundle's rpath, so dyld cannot find it. This relative rpath
+                // resolves the products directory for both backend layouts.
+                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@loader_path/../../../"])
+            ]
         )
     ]
 )

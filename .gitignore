@@ -7,6 +7,16 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 
+# Compiler intermediates: `xcodebuild -target` runs without -derivedDataPath can
+# drop these in the repository root.
+/*.o
+/*.d
+/*.dia
+/*.swiftdeps
+/*.swiftconstvalues
+/*.swiftmodule
+/*.swiftdoc
+
 # Local signing and notarization material
 *.p12
 *.mobileprovision

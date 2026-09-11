@@ -3,15 +3,38 @@ import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Prominent actions adopt Liquid Glass on macOS 26 and later; older systems keep
+/// the previous bordered style. SwiftUI ships glass only as button styles on this
+/// platform — `.glassEffect()` and `GlassEffectContainer` are not available for
+/// macOS, where Liquid Glass is an AppKit feature.
+private struct ProminentActionButtonStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.buttonStyle(.glassProminent)
+        } else {
+            // Must stay the concrete style: routing this back through
+            // `prominentActionStyle()` would recurse forever on older systems.
+            content.buttonStyle(.borderedProminent)
+        }
+    }
+}
+
+extension View {
+    func prominentActionStyle() -> some View {
+        modifier(ProminentActionButtonStyle())
+    }
+}
+
 struct EmptyStateView: View {
     let title: String
     let systemImage: String
     var description: String?
+    @ScaledMetric(relativeTo: .largeTitle) private var iconSize: CGFloat = 34
 
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: systemImage)
-                .font(.system(size: 34))
+                .font(.system(size: iconSize))
                 .foregroundStyle(.secondary)
             Text(title).font(.headline)
             if let description {
@@ -32,7 +55,7 @@ struct InstallationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: installation.appURL.path))
+            Image(nsImage: model.icon(for: installation))
                 .resizable()
                 .frame(width: 36, height: 36)
             VStack(alignment: .leading, spacing: 3) {
@@ -68,14 +91,14 @@ struct InstallationRow: View {
         .contextMenu {
             Button(model.isFavorite(installation) ? "取消收藏" : "收藏") { model.toggleFavorite(installation) }
             Button("打开 Xcode") { model.select(installation); model.openSelectedXcode() }
-            Button("打开终端") { model.openTerminal(for: installation) }
+            Button("打开终端（注入 DEVELOPER_DIR）") { model.openTerminal(for: installation) }
+            Button("复制 export DEVELOPER_DIR 命令") { model.copyDeveloperDirectoryExport(for: installation) }
         }
     }
 }
 
 struct ContentView: View {
     @EnvironmentObject private var model: XcodeViewModel
-    @State private var isShowingSettings = false
     @FocusState private var isSearchFieldFocused: Bool
 
     var body: some View {
@@ -110,13 +133,13 @@ struct ContentView: View {
                             }
                         }
                     } else {
-                        EmptyStateView(title: "未发现 Xcode", systemImage: "hammer", description: "请重新扫描，或在设置中添加搜索目录。")
+                        EmptyStateView(title: String(localized: "未发现 Xcode"), systemImage: "hammer", description: String(localized: "请重新扫描，或在设置中添加搜索目录。"))
                     }
                     HStack {
                         Text("\(model.installations.count) 个版本").font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         Button {
-                            isShowingSettings = true
+                            model.showSettings()
                         } label: {
                             Label("项目设置…", systemImage: "gear")
                         }
@@ -129,7 +152,7 @@ struct ContentView: View {
                     if let installation = model.selectedInstallation {
                         XcodeDetailView(installation: installation)
                     } else {
-                        EmptyStateView(title: "选择一个 Xcode", systemImage: "cursorarrow.click")
+                        EmptyStateView(title: String(localized: "选择一个 Xcode"), systemImage: "cursorarrow.click")
                     }
                 }
                 .frame(minWidth: 500)
@@ -151,6 +174,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.borderless)
                     .help("收藏当前版本")
+                    .accessibilityLabel(model.isFavorite(selected) ? "取消收藏 \(selected.name)" : "收藏 \(selected.name)")
                 }
                 Button(model.selectedInstallation.map { model.isActive($0) } == true ? "已激活" : "激活所选 Xcode") {
                     model.activateSelection()
@@ -183,11 +207,6 @@ struct ContentView: View {
         .onReceive(model.$searchFocusRequest.dropFirst()) { _ in
             isSearchFieldFocused = true
         }
-        .sheet(isPresented: $isShowingSettings) {
-            SettingsView()
-                .environmentObject(model)
-                .frame(width: 760, height: 600)
-        }
         .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
             guard let provider = providers.first else { return false }
             let viewModel = model
@@ -205,11 +224,11 @@ struct ContentView: View {
             ),
             titleVisibility: .visible
         ) {
-            Button("切换并打开") {
+            Button("切换系统默认并打开") {
                 model.switchAndOpenPendingProject()
             }
-            Button("保留当前 Xcode 打开") {
-                model.openPendingProjectWithCurrentXcode()
+            Button("用推荐版本打开（不改系统设置）") {
+                model.openPendingProjectWithRecommendedXcode()
             }
             Button("取消", role: .cancel) {
                 model.cancelPendingProjectOpen()
@@ -231,7 +250,7 @@ struct XcodeDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(alignment: .top) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: installation.appURL.path))
+                    Image(nsImage: model.icon(for: installation))
                         .resizable().frame(width: 64, height: 64)
                     VStack(alignment: .leading, spacing: 5) {
                         Text(installation.name).font(.largeTitle.bold())
@@ -248,25 +267,54 @@ struct XcodeDetailView: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 360)
 
-                HStack {
-                    Button(model.isActive(installation) ? "已激活" : "激活此版本") { model.activate(installation) }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.isActive(installation) || model.isSwitching)
-                    Button("打开 Xcode") { model.openSelectedXcode() }
-                    Button("打开终端") { model.openTerminal(for: installation) }
+                GroupBox("系统级切换") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Button(model.isActive(installation) ? "已激活" : "设为系统默认 Xcode") { model.activate(installation) }
+                                .prominentActionStyle()
+                                .disabled(model.isActive(installation) || model.isSwitching)
+                            Button("打开 Xcode") { model.openSelectedXcode() }
+                            Spacer()
+                        }
+                        Text("执行 xcode-select --switch，需要管理员授权，并会改变全机的开发者目录：所有终端、脚本与新开的 Xcode 都会受影响。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(4)
+                }
+
+                GroupBox("不改系统设置（不需要管理员授权）") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Button("打开已注入 DEVELOPER_DIR 的终端") { model.openTerminal(for: installation) }
+                                .accessibilityIdentifier("open-developer-dir-terminal-\(installation.id)")
+                            Button("复制 export 命令") { model.copyDeveloperDirectoryExport(for: installation) }
+                                .help("复制 export DEVELOPER_DIR='…'，粘贴到任意终端即可让该会话使用这个 Xcode")
+                            Spacer()
+                        }
+                        Text("只影响新打开的那个终端会话，不改 xcode-select。想让它在进入项目目录时自动生效，可在「设置 → Shell 集成」启用 zsh Hook。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(4)
                 }
 
                 GroupBox("环境诊断") {
-                    VStack(alignment: .leading, spacing: 8) {
+                    // A Grid sizes each column to its content instead of pinning a
+                    // fixed width, so longer labels and larger text do not truncate.
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 8) {
                         ForEach(model.diagnostics(for: installation)) { item in
-                            HStack(alignment: .top) {
-                                Text(item.title).frame(width: 125, alignment: .leading).foregroundStyle(.secondary)
+                            GridRow {
+                                Text(item.title).foregroundStyle(.secondary)
                                 Text(item.value).textSelection(.enabled)
                                     .foregroundStyle(item.isWarning ? .orange : .primary)
-                                Spacer()
+                                    .gridColumnAlignment(.leading)
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(4)
                 }
 
@@ -315,49 +363,7 @@ struct XcodeDetailView: View {
                     .padding(4)
                 }
 
-                GroupBox("Simulator Runtime") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        if let runtimes = model.runtimesByID[installation.id], !runtimes.isEmpty {
-                            ForEach(runtimes) { runtime in
-                                HStack {
-                                    Image(systemName: runtime.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                        .foregroundStyle(runtime.isAvailable ? .green : .orange)
-                                    Text(runtime.name)
-                                    Text(runtime.version).foregroundStyle(.secondary)
-                                    Spacer()
-                                    Text(runtime.isAvailable ? "可用" : "不可用").font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                        } else if model.isLoadingDetails(for: installation) {
-                            ProgressView("正在读取运行时…")
-                        } else {
-                            Text("未检测到 Simulator Runtime。")
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Button(model.hasAvailableRuntime(for: installation) ? "Runtime 已安装" : "下载 iOS Runtime") {
-                                model.downloadRuntime()
-                            }
-                            .accessibilityIdentifier("download-runtime-button-\(installation.id)")
-                            .disabled(model.isDownloadingRuntime || model.hasAvailableRuntime(for: installation))
-                            if model.isDownloadingRuntime {
-                                Button("取消") { model.cancelRuntimeDownload() }
-                            }
-                            Button("打开 Xcode Settings") { model.openXcodeSettings(for: installation) }
-                            if model.isDownloadingRuntime { ProgressView().controlSize(.small) }
-                        }
-                        if !model.runtimeDownloadProgress.isEmpty {
-                            Text(model.runtimeDownloadProgress)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(3)
-                                .textSelection(.enabled)
-                        }
-
-                        SimulatorDevicesView(installation: installation)
-                    }
-                    .padding(4)
-                }
+                RuntimeSectionView(installation: installation, download: model.runtimeDownload)
             }
             .padding(28)
         }
@@ -433,45 +439,63 @@ private struct SimulatorDevicesView: View {
     }
 }
 
-struct MenuBarContentView: View {
+/// Observes only the download state, which changes on every line of
+/// `xcodebuild` output. Keeping it out of `XcodeDetailView` means a running
+/// download no longer invalidates the whole detail pane on each chunk.
+struct RuntimeSectionView: View {
     @EnvironmentObject private var model: XcodeViewModel
+    let installation: XcodeInstallation
+    @ObservedObject var download: RuntimeDownloadState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: "hammer.fill")
-                Text("Xcode Switcher").font(.headline)
-                Spacer()
-                if let active = model.activeInstallation { Text(active.displayVersion).font(.caption).foregroundStyle(.secondary) }
+        GroupBox("Simulator Runtime") {
+            VStack(alignment: .leading, spacing: 10) {
+                content
             }
-            Divider()
-            ForEach(model.installations) { installation in
-                Button {
-                    model.select(installation)
-                    model.activate(installation)
-                } label: {
-                    HStack {
-                        Image(systemName: installation.developerURL.path == model.activeDeveloperPath ? "checkmark.circle.fill" : "circle")
-                        Text(installation.name)
-                        Text(installation.displayVersion).foregroundStyle(.secondary)
-                        Spacer()
-                        if model.isFavorite(installation) { Image(systemName: "star.fill").foregroundStyle(.yellow) }
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(model.isActive(installation) || model.isSwitching)
-            }
-            if model.installations.isEmpty { Text("未发现 Xcode").foregroundStyle(.secondary) }
-            Divider()
-            HStack {
-                Button("打开主窗口") { model.showMainWindow() }
-                Button("重新扫描") { model.refresh() }
-            }
-            Text("全局快捷键：\(model.globalShortcutDisplayName)").font(.caption).foregroundStyle(.secondary)
+            .padding(4)
         }
-        .padding(14)
-        .frame(width: 360)
-        .task { if model.installations.isEmpty { model.refresh() } }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let runtimes = model.runtimesByID[installation.id], !runtimes.isEmpty {
+            ForEach(runtimes) { runtime in
+                HStack {
+                    Image(systemName: runtime.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(runtime.isAvailable ? .green : .orange)
+                    Text(runtime.name)
+                    Text(runtime.version).foregroundStyle(.secondary)
+                    Spacer()
+                    Text(runtime.isAvailable ? "可用" : "不可用").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        } else if model.isLoadingDetails(for: installation) {
+            ProgressView("正在读取运行时…")
+        } else {
+            Text("未检测到 Simulator Runtime。")
+                .foregroundStyle(.secondary)
+        }
+        HStack {
+            Button(model.hasAvailableRuntime(for: installation) ? "Runtime 已安装" : "下载 iOS Runtime") {
+                model.downloadRuntime()
+            }
+            .accessibilityIdentifier("download-runtime-button-\(installation.id)")
+            .disabled(download.isDownloading || model.hasAvailableRuntime(for: installation))
+            if download.isDownloading {
+                Button("取消") { model.cancelRuntimeDownload() }
+            }
+            Button("打开 Xcode Settings") { model.openXcodeSettings(for: installation) }
+            if download.isDownloading { ProgressView().controlSize(.small) }
+        }
+        if !download.progress.isEmpty {
+            Text(download.progress)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .textSelection(.enabled)
+        }
+
+        SimulatorDevicesView(installation: installation)
     }
 }
 
@@ -506,9 +530,9 @@ struct ProjectsSettingsView: View {
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("project-search-field")
             if model.configuration.projects.isEmpty {
-                EmptyStateView(title: "还没有项目", systemImage: "folder.badge.plus", description: "添加项目后可一键切换并打开。")
+                EmptyStateView(title: String(localized: "还没有项目"), systemImage: "folder.badge.plus", description: String(localized: "添加项目后可一键切换并打开。"))
             } else if visibleProjects.isEmpty {
-                EmptyStateView(title: "没有匹配的项目", systemImage: "magnifyingglass", description: "尝试搜索其他名称或路径。")
+                EmptyStateView(title: String(localized: "没有匹配的项目"), systemImage: "magnifyingglass", description: String(localized: "尝试搜索其他名称或路径。"))
             } else {
                 List {
                     ForEach(visibleProjects) { profile in
@@ -558,7 +582,7 @@ struct ProjectProfileRow: View {
                 VStack(alignment: .leading, spacing: 5) {
                     TextField("项目名称", text: $name)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit { save() }
+                        .onSubmit { model.flushPendingProjectUpdate() }
                     Text(profile.path).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer()
@@ -572,9 +596,9 @@ struct ProjectProfileRow: View {
                         Text("\(installation.name) \(installation.displayVersion)").tag(installation.id)
                     }
                 }
-                .frame(width: 240)
+                .frame(minWidth: 180, idealWidth: 240)
                 Button("应用并打开") { model.applyAndOpen(profile) }
-                    .buttonStyle(.borderedProminent)
+                    .prominentActionStyle()
                     .disabled(model.projectIssue(for: profile) != nil)
                     .accessibilityIdentifier("open-project-button-\(profile.id.uuidString)")
                 Button { NSWorkspace.shared.activateFileViewerSelecting([profile.url]) } label: { Image(systemName: "folder") }
@@ -595,11 +619,14 @@ struct ProjectProfileRow: View {
             }
         }
         .padding(.vertical, 5)
-        .onChange(of: name) { _ in save() }
-        .onChange(of: selectedXcodeID) { _ in save() }
+        .onChange(of: name) { _ in scheduleSave() }
+        .onChange(of: selectedXcodeID) { _ in scheduleSave() }
+        .onDisappear { model.flushPendingProjectUpdate() }
     }
 
-    private func save() { model.updateProject(profile, name: name, xcodeID: selectedXcodeID.isEmpty ? nil : selectedXcodeID) }
+    private func scheduleSave() {
+        model.scheduleProjectUpdate(profile, name: name, xcodeID: selectedXcodeID.isEmpty ? nil : selectedXcodeID)
+    }
 }
 
 struct SettingsView: View {
@@ -685,26 +712,141 @@ struct ShortcutRecorderView: NSViewRepresentable {
     }
 }
 
+/// Label that never swallows clicks, so the whole control stays clickable.
+final class PassthroughLabel: NSTextField {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+/// Custom control for recording a global shortcut.
+///
+/// macOS exposes Liquid Glass through AppKit (`NSGlassEffectView`); SwiftUI only
+/// ships the glass *button styles* on this platform. From macOS 26 on the control
+/// uses a glass background. The label lives in its own `NSTextField` because a
+/// view's own `draw(_:)` output renders behind its subviews — the previous
+/// implementation painted both the background and the text itself. Older systems
+/// keep the hand-drawn rounded rectangle.
 final class ShortcutRecorderNSView: NSView {
-    var shortcut = GlobalShortcut.default
-    var isRecording = false { didSet { needsDisplay = true } }
-    var isEnabled = true { didSet { needsDisplay = true } }
+    var shortcut = GlobalShortcut.default {
+        didSet {
+            updateAccessibilityValue()
+            updateTitle()
+        }
+    }
+    var isRecording = false {
+        didSet {
+            needsDisplay = true
+            updateAccessibilityValue()
+            updateTitle()
+            updateGlassTint()
+        }
+    }
+    var isEnabled = true {
+        didSet {
+            needsDisplay = true
+            updateTitle()
+        }
+    }
     var onCapture: ((GlobalShortcut) -> Void)?
     var onRecordingChanged: ((Bool) -> Void)?
 
+    private let titleField = PassthroughLabel(labelWithString: "")
+    private var glassBackground: NSView?
+    private static let cornerRadius: CGFloat = 6
+
     override var acceptsFirstResponder: Bool { true }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        titleField.alignment = .center
+        titleField.font = .systemFont(ofSize: 13, weight: .medium)
+        titleField.isEditable = false
+        titleField.isSelectable = false
+        titleField.isBordered = false
+        titleField.drawsBackground = false
+        titleField.translatesAutoresizingMaskIntoConstraints = false
+        titleField.setAccessibilityHidden(true)
+        addSubview(titleField)
+        NSLayoutConstraint.activate([
+            titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        // The control must stay a single accessibility element: the label is a
+        // real NSTextField now, so without this AX would expose the bare shortcut
+        // text instead of the recordable button.
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(String(localized: "录制全局快捷键"))
+        updateAccessibilityValue()
+        updateTitle()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) 未实现") }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        setAccessibilityRole(.button)
-        setAccessibilityLabel("录制全局快捷键")
+        installGlassBackgroundIfAvailable()
+    }
+
+    /// Adds the Liquid Glass background on macOS 26 and later. Kept separate from
+    /// `viewDidMoveToWindow` so it can be exercised without a window.
+    func installGlassBackgroundIfAvailable() {
+        guard #available(macOS 26.0, *), glassBackground == nil else { return }
+        let glass = NSGlassEffectView()
+        glass.cornerRadius = Self.cornerRadius
+        glass.style = .regular
+        // `effectIsInteractive` (pointer/hover reaction) is macOS 27 only, and
+        // using it would raise the *build* requirement to the macOS 27 SDK —
+        // including for CI. Interactivity is deliberately left off so the project
+        // builds with the macOS 26 SDK; see the migration notes for restoring it.
+        glass.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(glass, positioned: .below, relativeTo: nil)
+        NSLayoutConstraint.activate([
+            glass.leadingAnchor.constraint(equalTo: leadingAnchor),
+            glass.trailingAnchor.constraint(equalTo: trailingAnchor),
+            glass.topAnchor.constraint(equalTo: topAnchor),
+            glass.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+        glassBackground = glass
+        updateGlassTint()
+        updateTitle()
+    }
+
+    private func updateGlassTint() {
+        guard #available(macOS 26.0, *), let glass = glassBackground as? NSGlassEffectView else { return }
+        glass.tintColor = isRecording ? .controlAccentColor : nil
+    }
+
+    private func updateTitle() {
+        titleField.stringValue = isRecording
+            ? String(localized: "请按下快捷键…")
+            : shortcut.displayName
+        // White reads on the filled accent fallback; the glass surface keeps the
+        // standard label colour so it stays legible in both appearances.
+        let usesGlass = glassBackground != nil
+        titleField.textColor = (isRecording && !usesGlass) ? .white : (isEnabled ? .labelColor : .disabledControlTextColor)
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard isEnabled, !isRecording else { return false }
+        beginRecording()
+        return true
+    }
+
+    private func updateAccessibilityValue() {
+        setAccessibilityValue(isRecording ? String(localized: "正在录制") : shortcut.displayName)
+    }
+
+    private func beginRecording() {
+        isRecording = true
+        onRecordingChanged?(true)
+        window?.makeFirstResponder(self)
     }
 
     override func mouseDown(with event: NSEvent) {
         guard isEnabled else { return }
-        isRecording = true
-        onRecordingChanged?(true)
-        window?.makeFirstResponder(self)
+        beginRecording()
     }
 
     override func keyDown(with event: NSEvent) {
@@ -739,23 +881,16 @@ final class ShortcutRecorderNSView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        // The glass background covers this drawing on macOS 26 and later.
+        guard glassBackground == nil else { return }
         let rect = bounds.insetBy(dx: 1, dy: 1)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6)
+        let path = NSBezierPath(roundedRect: rect, xRadius: Self.cornerRadius, yRadius: Self.cornerRadius)
         let background = isRecording ? NSColor.controlAccentColor : NSColor.controlBackgroundColor
         (isEnabled ? background : NSColor.controlBackgroundColor.withAlphaComponent(0.5)).setFill()
         path.fill()
         NSColor.separatorColor.withAlphaComponent(isEnabled ? 0.8 : 0.4).setStroke()
         path.lineWidth = 1
         path.stroke()
-
-        let title = isRecording ? "请按下快捷键…" : shortcut.displayName
-        let color = isRecording ? NSColor.white : (isEnabled ? NSColor.labelColor : NSColor.disabledControlTextColor)
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: color
-        ]
-        let size = title.size(withAttributes: attributes)
-        title.draw(at: NSPoint(x: max(10, (bounds.width - size.width) / 2), y: (bounds.height - size.height) / 2), withAttributes: attributes)
     }
 }
 
@@ -821,6 +956,33 @@ struct GeneralSettingsView: View {
                     }
                 }
             }
+            Section("Shell 集成（不需要管理员授权）") {
+                Text("在 zsh 中加入下面这行后，进入绑定了 Xcode 的项目目录会自动设置 DEVELOPER_DIR。它只影响当前 Shell，不会执行 xcode-select --switch，因此不需要授权，也不改变全机设置。")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Text(XcodeViewModel.shellIntegrationCommand)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                    Spacer()
+                    Button("复制") { model.copyShellIntegrationCommand() }
+                        .accessibilityIdentifier("copy-shell-integration-command")
+                }
+                Text("需要先把 App 内的 CLI 放到 PATH，例如链接到 ~/.local/bin：")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    // Show the path instead of the whole link command: that command
+                    // is far wider than the settings window and would truncate.
+                    Text(XcodeViewModel.cliExecutablePath)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Button("复制链接命令") { model.copyCLILinkCommand() }
+                        .accessibilityIdentifier("copy-cli-link-command")
+                }
+            }
             Section("Xcode 搜索目录") {
                 Text("默认扫描 /Applications、~/Applications 和 Spotlight；下面的目录会递归扫描。")
                     .font(.caption).foregroundStyle(.secondary)
@@ -841,7 +1003,12 @@ struct GeneralSettingsView: View {
                     Button("恢复上次备份") { model.restoreConfigurationBackup() }
                         .disabled(!model.hasConfigurationBackup)
                 }
-                Text("配置包含收藏、项目绑定、搜索目录、快捷键和最近切换记录；每次保存前会保留一份备份。")
+                if let saveError = model.configurationSaveError {
+                    Label("配置保存失败：\(saveError)", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                Text("配置包含收藏、项目绑定、搜索目录、快捷键和最近切换记录；每次保存前会保留一份备份，历史备份最多保留 10 份。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -1028,16 +1195,18 @@ struct SigningReportView: View {
                 }
                 ForEach(report.targets) { target in
                     DisclosureGroup("\(target.targetName) · \(target.configurationName)") {
-                        VStack(alignment: .leading, spacing: 6) {
+                        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 6) {
                             ForEach(target.settings) { setting in
-                                HStack(alignment: .top) {
-                                    Text(setting.key).font(.caption).foregroundStyle(.secondary).frame(width: 220, alignment: .leading)
+                                GridRow {
+                                    Text(setting.key).font(.caption).foregroundStyle(.secondary)
+                                        .gridColumnAlignment(.leading)
                                     Text(setting.value).font(.caption).textSelection(.enabled)
                                         .foregroundStyle(setting.isWarning ? .orange : .primary)
-                                    Spacer()
+                                        .gridColumnAlignment(.leading)
                                 }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 6)
                     }
                 }
