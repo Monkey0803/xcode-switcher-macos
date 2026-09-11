@@ -180,3 +180,12 @@ session 213 的建议逐条落实：
 ### 本地化与 CLI
 
 CLI 与 app 共用同一份 catalog：`xcodeswitcher` 位于 `Contents/MacOS/` 时 `Bundle.main` 解析到外层 app bundle，`String(localized:)` 直接命中 `Contents/Resources/<lang>.lproj`。因此 CLI target 只需开启 `SWIFT_EMIT_LOC_STRINGS`，`sync_string_catalog.sh` 合并 app 与 CLI 两个 target 的 `.stringsdata` 即可。若把 CLI 单独拷到别处运行，则回退到源语言字符串。
+
+## Homebrew 分发（评估结论）
+
+**官方 `homebrew/cask` 走不通**：Homebrew 的 Acceptable Casks 要求「Gatekeeper 能评估的可执行产物必须通过其 Gatekeeper 检查」，而本项目的 ad-hoc 产物 `spctl --assess` 判定为 rejected。同一份文档指出，开源图形软件从源码构建时属于 formula。
+
+实测结论（详见 `Formula/xcode-switcher.rb` 头部注释）：
+
+- `Casks/xcode-switcher.rb`：指向 GitHub Release 的预编译 zip，`brew audit --cask` **通过（exit 0）**——因为不要求公证，这类定义只能放在自定义 tap 里。
+- `Formula/xcode-switcher.rb`：Sparkle 作为 `resource`（校验和与 Sparkle 自身 Package.swift 一致）、离线构建路径可用；但 `brew install` 在 active Xcode 为 **27** 时会失败——SDK 27 的 `@State` 宏经 `swift-plugin-server` 展开，被 Homebrew 的 formula 构建沙箱拒绝，且只对 cask 与 Linux 提供了沙箱开关。同一份源码用 **macOS 26 SDK（Xcode 26.3）** 可正常构建，故该组合预期可用，但未经 brew 验证（Homebrew 的 superenv 不传递 `DEVELOPER_DIR`）。

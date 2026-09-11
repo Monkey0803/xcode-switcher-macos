@@ -52,6 +52,30 @@ open "build/Xcode Switcher.app"
 
 脚本会解析固定版本的 Sparkle 依赖，编译 `Sources/` 下的全部 Swift 文件，并按 Sparkle 官方要求的嵌套顺序执行 ad-hoc 签名。开发签名仅为本地运行启用 Library Validation 调试例外；正式 Developer ID 构建不会携带该例外。未提供正式更新地址和公钥的开发构建会明确禁用“检查更新”。两条路径产出的 app bundle 结构一致（`XcodeSwitcherApp`、内嵌 `xcodeswitcher`、嵌入并签名的 Sparkle、图标）。
 
+### Homebrew
+
+发布到 GitHub 的预编译产物是 **ad-hoc 签名、未经公证**，`spctl --assess` 判定为 rejected，因此**不符合官方 `homebrew/cask` 的要求**（Homebrew 明确要求 Gatekeeper 能通过评估）。仓库里提供两份供自定义 tap 使用的定义：
+
+| 文件 | 用途 | 代价 |
+| --- | --- | --- |
+| `Casks/xcode-switcher.rb` | 安装 GitHub Release 的预编译 zip | 用户首次启动需放行 Gatekeeper，或安装时加 `--no-quarantine` |
+| `Formula/xcode-switcher.rb` | 从源码构建，产物无 quarantine 属性 | 需要 Xcode 26+；受 Homebrew 构建沙箱限制，尚需在 active Xcode 为 26 的机器上验证（见文件头注释） |
+
+把两者放进一个名为 `homebrew-xcode-switcher` 的 tap 仓库后：
+
+```bash
+brew tap Monkey0803/xcode-switcher
+brew install --cask xcode-switcher     # 预编译产物
+brew install xcode-switcher            # 从源码构建
+```
+
+发新版本后需要 bump cask 的两行：
+
+```bash
+# 改 version "x,y"，再用仓库 Release 里 SHA256SUMS 的值（或自行计算）更新 sha256
+curl -sL "<zip 地址>" | shasum -a 256
+```
+
 ### 本地化（String Catalog）
 
 界面文案集中在 `Resources/Localizable.xcstrings`，源语言为 `zh-Hans`。SwiftUI 的 `Text("…")` 字面量会被编译器自动提取；以普通 `String` 传递的文案（状态栏消息、模型层标签、菜单项）在代码里用 `String(localized:)` 标注，因此同样会被提取。
