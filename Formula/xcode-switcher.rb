@@ -1,3 +1,25 @@
+# Verification status (2026-09-11):
+#
+#   * The Sparkle resource checksum matches the one Sparkle declares in its own
+#     Package.swift, and `brew` fetches both the source and the resource.
+#   * The offline build path works: with .build/artifacts removed and
+#     SPARKLE_FRAMEWORK_PATH set, build_app.sh still produces a signed app.
+#   * `brew install` currently FAILS to build on a machine whose active developer
+#     directory is Xcode 27: the SDK 27 `@State` macro is expanded through
+#     swift-plugin-server, which Homebrew's formula build sandbox refuses, so the
+#     compiler reports "external macro implementation type 'SwiftUIMacros.StateMacro'
+#     could not be found". Everything after that is a cascade from the failed macro.
+#     There is no user-facing opt-out — Homebrew only exposes
+#     HOMEBREW_NO_SANDBOX_CASK and HOMEBREW_NO_SANDBOX_LINUX.
+#   * The same sources DO build with the macOS 26 SDK (verified with
+#     DEVELOPER_DIR=/Applications/Xcode_26.3.app/... ./build_app.sh), where @State is
+#     still a property wrapper and no macro plugin is needed. So this formula is
+#     expected to work for contributors whose active Xcode is 26 — which is also
+#     the documented build requirement — but that combination has NOT been verified
+#     through `brew` (Homebrew does not pass DEVELOPER_DIR through to the build).
+#
+# Until that is verified, the working Homebrew route for prebuilt, ad-hoc signed
+# releases is a cask in a custom tap, with caveats about Gatekeeper.
 class XcodeSwitcher < Formula
   desc "Discover, diagnose and switch between installed Xcode versions"
   homepage "https://github.com/Monkey0803/xcode-switcher-macos"
