@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 @main
@@ -31,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var directoryMonitors: [DispatchSourceFileSystemObject] = []
     private var directoryRefreshTask: Task<Void, Never>?
     private let monitorQueue = DispatchQueue(label: "com.yostar.xcodeswitcher.directory-monitor")
+    private var menuBarTitleObserver: AnyCancellable?
 
     /// Windows are told apart by identifier rather than by title so the code does
     /// not depend on user-visible, localized strings.
@@ -52,6 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
         model.refresh()
         rebuildMenu()
+        // Keep the version in the menu bar current even when it changes outside
+        // this app, for example after `xcode-select --switch` in a terminal.
+        menuBarTitleObserver = model.objectWillChange.sink { [weak self] in
+            DispatchQueue.main.async { self?.updateStatusItemTitle() }
+        }
+        updateStatusItemTitle()
         model.onSearchPathsChanged = { [weak self] in self?.startWatchingSearchPaths() }
         startWatchingSearchPaths()
         applyMenuBarOnly(model.configuration.menuBarOnly)
@@ -99,6 +107,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard !Task.isCancelled else { return }
             self?.model.refresh(silently: true)
         }
+    }
+
+    /// Shows the active Xcode's version next to the icon, so the menu bar answers
+    /// "which Xcode am I on?" without opening the menu. `version` rather than
+    /// `displayVersion` keeps it short enough for the menu bar.
+    private func updateStatusItemTitle() {
+        let version = model.installations
+            .first { $0.developerURL.path == model.activeDeveloperPath }?
+            .version
+        let title = version.map { " \($0)" } ?? ""
+        guard statusItem.button?.title != title else { return }
+        statusItem.button?.title = title
+        statusItem.button?.imagePosition = title.isEmpty ? .imageOnly : .imageLeading
+        statusItem.button?.toolTip = version.map { "Xcode Switcher — Xcode \($0)" } ?? "Xcode Switcher"
     }
 
     private static func menuBarIcon() -> NSImage? {

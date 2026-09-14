@@ -35,6 +35,9 @@ private struct XcodeSwitcherCLI {
         case "help", "--help", "-h":
             print(Self.help)
             return 0
+        case "version", "--version", "-v":
+            print(Self.versionDescription)
+            return 0
         case "list":
             list(json: options.json)
             return installations.isEmpty ? 1 : 0
@@ -301,11 +304,21 @@ private struct XcodeSwitcherCLI {
         AppConfigurationStore.shared.load()
     }
 
+    /// Read from the enclosing app bundle, which is where this tool lives. A copy
+    /// that was moved out of it reports "unknown" instead of guessing.
+    static var versionDescription: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "unknown"
+        guard let build = info?["CFBundleVersion"] as? String, !build.isEmpty else { return version }
+        return "\(version) (\(build))"
+    }
+
     static let help = String(localized: """
     Xcode Switcher CLI
 
     用法：
       xcodeswitcher [--json] list
+      xcodeswitcher version
       xcodeswitcher [--json] current
       xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>
       xcodeswitcher [--json] env [目录或项目路径]
