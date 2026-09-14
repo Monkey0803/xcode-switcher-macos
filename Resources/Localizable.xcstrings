@@ -210,6 +210,16 @@
         }
       }
     },
+    "Xcode 安装": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode installations"
+          }
+        }
+      }
+    },
     "Xcode 工具链": {
       "localizations": {
         "en": {
@@ -1715,7 +1725,16 @@
         }
       }
     },
-    "无法读取占用：%lld": {},
+    "无法读取占用：%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not measure: %lld"
+          }
+        }
+      }
+    },
     "是": {
       "localizations": {
         "en": {
@@ -1928,6 +1947,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Checking…"
+          }
+        }
+      }
+    },
+    "模拟器运行时": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator runtimes"
           }
         }
       }

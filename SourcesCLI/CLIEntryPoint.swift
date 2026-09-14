@@ -302,12 +302,12 @@ private struct XcodeSwitcherCLI {
         // A path that cannot be measured is reported rather than silently dropped,
         // so a wrong total is never mistaken for a complete one.
         let reportable = xcodeEntries.count + runtimeEntries.count
-        print("Xcode 安装")
+        print(String(localized: "Xcode 安装"))
         for entry in xcodeEntries {
             print("  \(DiskUsageFormatter.humanReadable(bytes: entry.bytes))\t\(entry.label)")
         }
         if !runtimeEntries.isEmpty {
-            print("模拟器运行时")
+            print(String(localized: "模拟器运行时"))
             for entry in runtimeEntries {
                 print("  \(DiskUsageFormatter.humanReadable(bytes: entry.bytes))\t\(entry.label)")
             }
