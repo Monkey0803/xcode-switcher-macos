@@ -31,6 +31,20 @@ struct CLIOptions: Equatable, Sendable {
     }
 }
 
+struct CLIDiskUsageOutput: Codable, Equatable, Sendable {
+    struct Entry: Codable, Equatable, Sendable {
+        let label: String
+        let path: String
+        let bytes: Int64
+        let size: String
+    }
+
+    let installations: [Entry]
+    let runtimes: [Entry]
+    let totalBytes: Int64
+    let total: String
+}
+
 struct CLIInstallationOutput: Codable, Equatable, Sendable {
     let name: String
     let version: String

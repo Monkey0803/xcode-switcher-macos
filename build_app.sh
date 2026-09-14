@@ -78,6 +78,7 @@ menu_icon_source="$script_dir/build/MenuBarIcon-source.png"
 # to the CLI build would otherwise only fail once someone runs the CLI.
 cli_shared_sources=(
   Models.swift
+  DiskUsage.swift
   ProjectMatching.swift
   Services.swift
   EnvironmentDoctor.swift

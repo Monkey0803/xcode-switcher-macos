@@ -65,6 +65,7 @@ CLI_SHARED_SOURCES = [
     "Models.swift",
     "ProjectEnvironment.swift",
     "ProjectMatching.swift",
+    "DiskUsage.swift",
     "Services.swift",
 ]
 

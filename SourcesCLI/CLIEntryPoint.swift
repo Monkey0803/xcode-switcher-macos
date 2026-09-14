@@ -42,6 +42,8 @@ private struct XcodeSwitcherCLI {
             return try pinProject(options)
         case "unpin":
             return try unpinProject(options)
+        case "sizes":
+            return sizes(json: options.json)
         case "list":
             list(json: options.json)
             return installations.isEmpty ? 1 : 0
@@ -262,6 +264,62 @@ private struct XcodeSwitcherCLI {
         }
     }
 
+    private func sizes(json: Bool) -> Int32 {
+        func entry(for label: String, path: String) -> DiskUsageReporter.Entry? {
+            guard let bytes = DiskUsageReporter.allocatedBytes(ofPath: path) else { return nil }
+            return DiskUsageReporter.Entry(label: label, path: path, bytes: bytes)
+        }
+
+        let xcodeEntries = installations.compactMap {
+            entry(for: "\($0.name) \($0.displayVersion)", path: $0.appURL.path)
+        }
+        let runtimeEntries = DiskUsageReporter.simulatorRuntimePaths().compactMap {
+            entry(for: $0.deletingPathExtension().lastPathComponent, path: $0.path)
+        }
+        let total = (xcodeEntries + runtimeEntries).reduce(Int64(0)) { $0 + $1.bytes }
+
+        func output(_ entries: [DiskUsageReporter.Entry]) -> [CLIDiskUsageOutput.Entry] {
+            entries.map {
+                CLIDiskUsageOutput.Entry(
+                    label: $0.label,
+                    path: $0.path,
+                    bytes: $0.bytes,
+                    size: DiskUsageFormatter.humanReadable(bytes: $0.bytes)
+                )
+            }
+        }
+
+        if json {
+            printJSON(CLIDiskUsageOutput(
+                installations: output(xcodeEntries),
+                runtimes: output(runtimeEntries),
+                totalBytes: total,
+                total: DiskUsageFormatter.humanReadable(bytes: total)
+            ))
+            return 0
+        }
+
+        // A path that cannot be measured is reported rather than silently dropped,
+        // so a wrong total is never mistaken for a complete one.
+        let reportable = xcodeEntries.count + runtimeEntries.count
+        print("Xcode 安装")
+        for entry in xcodeEntries {
+            print("  \(DiskUsageFormatter.humanReadable(bytes: entry.bytes))\t\(entry.label)")
+        }
+        if !runtimeEntries.isEmpty {
+            print("模拟器运行时")
+            for entry in runtimeEntries {
+                print("  \(DiskUsageFormatter.humanReadable(bytes: entry.bytes))\t\(entry.label)")
+            }
+        }
+        let expected = installations.count + DiskUsageReporter.simulatorRuntimePaths().count
+        if reportable < expected {
+            print(String(localized: "无法读取占用：\(expected - reportable)"))
+        }
+        print(String(localized: "合计：\(DiskUsageFormatter.humanReadable(bytes: total))"))
+        return 0
+    }
+
     /// The project to bind: an explicit path, or the project in the current directory.
     private func boundProjectURL(from values: [String]) throws -> URL {
         guard let path = values.first else {
@@ -374,6 +432,7 @@ private struct XcodeSwitcherCLI {
     用法：
       xcodeswitcher [--json] list
       xcodeswitcher version
+      xcodeswitcher sizes
       xcodeswitcher [--json] current
       xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>
       xcodeswitcher [--json] env [目录或项目路径]
