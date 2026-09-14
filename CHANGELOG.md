@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1 - 2026-09-11
+
+### 修复
+
+- **修复会导致 app 无法启动的发布签名问题**：`xcodebuild archive` 路径产出的产物能通过 `codesign --verify --deep --strict`，却因 Library Validation 拒绝加载内嵌的 `Sparkle.framework`（`mapping process and mapped file (non-platform) have different Team IDs`）在启动时 `SIGABRT` —— 1.4.0 因此对任何用户都打不开。归档后改为按 `Scripts/sign_bundle.sh` 的顺序逐个重签组件即可修复。
+- **发布脚本新增强制启动校验**：归档产物必须真正启动并存活，否则发布中止。此前版本号、内嵌 CLI 输出与签名校验全部通过，而 app 根本无法启动 —— 只做结构校验不足以把关。
+
+### 变更
+
+- Homebrew cask 的安装指引修正：去掉 Homebrew 6 已移除的 `--no-quarantine`，补充覆盖非 Homebrew 管理的 app 需要 `--force`。
+- cask 的 CLI 由符号链接改为 `command_wrapper`：Foundation 按调用路径决定 `Bundle.main`，符号链接下 CLI 会丢掉 String Catalog 并静默回退中文。
+
 ## 1.4.0 - 2026-09-11
 
 对照 WWDC 2026 的优化与稳定性改进：
