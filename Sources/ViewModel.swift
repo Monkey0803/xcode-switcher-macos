@@ -235,18 +235,47 @@ final class XcodeViewModel: ObservableObject {
         detailTasks[id] = nil
     }
 
+    /// A description of the running Xcodes, or nil when a switch needs no confirmation.
+    private static func runningXcodeDescription(among installations: [XcodeInstallation]) -> String? {
+        let running = XcodeProcessInspector.runningInstallations(among: installations)
+        guard !running.isEmpty else { return nil }
+        return running.map { "\($0.name) \($0.displayVersion)" }.joined(separator: "、")
+    }
+
+    private static func confirmSwitchWhileXcodeRuns(_ running: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Xcode 正在运行")
+        alert.informativeText = String(localized: "\(running) 正在运行。切换会改变它正在使用的工具链，可能影响正在进行的构建或调试。")
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: String(localized: "仍要切换"))
+        alert.addButton(withTitle: String(localized: "取消"))
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
     func activateSelection() {
         guard let installation = selectedInstallation else { return }
         activate(installation)
     }
 
-    func activate(_ installation: XcodeInstallation, thenOpen project: URL? = nil) {
+    /// Switches the active developer directory.
+    ///
+    /// A running Xcode keeps using the toolchain it was started with, so this asks
+    /// first. The confirmation lives here rather than in a view because both the
+    /// menu bar and the settings window come through this method, and the settings
+    /// window already prompts modally elsewhere.
+    func activate(_ installation: XcodeInstallation, thenOpen project: URL? = nil, force: Bool = false) {
         if installation.developerURL.path == activeDeveloperPath {
             statusMessage = String(localized: "所选 Xcode 已处于激活状态。")
             if let project { XcodeActions.open(project, with: installation) }
             return
         }
         guard !isSwitching else { return }
+        if !force, let running = Self.runningXcodeDescription(among: installations) {
+            guard Self.confirmSwitchWhileXcodeRuns(running) else {
+                statusMessage = String(localized: "已取消切换。")
+                return
+            }
+        }
         if let activeInstallation {
             recordActivation(activeInstallation)
         }

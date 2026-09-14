@@ -111,6 +111,11 @@ private struct XcodeSwitcherCLI {
                 return 0
             }
             if installation.developerURL.path != activeDeveloperPath {
+                let running = XcodeProcessInspector.runningInstallations(among: installations)
+                if !running.isEmpty, !options.force {
+                    let names = running.map { "\($0.name) \($0.displayVersion)" }.joined(separator: "、")
+                    throw CLIError.failed(String(localized: "Xcode 正在运行（\(names)）。切换会改变它正在使用的工具链，确认请加 --force。"))
+                }
                 try XcodeActivator.activate(installation)
             }
             guard XcodeLocator.activeDeveloperPath() == installation.developerURL.path else {
@@ -328,6 +333,7 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>
 
     --json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。
+    --force 即使有 Xcode 正在运行也继续切换。
     env 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。
     """)
 }

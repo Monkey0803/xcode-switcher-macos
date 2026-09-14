@@ -31,18 +31,28 @@
         }
       }
     },
+    "%@ 正在运行。切换会改变它正在使用的工具链，可能影响正在进行的构建或调试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is running. Switching changes the toolchain it is using, which can disturb an ongoing build or debug session."
+          }
+        }
+      }
+    },
     "%@失败（错误码 %d）。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@失败（错误码 %2$d）。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ failed (error code %d)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@失败（错误码 %2$d）。"
           }
         }
       }
@@ -170,12 +180,12 @@
     "Xcode": {},
     "Xcode License": {},
     "Xcode Switcher": {},
-    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
+    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\n--force 即使有 Xcode 正在运行也继续切换。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\nenv and shell-init zsh only read the project environment and never change xcode-select."
+            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\n--force switches even while an Xcode is running.\nenv and shell-init zsh only read the project environment and never change xcode-select."
           }
         }
       }
@@ -210,34 +220,54 @@
         }
       }
     },
+    "Xcode 正在运行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode is running"
+          }
+        }
+      }
+    },
+    "Xcode 正在运行（%@）。切换会改变它正在使用的工具链，确认请加 --force。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode is running (%@). Switching changes the toolchain it is using; add --force to confirm."
+          }
+        }
+      }
+    },
     "[dry-run] 将使用 %@ 打开 %@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "[dry-run] 将使用 %1$@ 打开 %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "[dry-run] would open %@ with %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "[dry-run] 将使用 %1$@ 打开 %2$@"
           }
         }
       }
     },
     "[dry-run] 将激活 %@ %@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "[dry-run] 将激活 %1$@ %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "[dry-run] would activate %@ %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "[dry-run] 将激活 %1$@ %2$@"
           }
         }
       }
@@ -311,6 +341,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Menu bar only"
+          }
+        }
+      }
+    },
+    "仍要切换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch Anyway"
           }
         }
       }
@@ -775,16 +815,16 @@
     },
     "已使用 %@ 打开 %@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "已使用 %1$@ 打开 %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Opened %@ with %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已使用 %1$@ 打开 %2$@"
           }
         }
       }
@@ -827,6 +867,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "iOS Simulator Runtime download canceled."
+          }
+        }
+      }
+    },
+    "已取消切换。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch canceled."
           }
         }
       }
@@ -995,16 +1045,16 @@
     },
     "已激活 %@ %@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "已激活 %1$@ %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Activated %@ %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已激活 %1$@ %2$@"
           }
         }
       }
@@ -2743,16 +2793,16 @@
     },
     "项目要求 Xcode %@，但本机未安装（来自 %@）。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "项目要求 Xcode %1$@，但本机未安装（来自 %2$@）。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "The project requires Xcode %@, which is not installed (from %@)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "项目要求 Xcode %1$@，但本机未安装（来自 %2$@）。"
           }
         }
       }

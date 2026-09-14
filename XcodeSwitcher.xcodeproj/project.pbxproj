@@ -338,6 +338,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>925275FB104EC55A92CE2016</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>XcodeProcessInspectorTests.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>4DE67949251C57619C3CB4A6</key>
 		<dict>
 			<key>isa</key>
@@ -698,6 +709,13 @@
 			<key>fileRef</key>
 			<string>EFFFF68CFB69190935A03796</string>
 		</dict>
+		<key>E648DC7793718D965FB05241</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>925275FB104EC55A92CE2016</string>
+		</dict>
 		<key>965FDB09CB3CA4FBF76FC940</key>
 		<dict>
 			<key>isa</key>
@@ -858,6 +876,7 @@
 				<string>5E0D2E5739F131707B3F3757</string>
 				<string>F3095A3BDDEAC248F0ED42C7</string>
 				<string>B773FF146CE2DDA004B3084D</string>
+				<string>E648DC7793718D965FB05241</string>
 				<string>965FDB09CB3CA4FBF76FC940</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
@@ -1377,6 +1396,7 @@
 				<string>2FCCB4B3FA0095D6712FC135</string>
 				<string>57FB700E19CFBDDCB95A6C43</string>
 				<string>EFFFF68CFB69190935A03796</string>
+				<string>925275FB104EC55A92CE2016</string>
 				<string>4DE67949251C57619C3CB4A6</string>
 			</array>
 			<key>path</key>

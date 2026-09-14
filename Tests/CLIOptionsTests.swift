@@ -8,6 +8,7 @@ final class CLIOptionsTests: XCTestCase {
         XCTAssertTrue(options.dryRun)
         XCTAssertEqual(options.command, "use")
         XCTAssertEqual(options.values, ["16.4"])
+        XCTAssertFalse(options.force)
     }
 
     func testDefaultsToHumanOutputAndNoDryRun() throws {
@@ -15,6 +16,14 @@ final class CLIOptionsTests: XCTestCase {
         XCTAssertFalse(options.json)
         XCTAssertFalse(options.dryRun)
         XCTAssertEqual(options.command, "list")
+    }
+
+    func testParsesForceFlag() throws {
+        let options = try CLIOptions.parse(["use", "--force", "16.4"])
+        XCTAssertTrue(options.force)
+        XCTAssertFalse(options.dryRun)
+        XCTAssertEqual(options.command, "use")
+        XCTAssertEqual(options.values, ["16.4"])
     }
 
     func testParsesEnvironmentCommands() throws {

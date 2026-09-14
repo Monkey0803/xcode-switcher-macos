@@ -3,23 +3,28 @@ import Foundation
 struct CLIOptions: Equatable, Sendable {
     let json: Bool
     let dryRun: Bool
+    /// Set by `--force`: switch even though a running Xcode would be disturbed.
+    let force: Bool
     let command: String?
     let values: [String]
 
     static func parse(_ arguments: [String]) throws -> CLIOptions {
         var json = false
         var dryRun = false
+        var force = false
         var remaining: [String] = []
         for argument in arguments {
             switch argument {
             case "--json": json = true
             case "--dry-run": dryRun = true
+            case "--force": force = true
             default: remaining.append(argument)
             }
         }
         return CLIOptions(
             json: json,
             dryRun: dryRun,
+            force: force,
             command: remaining.first,
             values: Array(remaining.dropFirst())
         )

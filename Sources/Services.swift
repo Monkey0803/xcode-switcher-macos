@@ -571,6 +571,35 @@ private func xcodeAuthorizationExecuteWithPrivileges(
     _ communicationsPipe: UnsafeMutablePointer<UnsafeMutablePointer<FILE>?>?
 ) -> OSStatus
 
+/// Xcodes that are running right now.
+///
+/// Apple gives every Xcode — stable, beta and renamed copies — the same bundle
+/// identifier `com.apple.dt.Xcode`, so the bundle URL is what tells them apart.
+/// `xcode-select --switch` changes the toolchain underneath a running Xcode, which
+/// can disturb an ongoing build or debug session, so the app and the CLI ask first.
+enum XcodeProcessInspector {
+    static func runningAppURLs(
+        applications: [NSRunningApplication] = NSWorkspace.shared.runningApplications
+    ) -> [URL] {
+        applications
+            .filter { $0.bundleIdentifier == "com.apple.dt.Xcode" }
+            .compactMap { $0.bundleURL?.standardizedFileURL }
+    }
+
+    /// Pure matching step, so it can be covered without a running Xcode.
+    static func runningInstallations(
+        among installations: [XcodeInstallation],
+        runningAppURLs: [URL]
+    ) -> [XcodeInstallation] {
+        let running = Set(runningAppURLs.map(\.path))
+        return installations.filter { running.contains($0.appURL.standardizedFileURL.path) }
+    }
+
+    static func runningInstallations(among installations: [XcodeInstallation]) -> [XcodeInstallation] {
+        runningInstallations(among: installations, runningAppURLs: runningAppURLs())
+    }
+}
+
 enum XcodeActivator {
     private static let authorizationSession = XcodeAuthorizationSession()
 
