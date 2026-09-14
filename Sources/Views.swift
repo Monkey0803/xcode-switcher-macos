@@ -9,11 +9,15 @@ import UniformTypeIdentifiers
 /// macOS, where Liquid Glass is an AppKit feature.
 private struct ProminentActionButtonStyle: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
+        // The decision is pure and tested in both directions; this call site can
+        // only ever see the `true` one. See `AppearanceDecisions`.
+        if #available(macOS 26.0, *),
+           AppearanceDecisions.prominentButtonStyle(glassAvailable: true) == .glass {
             content.buttonStyle(.glassProminent)
         } else {
             // Must stay the concrete style: routing this back through
-            // `prominentActionStyle()` would recurse forever on older systems.
+            // `prominentActionStyle()` would recurse forever on systems without
+            // glass, which is the branch `glassAvailable: false` describes.
             content.buttonStyle(.borderedProminent)
         }
     }
@@ -792,7 +796,12 @@ final class ShortcutRecorderNSView: NSView {
     /// Adds the Liquid Glass background on macOS 26 and later. Kept separate from
     /// `viewDidMoveToWindow` so it can be exercised without a window.
     func installGlassBackgroundIfAvailable() {
-        guard #available(macOS 26.0, *), glassBackground == nil else { return }
+        guard AppearanceDecisions.shouldInstallGlass(
+            glassAvailable: AppearanceDecisions.isGlassAvailable,
+            alreadyInstalled: glassBackground != nil
+        ) else { return }
+        // Only the reference to the macOS 26 type needs the check itself.
+        guard #available(macOS 26.0, *) else { return }
         let glass = NSGlassEffectView()
         glass.cornerRadius = Self.cornerRadius
         glass.style = .regular
@@ -825,7 +834,15 @@ final class ShortcutRecorderNSView: NSView {
         // White reads on the filled accent fallback; the glass surface keeps the
         // standard label colour so it stays legible in both appearances.
         let usesGlass = glassBackground != nil
-        titleField.textColor = (isRecording && !usesGlass) ? .white : (isEnabled ? .labelColor : .disabledControlTextColor)
+        switch AppearanceDecisions.shortcutTitleColor(
+            isRecording: isRecording,
+            usesGlass: usesGlass,
+            isEnabled: isEnabled
+        ) {
+        case .white: titleField.textColor = .white
+        case .label: titleField.textColor = .labelColor
+        case .disabled: titleField.textColor = .disabledControlTextColor
+        }
     }
 
     override func accessibilityPerformPress() -> Bool {

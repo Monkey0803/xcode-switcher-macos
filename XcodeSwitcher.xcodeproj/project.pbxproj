@@ -8,6 +8,17 @@
 	<string>77</string>
 	<key>objects</key>
 	<dict>
+		<key>4B42363FDF665F9DCAD9852D</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>AppearanceDecisions.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>F479420D27380A98C05A3F78</key>
 		<dict>
 			<key>isa</key>
@@ -203,6 +214,17 @@
 			<string>text.script.sh</string>
 			<key>path</key>
 			<string>build_icons.sh</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>7F01B87964CAF5FAC8AC0FF9</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>AppearanceDecisionsTests.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -510,6 +532,13 @@
 			<key>targetProxy</key>
 			<string>43422C1EED142371369E62E7</string>
 		</dict>
+		<key>C7DC9AECEFA944B4BB0DF711</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>4B42363FDF665F9DCAD9852D</string>
+		</dict>
 		<key>4760504F9C2A341E0A12E076</key>
 		<dict>
 			<key>isa</key>
@@ -635,6 +664,13 @@
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
 			<string>7681C8044A5772CA8E414546</string>
+		</dict>
+		<key>743188472B9FBA8870D180DA</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>7F01B87964CAF5FAC8AC0FF9</string>
 		</dict>
 		<key>8B7E7775B325759CE3F9C230</key>
 		<dict>
@@ -763,6 +799,7 @@
 			<string>2147483647</string>
 			<key>files</key>
 			<array>
+				<string>C7DC9AECEFA944B4BB0DF711</string>
 				<string>4760504F9C2A341E0A12E076</string>
 				<string>4BCB10BD2392BE7A86EA6A73</string>
 				<string>9FE1494FCC23F6C7B24F07CE</string>
@@ -882,6 +919,7 @@
 			<string>2147483647</string>
 			<key>files</key>
 			<array>
+				<string>743188472B9FBA8870D180DA</string>
 				<string>8B7E7775B325759CE3F9C230</string>
 				<string>40035B339B9D80308265BC4B</string>
 				<string>C7C9658B1571BA3FDE19AB97</string>
@@ -1337,6 +1375,7 @@
 			<string>PBXGroup</string>
 			<key>children</key>
 			<array>
+				<string>4B42363FDF665F9DCAD9852D</string>
 				<string>F479420D27380A98C05A3F78</string>
 				<string>7B3BB572A06071ADF9974256</string>
 				<string>6F309D74411C5E8911341351</string>
@@ -1403,6 +1442,7 @@
 			<string>PBXGroup</string>
 			<key>children</key>
 			<array>
+				<string>7F01B87964CAF5FAC8AC0FF9</string>
 				<string>BB76EA955C0140F5539B3370</string>
 				<string>69695652279E52526C55DB08</string>
 				<string>8C77BB1D50E0387CBAB9B7E7</string>

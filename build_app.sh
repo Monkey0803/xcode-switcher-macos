@@ -85,6 +85,7 @@ cli_shared_sources=(
   CLIModels.swift
 )
 cli_app_only_sources=(
+  AppearanceDecisions.swift
   SigningServices.swift
   ViewModel.swift
   Views.swift
