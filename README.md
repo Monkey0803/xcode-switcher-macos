@@ -15,7 +15,7 @@
 ```bash
 brew tap Monkey0803/xcode-switcher
 brew trust Monkey0803/xcode-switcher   # Homebrew 6 起拒绝加载未信任的第三方 tap
-brew install --cask --no-quarantine xcode-switcher
+brew install --cask xcode-switcher
 ```
 
 细节与从源码构建的 formula 见 [Homebrew](#homebrew)。
@@ -93,7 +93,7 @@ open "build/Xcode Switcher.app"
 
 | 文件 | 用途 | 代价 |
 | --- | --- | --- |
-| `Casks/xcode-switcher.rb` | 安装 GitHub Release 的预编译 zip | 用户首次启动需放行 Gatekeeper，或安装时加 `--no-quarantine` |
+`brew trust` 是必需的：Homebrew 6 起会拒绝加载未信任的第三方 tap。Homebrew 6 也已移除 `--no-quarantine`，所以预编译产物带隔离属性，用户需要在「系统设置 → 隐私与安全性」放行一次——**放行之前，bundle 内的 `xcodeswitcher` 也会被 Gatekeeper 直接杀掉**（表现为静默的 `Killed: 9`）。若目标 app 不由 Homebrew 管理（例如手工装过），还需加 `--force`，否则 Homebrew 会拒绝覆盖并清掉刚下载的版本。
 | `Formula/xcode-switcher.rb` | 从源码构建，产物无 quarantine 属性 | 仅限 **macOS 26 及更早**：macOS 27 上 Homebrew 要求 Xcode 27，而 SDK 27 的 `@State` 宏经 `swift-plugin-server` 展开会被其构建沙箱拒绝；改用 Xcode 26 则 Homebrew 直接拒绝构建。macOS 27 请用 cask |
 
 两者已放进 tap 仓库 [Monkey0803/homebrew-xcode-switcher](https://github.com/Monkey0803/homebrew-xcode-switcher)（本仓库中的 `Casks/` 与 `Formula/` 是其源头）：
@@ -102,11 +102,11 @@ open "build/Xcode Switcher.app"
 brew tap Monkey0803/xcode-switcher
 brew trust Monkey0803/xcode-switcher   # Homebrew 6 起拒绝加载未信任的第三方 tap
 
-brew install --cask --no-quarantine xcode-switcher   # 预编译产物
+brew install --cask xcode-switcher   # 预编译产物
 brew install xcode-switcher                          # 从源码构建
 ```
 
-`brew trust` 与 `--no-quarantine` 都是 Homebrew 6 之后的行为，缺一不可：前者让第三方 tap 的定义能加载，后者跳过 Gatekeeper 隔离属性。
+`brew trust` 是必需的：Homebrew 6 起会拒绝加载未信任的第三方 tap。Homebrew 6 也已移除 `--no-quarantine`，所以预编译产物带隔离属性，用户需要在「系统设置 → 隐私与安全性」放行一次——**放行之前，bundle 内的 `xcodeswitcher` 也会被 Gatekeeper 直接杀掉**（表现为静默的 `Killed: 9`）。若目标 app 不由 Homebrew 管理（例如手工装过），还需加 `--force`，否则 Homebrew 会拒绝覆盖并清掉刚下载的版本。
 
 发新版本后需要 bump cask 的两行：
 
