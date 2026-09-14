@@ -38,6 +38,10 @@ private struct XcodeSwitcherCLI {
         case "version", "--version", "-v":
             print(Self.versionDescription)
             return 0
+        case "pin":
+            return try pinProject(options)
+        case "unpin":
+            return try unpinProject(options)
         case "list":
             list(json: options.json)
             return installations.isEmpty ? 1 : 0
@@ -258,6 +262,52 @@ private struct XcodeSwitcherCLI {
         }
     }
 
+    /// The project to bind: an explicit path, or the project in the current directory.
+    private func boundProjectURL(from values: [String]) throws -> URL {
+        guard let path = values.first else {
+            let here = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            switch ProjectDirectoryLocator.resolve(startingAt: here) {
+            case let .project(url):
+                return url.standardizedFileURL
+            case .ambiguous:
+                throw CLIError.failed(String(localized: "目录包含多个 Xcode 项目，请显式指定项目路径：\(FileManager.default.currentDirectoryPath)"))
+            case .none:
+                throw CLIError.failed(String(localized: "当前目录下未找到 Xcode 项目，请显式指定项目路径。"))
+            }
+        }
+        return try projectURL(from: [path])
+    }
+
+    private func pinProject(_ options: CLIOptions) throws -> Int32 {
+        guard let selector = options.values.first else {
+            throw CLIError.usage(String(localized: "用法：xcodeswitcher pin <版本、别名或路径> [项目路径]"))
+        }
+        let installation = try findInstallation(selector)
+        let project = try boundProjectURL(from: Array(options.values.dropFirst()))
+        if options.dryRun {
+            print(String(localized: "[dry-run] 将把 \(project.lastPathComponent) 绑定到 \(installation.name) \(installation.displayVersion)"))
+            return 0
+        }
+        guard try ProjectLocalConfigurationStore.save(xcode: selector, for: project) != nil else {
+            throw CLIError.failed(String(localized: "无法写入项目绑定：项目没有可写入的目录。"))
+        }
+        print(String(localized: "已将 \(project.lastPathComponent) 绑定到 \(installation.name) \(installation.displayVersion)。"))
+        return 0
+    }
+
+    private func unpinProject(_ options: CLIOptions) throws -> Int32 {
+        let project = try boundProjectURL(from: options.values)
+        if options.dryRun {
+            print("[dry-run] " + String(localized: "已解除 %@ 的项目绑定。"))
+            return 0
+        }
+        guard try ProjectLocalConfigurationStore.clear(for: project) else {
+            throw CLIError.failed(String(localized: "\(project.lastPathComponent) 没有项目绑定。"))
+        }
+        print(String(localized: "已解除 %@ 的项目绑定。"))
+        return 0
+    }
+
     private func projectURL(from values: [String]) throws -> URL {
         guard let path = values.first else { throw CLIError.usage(String(localized: "缺少项目路径。")) }
         let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardizedFileURL
@@ -330,6 +380,8 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher shell-init zsh
       xcodeswitcher [--json] doctor [版本、别名或路径]
       xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>
+      xcodeswitcher pin <版本、别名或路径> [项目路径]
+      xcodeswitcher unpin [项目路径]
       xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>
 
     --json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。

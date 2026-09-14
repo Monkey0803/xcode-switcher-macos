@@ -35,6 +35,45 @@ enum ProjectLocalConfigurationStore {
               (try? JSONDecoder().decode(ProjectLocalConfiguration.self, from: data)) == nil else { return nil }
         return String(localized: "项目配置文件格式无效，请检查：\(url.path)")
     }
+    /// Writes `.xcode-switcher.json` next to the project. Other keys are preserved,
+    /// so binding an Xcode never drops the workspace preference.
+    ///
+    /// Returns the URL written, or nil when the project has no directory to write
+    /// into. `xcode` is a selector — identifier, path, name, alias or version — the
+    /// same shapes `ProjectXcodeMatcher` resolves.
+    @discardableResult
+    static func save(xcode: String, for projectURL: URL, fileManager: FileManager = .default) throws -> URL? {
+        // configurationURL only answers when a configuration already exists further
+        // up the tree, which is what we want to honour; a fresh project gets one
+        // next to itself.
+        let url = configurationURL(for: projectURL, fileManager: fileManager)
+            ?? projectURL.deletingLastPathComponent().appendingPathComponent(".xcode-switcher.json")
+        let existing = load(in: url.deletingLastPathComponent(), fileManager: fileManager)
+        return try write(ProjectLocalConfiguration(xcode: xcode, workspace: existing?.workspace), to: url)
+    }
+
+    /// Removes the Xcode binding, keeping the file while it still holds a workspace.
+    /// Returns true when a binding was actually removed.
+    @discardableResult
+    static func clear(for projectURL: URL, fileManager: FileManager = .default) throws -> Bool {
+        guard let url = configurationURL(for: projectURL, fileManager: fileManager),
+              let existing = load(in: url.deletingLastPathComponent(), fileManager: fileManager),
+              existing.xcode != nil else { return false }
+        if existing.workspace == nil {
+            try fileManager.removeItem(at: url)
+        } else {
+            _ = try write(ProjectLocalConfiguration(xcode: nil, workspace: existing.workspace), to: url)
+        }
+        return true
+    }
+
+    private static func write(_ configuration: ProjectLocalConfiguration, to url: URL) throws -> URL {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(configuration).write(to: url, options: .atomic)
+        return url
+    }
+
 }
 
 enum ProjectXcodeResolution: Equatable, Sendable {

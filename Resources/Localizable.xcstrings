@@ -41,6 +41,16 @@
         }
       }
     },
+    "%@ 没有项目绑定。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ has no project binding."
+          }
+        }
+      }
+    },
     "%@失败（错误码 %d）。": {
       "localizations": {
         "en": {
@@ -180,12 +190,12 @@
     "Xcode": {},
     "Xcode License": {},
     "Xcode Switcher": {},
-    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\n--force 即使有 Xcode 正在运行也继续切换。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
+    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher pin <版本、别名或路径> [项目路径]\n  xcodeswitcher unpin [项目路径]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\n--force 即使有 Xcode 正在运行也继续切换。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\n--force switches even while an Xcode is running.\nenv and shell-init zsh only read the project environment and never change xcode-select."
+            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher pin <version, alias or path> [project path]\n  xcodeswitcher unpin [project path]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\n--force switches even while an Xcode is running.\nenv and shell-init zsh only read the project environment and never change xcode-select."
           }
         }
       }
@@ -252,6 +262,22 @@
           "stringUnit": {
             "state": "new",
             "value": "[dry-run] 将使用 %1$@ 打开 %2$@"
+          }
+        }
+      }
+    },
+    "[dry-run] 将把 %@ 绑定到 %@ %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "[dry-run] 将把 %1$@ 绑定到 %2$@ %3$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[dry-run] would bind %@ to %@ %@"
           }
         }
       }
@@ -931,6 +957,22 @@
         }
       }
     },
+    "已将 %@ 绑定到 %@ %@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已将 %1$@ 绑定到 %2$@ %3$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bound %@ to %@ %@."
+          }
+        }
+      }
+    },
     "已恢复上次配置备份。": {
       "localizations": {
         "en": {
@@ -1107,6 +1149,16 @@
         }
       }
     },
+    "已解除 %@ 的项目绑定。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed the project binding for %@."
+          }
+        }
+      }
+    },
     "已过期": {
       "localizations": {
         "en": {
@@ -1193,6 +1245,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Currently active"
+          }
+        }
+      }
+    },
+    "当前目录下未找到 Xcode 项目，请显式指定项目路径。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Xcode project found in the current directory; pass the project path explicitly."
           }
         }
       }
@@ -1539,6 +1601,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Could not change the login item: %@"
+          }
+        }
+      }
+    },
+    "无法写入项目绑定：项目没有可写入的目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot write the project binding: the project has no directory to write into."
           }
         }
       }
@@ -2197,6 +2269,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open with Recommended Xcode (no system change)"
+          }
+        }
+      }
+    },
+    "用法：xcodeswitcher pin <版本、别名或路径> [项目路径]": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage: xcodeswitcher pin <version, alias or path> [project path]"
           }
         }
       }
