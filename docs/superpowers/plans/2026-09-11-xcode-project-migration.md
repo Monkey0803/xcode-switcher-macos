@@ -173,9 +173,10 @@ session 213 的建议逐条落实：
   - `release_preflight.sh` 会在证书缺失时**提前失败**并报「钥匙串中不存在签名身份」，脚本根本走不到导出步骤。
   - 证书缺失时 Xcode 的报错清晰可操作：`No certificate for team … matching 'Developer ID Application: …' found`。
   - 由此加固：导出后的 bundle 改为**按目录发现**而非硬编码 `Xcode Switcher.app`（名字由产品名派生，猜错只会在发版时才暴露）。
-- **仍未验证**：`-exportArchive` 真正跑完，以及其后的公证、staple、DMG、appcast。原因是本机**没有任何可用的导出证书**：`Developer ID Application` 数量为 0，`method: debugging` 需要 "Mac Development" 证书（本机只有 Apple Development），`app-store-connect` 需要 provisioning profile；`notarytool` 也无凭证。首次正式发布会是这部分的第一次实测——请预留调试时间。
+- **决定（2026-09-11）：这条路径不做验证**。项目只发布 GitHub 上的 ad-hoc 产物，不计划切换到正式签名分发；`build_release.sh` 保留可用，但不再是待办项。以下限制仅作记录，供将来真的要走这条路时参考。
+- **仍未验证**：`-exportArchive` 真正跑完，以及其后的公证、staple、DMG、appcast。原因是本机**没有任何可用的导出证书**：`Developer ID Application` 数量为 0，`method: debugging` 需要 "Mac Development" 证书（本机只有 Apple Development），`app-store-connect` 需要 provisioning profile；`notarytool` 也无凭证。
 
-**要补齐验证，需要**：一份 `Developer ID Application` 证书（团队管理员创建后导入钥匙串）+ `notarytool store-credentials` 保存的凭证，之后 `build_release.sh` 即可在有 `SU_FEED_URL`、`SPARKLE_PUBLIC_KEY`、`SPARKLE_DOWNLOAD_URL_PREFIX` 的情况下完整跑通。
+**若将来仍要补齐验证，需要**：一份 `Developer ID Application` 证书（团队管理员创建后导入钥匙串）+ `notarytool store-credentials` 保存的凭证，之后 `build_release.sh` 即可在有 `SU_FEED_URL`、`SPARKLE_PUBLIC_KEY`、`SPARKLE_DOWNLOAD_URL_PREFIX` 的情况下完整跑通。
 
 ### 本地化与 CLI
 

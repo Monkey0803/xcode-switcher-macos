@@ -11,8 +11,10 @@
 #       - with Xcode 26 active, Homebrew itself refuses to build: on macOS 27 it
 #         requires Xcode 27 ("Your Xcode (26.3) ... is too outdated"), and
 #         HOMEBREW_DEVELOPER=1 does not bypass that check.
-#     The `depends_on macos: "<= :tahoe"` cap below therefore turns this into a
-#     clear "unsupported macOS" message instead of a confusing Xcode error.
+#     The `depends_on maximum_macos: :tahoe` cap below therefore turns this into a
+#     clear "unsupported macOS" message instead of a confusing Xcode error. Use the
+#     dedicated stanza: the string form `depends_on macos: "<= :tahoe"` is
+#     deprecated, and Homebrew 6 fails outright on it.
 #   * On macOS 26 with a matching Xcode the formula is expected to work, because
 #     the macOS 26 SDK has no @State macro — but that combination could not be
 #     verified here, since this machine runs macOS 27.
@@ -36,7 +38,8 @@ class XcodeSwitcher < Formula
   # NSGlassEffectView is a macOS 26 API that `#available` cannot guard at compile
   # time. Xcode 26.3 runs on macOS 15.6 and later.
   depends_on arch: :arm64
-  depends_on macos: "<= :tahoe"
+  depends_on macos: :sequoia
+  depends_on maximum_macos: :tahoe
   depends_on xcode: ["26.0", :build]
 
   # Exactly the artifact Swift Package Manager fetches for the Sparkle binary
