@@ -4,6 +4,41 @@
 
 当前版本：`1.4.0`（仅支持 Apple Silicon，最低支持 macOS 13.0）。`v1.3.0` 为上一个公开稳定版本。
 
+## 下载与安装
+
+> **预编译产物是 ad-hoc 签名、未经 Apple 公证**，因此从 GitHub Releases 下载后首次启动会被 Gatekeeper 拦截。这是刻意的取舍（见[正式发布](#正式发布非-app-store)），不是打包失误。
+
+三条路径，按推荐顺序：
+
+**1. Homebrew（推荐，只需多一条 `brew trust`）**
+
+```bash
+brew tap Monkey0803/xcode-switcher
+brew trust Monkey0803/xcode-switcher   # Homebrew 6 起拒绝加载未信任的第三方 tap
+brew install --cask --no-quarantine xcode-switcher
+```
+
+细节与从源码构建的 formula 见 [Homebrew](#homebrew)。
+
+**2. 直接从 GitHub Releases 下载 ZIP/DMG**
+
+首次启动会被拦截，处理方式见[首次打开的处理方式](#首次打开的处理方式)。命令行等价做法是去掉下载隔离标记：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Xcode Switcher.app"   # 仅在你校验过 SHA-256 后使用
+```
+
+**3. 从源码构建——完全不会遇到 Gatekeeper**
+
+```bash
+git clone https://github.com/Monkey0803/xcode-switcher-macos.git
+cd xcode-switcher-macos && ./build_app.sh
+```
+
+本地构建的产物没有 quarantine 属性，Gatekeeper 不介入。代价是需要 **Xcode 26 或更新**：Liquid Glass 用到的 `NSGlassEffectView` 是 macOS 26 API，运行时 `#available` 无法让旧 SDK 通过编译。
+
+无论哪条路径，**全局快捷键**首次使用时都需要授予辅助功能权限——这与签名无关。
+
 ## 功能
 
 - 菜单栏常驻，支持自定义全局快捷键唤起主窗口并直接聚焦搜索框，默认快捷键为 `⌃⌥⌘X`。
@@ -170,8 +205,8 @@ Hook 只在切换目录时重新解析，同一目录不会每条命令都启动
 ### 首次打开的处理方式
 
 1. 从 GitHub Releases 下载 ZIP/DMG，并解压或拖入“应用程序”文件夹。
-2. 在 Finder 中按住 Control 点击 `Xcode Switcher.app`，选择“打开”，再在确认对话框中点击“打开”。以后通常可以直接启动。
-3. 如果仍被阻止，打开“系统设置 → 隐私与安全性”，在安全性提示旁点击“仍要打开”，输入登录密码或使用 Touch ID 确认。
+2. 打开“系统设置 → 隐私与安全性”，在安全性提示旁点击“仍要打开”，输入登录密码或使用 Touch ID 确认。**这是所有版本上都能走通的方式。**
+3. 在 macOS 14 及更早版本上，还可以在 Finder 中按住 Control 点击 `Xcode Switcher.app` 选择“打开”。Apple 在 macOS 15 移除了这条捷径（其公开变更说明，本仓库未在 macOS 15 上复现），所以不要把它当作唯一手段。
 
 仅当你确认文件来自可信的 GitHub Release 且校验过发布者提供的 SHA-256 时，才可使用命令行移除下载隔离标记：
 
