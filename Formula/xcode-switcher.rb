@@ -24,15 +24,13 @@ class XcodeSwitcher < Formula
   desc "Discover, diagnose and switch between installed Xcode versions"
   homepage "https://github.com/Monkey0803/xcode-switcher-macos"
   license "MIT"
+  # Pinned to the v1.4.0 tag through a revision rather than a release tarball:
+  # GitHub's generated tag tarballs are not guaranteed to stay byte-stable, so a
+  # git source with an explicit revision is the reproducible choice.
+  url "https://github.com/Monkey0803/xcode-switcher-macos.git",
+      tag:      "v1.4.0",
+      revision: "429645721f96cc5d598beab27fa0cc856dd16cdb"
   head "https://github.com/Monkey0803/xcode-switcher-macos.git", branch: "main"
-
-  # Enable the stable URL once a release tarball exists — Homebrew needs the real
-  # sha256 of the downloaded tarball, which can only be computed after tagging:
-  #
-  #   url "https://github.com/Monkey0803/xcode-switcher-macos/archive/refs/tags/v1.4.0.tar.gz"
-  #   sha256 "..."
-  #
-  # Verify with: curl -sL <url> | shasum -a 256
 
   # The app is arm64 only, and building it needs the macOS 26 SDK because
   # NSGlassEffectView is a macOS 26 API that `#available` cannot guard at compile
