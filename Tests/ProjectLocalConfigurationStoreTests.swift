@@ -58,6 +58,22 @@ final class ProjectLocalConfigurationStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: configurationURL.path))
     }
 
+    func testWorkspaceWriteKeepsTheXcodeBinding() throws {
+        try ProjectLocalConfigurationStore.save(xcode: "26.3", for: project)
+        try ProjectLocalConfigurationStore.save(workspace: "Demo.xcworkspace", for: project)
+
+        let configuration = ProjectLocalConfigurationStore.load(for: project)
+        XCTAssertEqual(configuration?.xcode, "26.3")
+        XCTAssertEqual(configuration?.workspace, "Demo.xcworkspace")
+    }
+
+    func testClearingWorkspaceDeletesTheFileWhenNothingIsLeft() throws {
+        try ProjectLocalConfigurationStore.save(workspace: "Demo.xcworkspace", for: project)
+
+        XCTAssertNil(try ProjectLocalConfigurationStore.save(workspace: nil, for: project))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: configurationURL.path))
+    }
+
     func testClearReportsWhenThereIsNoBinding() throws {
         XCTAssertFalse(try ProjectLocalConfigurationStore.clear(for: project))
     }

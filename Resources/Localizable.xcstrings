@@ -51,6 +51,16 @@
         }
       }
     },
+    "%@ 没有工作区绑定。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ has no workspace binding."
+          }
+        }
+      }
+    },
     "%@ 没有项目绑定。": {
       "localizations": {
         "en": {
@@ -200,12 +210,12 @@
     "Xcode": {},
     "Xcode License": {},
     "Xcode Switcher": {},
-    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [版本、别名或路径]\n  xcodeswitcher alias <别名> <版本、别名或路径>\n  xcodeswitcher unalias <版本、别名或路径>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher pin <版本、别名或路径> [项目路径]\n  xcodeswitcher unpin [项目路径]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\n--force 即使有 Xcode 正在运行也继续切换。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
+    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [版本、别名或路径]\n  xcodeswitcher workspace <工作区文件名> [项目路径]\n  xcodeswitcher unworkspace [项目路径]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher alias <别名> <版本、别名或路径>\n  xcodeswitcher unalias <版本、别名或路径>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher pin <版本、别名或路径> [项目路径]\n  xcodeswitcher unpin [项目路径]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\n--force 即使有 Xcode 正在运行也继续切换。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [version, alias or path]\n  xcodeswitcher alias <name> <version, alias or path>\n  xcodeswitcher unalias <version, alias or path>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher pin <version, alias or path> [project path]\n  xcodeswitcher unpin [project path]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\n--force switches even while an Xcode is running.\nenv and shell-init zsh only read the project environment and never change xcode-select."
+            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [version, alias or path]\n  xcodeswitcher alias <name> <version, alias or path>\n  xcodeswitcher unalias <version, alias or path>\n  xcodeswitcher workspace <workspace file> [project path]\n  xcodeswitcher unworkspace [project path]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher pin <version, alias or path> [project path]\n  xcodeswitcher unpin [project path]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\n--force switches even while an Xcode is running.\nenv and shell-init zsh only read the project environment and never change xcode-select."
           }
         }
       }
@@ -1105,6 +1115,22 @@
         }
       }
     },
+    "已把 %@ 的工作区设为 %@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已把 %1$@ 的工作区设为 %2$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set the workspace of %@ to %@."
+          }
+        }
+      }
+    },
     "已添加项目 %@。": {
       "localizations": {
         "en": {
@@ -1205,6 +1231,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Removed the alias of %@."
+          }
+        }
+      }
+    },
+    "已移除 %@ 的工作区绑定。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed the workspace binding of %@."
           }
         }
       }
@@ -1867,6 +1903,16 @@
         }
       }
     },
+    "未找到工作区文件：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workspace file not found: %@"
+          }
+        }
+      }
+    },
     "未找到本机 Provisioning Profile。": {
       "localizations": {
         "en": {
@@ -2385,6 +2431,16 @@
         }
       }
     },
+    "用法：xcodeswitcher completions <zsh|bash|fish>": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage: xcodeswitcher completions <zsh|bash|fish>"
+          }
+        }
+      }
+    },
     "用法：xcodeswitcher pin <版本、别名或路径> [项目路径]": {
       "localizations": {
         "en": {
@@ -2421,6 +2477,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Usage: xcodeswitcher use <version, alias or path>"
+          }
+        }
+      }
+    },
+    "用法：xcodeswitcher workspace <工作区文件名> [项目路径]": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage: xcodeswitcher workspace <workspace file> [project path]"
           }
         }
       }

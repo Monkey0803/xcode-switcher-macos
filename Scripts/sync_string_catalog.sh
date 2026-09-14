@@ -28,7 +28,24 @@ while IFS= read -r file; do
 done < <(/usr/bin/find "$derived_data" \
   \( -path "*/XcodeSwitcher.build/*/XcodeSwitcher.build/Objects-normal/*" \
   -o -path "*/XcodeSwitcher.build/*/xcodeswitcher-cli.build/Objects-normal/*" \) \
-  -name "*.stringsdata" -type f 2>/dev/null | sort)
+  -name "*.stringsdata" -type f 2>/dev/null | sort | while IFS= read -r candidate; do
+    # A .stringsdata left by an earlier build of a file that has since changed would
+    # resurrect keys that no longer exist, or — right after they are removed — strip
+    # keys that still do. Its source is always older than a current extraction, so
+    # compare the two and skip the stale one loudly.
+    base="${candidate##*/}"
+    base="${base%.stringsdata}"
+    source="$(/usr/bin/find "$script_dir/Sources" "$script_dir/SourcesCLI" -name "$base.swift" -type f 2>/dev/null | head -1)"
+    if [[ -z "$source" ]]; then
+      printf 'skipping %s: its source no longer exists\n' "$base" >&2
+      continue
+    fi
+    if [[ "$(/usr/bin/stat -f %m "$candidate")" -lt "$(/usr/bin/stat -f %m "$source")" ]]; then
+      printf 'skipping stale %s.stringsdata (source is newer; rebuild the app target)\n' "$base" >&2
+      continue
+    fi
+    printf '%s\n' "$candidate"
+  done)
 
 if [[ ${#stringsdata[@]} -eq 0 ]]; then
   printf '错误：%s 下没有找到 app target 的 .stringsdata，请先构建 app target。\n' "$derived_data" >&2

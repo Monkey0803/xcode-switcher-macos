@@ -67,6 +67,21 @@ enum ProjectLocalConfigurationStore {
         return true
     }
 
+    /// Sets or clears the workspace preference, keeping the Xcode binding. Writes
+    /// the same file `save(xcode:)` does, and removes it when nothing is left to
+    /// remember.
+    @discardableResult
+    static func save(workspace: String?, for projectURL: URL, fileManager: FileManager = .default) throws -> URL? {
+        let url = configurationURL(for: projectURL, fileManager: fileManager)
+            ?? projectURL.deletingLastPathComponent().appendingPathComponent(".xcode-switcher.json")
+        let existing = load(in: url.deletingLastPathComponent(), fileManager: fileManager)
+        if workspace == nil, existing?.xcode == nil {
+            if fileManager.fileExists(atPath: url.path) { try fileManager.removeItem(at: url) }
+            return nil
+        }
+        return try write(ProjectLocalConfiguration(xcode: existing?.xcode, workspace: workspace), to: url)
+    }
+
     private static func write(_ configuration: ProjectLocalConfiguration, to url: URL) throws -> URL {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

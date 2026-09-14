@@ -72,6 +72,12 @@ private struct XcodeSwitcherCLI {
             return try unpinProject(options)
         case "sizes":
             return try sizes(options)
+        case "workspace":
+            return try setWorkspace(options)
+        case "unworkspace":
+            return try removeWorkspace(options)
+        case "completions":
+            return try printCompletions(options)
         case "alias":
             return try setAlias(options)
         case "unalias":
@@ -295,6 +301,74 @@ private struct XcodeSwitcherCLI {
             print(output)
         }
     }
+
+    private func setWorkspace(_ options: CLIOptions) throws -> Int32 {
+        guard let name = options.values.first else {
+            throw CLIError.usage(String(localized: "用法：xcodeswitcher workspace <工作区文件名> [项目路径]"))
+        }
+        let project = try boundProjectURL(from: Array(options.values.dropFirst()))
+        let label = project.lastPathComponent
+        guard FileManager.default.fileExists(atPath: project.deletingLastPathComponent().appendingPathComponent(name).path) else {
+            throw CLIError.failed(String(localized: "未找到工作区文件：\(name)"))
+        }
+        let confirmation = String(localized: "已把 \(label) 的工作区设为 \(name)。")
+        if options.dryRun {
+            print("[dry-run] " + confirmation)
+            return 0
+        }
+        _ = try ProjectLocalConfigurationStore.save(workspace: name, for: project)
+        print(confirmation)
+        return 0
+    }
+
+    private func removeWorkspace(_ options: CLIOptions) throws -> Int32 {
+        let project = try boundProjectURL(from: options.values)
+        let label = project.lastPathComponent
+        guard ProjectLocalConfigurationStore.load(for: project)?.workspace != nil else {
+            throw CLIError.failed(String(localized: "\(label) 没有工作区绑定。"))
+        }
+        let confirmation = String(localized: "已移除 \(label) 的工作区绑定。")
+        if options.dryRun {
+            print("[dry-run] " + confirmation)
+            return 0
+        }
+        _ = try ProjectLocalConfigurationStore.save(workspace: nil, for: project)
+        print(confirmation)
+        return 0
+    }
+
+    private func printCompletions(_ options: CLIOptions) throws -> Int32 {
+        guard let shell = options.values.first?.lowercased(), let script = Self.completionScripts[shell] else {
+            throw CLIError.usage(String(localized: "用法：xcodeswitcher completions <zsh|bash|fish>"))
+        }
+        print(script)
+        return 0
+    }
+
+    /// Completion scripts are plain shell, so they need no translation. Zsh and
+    /// bash complete the subcommand list; fish is one line by design.
+    private static let completionScripts: [String: String] = [
+        "zsh": """
+        #compdef xcodeswitcher
+        _xcodeswitcher() {
+          local -a commands
+          commands=(list version sizes alias unalias current resolve env shell-init doctor use pin unpin open workspace unworkspace completions)
+          (( CURRENT == 2 )) && compadd -a commands
+        }
+        compdef _xcodeswitcher xcodeswitcher
+        """,
+        "bash": """
+        _xcodeswitcher() {
+          local commands="list version sizes alias unalias current resolve env shell-init doctor use pin unpin open workspace unworkspace completions"
+          [ "$COMP_CWORD" -eq 1 ] && COMPREPLY=( $(compgen -W "$commands" -- "${COMP_WORDS[COMP_CWORD]}") )
+        }
+        complete -F _xcodeswitcher xcodeswitcher
+        """,
+        "fish": """
+        complete -c xcodeswitcher -f
+        complete -c xcodeswitcher -n '__fish_use_subcommand' -a 'list version sizes alias unalias current resolve env shell-init doctor use pin unpin open workspace unworkspace completions'
+        """,
+    ]
 
     /// Aliases live in the app configuration, which is the same file the app
     /// writes; the CLI only reads it elsewhere.
@@ -551,6 +625,9 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher [--json] list
       xcodeswitcher version
       xcodeswitcher sizes [版本、别名或路径]
+      xcodeswitcher workspace <工作区文件名> [项目路径]
+      xcodeswitcher unworkspace [项目路径]
+      xcodeswitcher completions <zsh|bash|fish>
       xcodeswitcher alias <别名> <版本、别名或路径>
       xcodeswitcher unalias <版本、别名或路径>
       xcodeswitcher [--json] current
@@ -571,7 +648,41 @@ private struct XcodeSwitcherCLI {
 
 @main
 private struct XcodeSwitcherCLIEntryPoint {
+    /// A symlink installed outside the bundle — by a package manager, for example —
+    /// makes Foundation derive `Bundle.main` from the invocation path, so every
+    /// `String(localized:)` silently falls back to the source language. Re-exec
+    /// through the resolved path once so the whole process, including the shared
+    /// sources the CLI prints, sees the app bundle. `execv` replaces the process,
+    /// so there is no second run to loop.
+    private static func reexecThroughAppBundleIfNeeded() {
+        guard Bundle.main.bundleURL.pathExtension != "app" else { return }
+
+        // `Bundle.main.executableURL` is nil precisely in the case that matters — a
+        // process outside a bundle — so ask the kernel for the invocation path and
+        // resolve the symlink ourselves.
+        var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
+        var size = UInt32(PATH_MAX)
+        guard _NSGetExecutablePath(&buffer, &size) == 0 else { return }
+        let executable = URL(fileURLWithPath: String(cString: buffer)).resolvingSymlinksInPath()
+
+        var directory = executable.deletingLastPathComponent()
+        while directory.path != "/" {
+            if directory.pathExtension == "app" {
+                var arguments = ProcessInfo.processInfo.arguments
+                arguments[0] = executable.path
+                // The array must be passed by reference: `execv` takes a mutable
+                // pointer, and a bridged temporary would not carry the NULs.
+                var argv: [UnsafeMutablePointer<CChar>?] = arguments.map { strdup($0) }
+                argv.append(nil)
+                execv(executable.path, &argv)
+                return
+            }
+            directory = directory.deletingLastPathComponent()
+        }
+    }
+
     static func main() {
+        reexecThroughAppBundleIfNeeded()
         let arguments = Array(ProcessInfo.processInfo.arguments.dropFirst())
         do {
             let status = try XcodeSwitcherCLI().run(arguments: arguments)
