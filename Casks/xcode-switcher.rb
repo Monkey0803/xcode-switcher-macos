@@ -1,14 +1,13 @@
 cask "xcode-switcher" do
-  # Pinned to v1.3.0 on purpose. The v1.4.0 artifact published on 2026-09-11
-  # crashes on launch: the `xcodebuild archive` release path signs the bundle in a
-  # way that makes dyld reject the embedded Sparkle.framework — "mapping process
-  # and mapped file (non-platform) have different Team IDs", then SIGABRT.
-  # The script build path (`build_app.sh` + `Scripts/sign_bundle.sh`) is not
-  # affected, which is why v1.3.0 launches. Move this back to 1.4.x once the
-  # archive path re-signs with sign_bundle.sh and the result has been launched,
-  # not merely verified with `codesign --verify`.
-  version "1.3.0,1"
-  sha256 "8a9fd41e66867b5b685f7be800d8dc2f4b72fef72e2c633ed7474e29d24192f2"
+  # v1.4.0 was withdrawn: the `xcodebuild archive` release path signed the bundle
+  # in a way that made dyld reject the embedded Sparkle.framework ("mapping process
+  # and mapped file (non-platform) have different Team IDs") and the app died with
+  # SIGABRT. It is kept as a GitHub pre-release with no assets, so /releases/latest
+  # and the in-app update check both fall back to a working version. 1.4.1 fixes
+  # the signing and also makes the release scripts launch the artifact before
+  # publishing, so this cannot ship again unnoticed.
+  version "1.4.1,3"
+  sha256 "10d7cf23dde12b4243b6a442f2aa421ffdec5fb8fdbbc038663c7b8a327ad144"
 
   url "https://github.com/Monkey0803/xcode-switcher-macos/releases/download/v#{version.csv.first}/Xcode-Switcher-#{version.csv.first}-#{version.csv.second}-local.zip"
   name "Xcode Switcher"
