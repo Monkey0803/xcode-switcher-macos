@@ -1,25 +1,23 @@
 # Verification status (2026-09-11):
 #
-#   * The Sparkle resource checksum matches the one Sparkle declares in its own
-#     Package.swift, and `brew` fetches both the source and the resource.
-#   * The offline build path works: with .build/artifacts removed and
-#     SPARKLE_FRAMEWORK_PATH set, build_app.sh still produces a signed app.
-#   * `brew install` currently FAILS to build on a machine whose active developer
-#     directory is Xcode 27: the SDK 27 `@State` macro is expanded through
-#     swift-plugin-server, which Homebrew's formula build sandbox refuses, so the
-#     compiler reports "external macro implementation type 'SwiftUIMacros.StateMacro'
-#     could not be found". Everything after that is a cascade from the failed macro.
-#     There is no user-facing opt-out — Homebrew only exposes
-#     HOMEBREW_NO_SANDBOX_CASK and HOMEBREW_NO_SANDBOX_LINUX.
-#   * The same sources DO build with the macOS 26 SDK (verified with
-#     DEVELOPER_DIR=/Applications/Xcode_26.3.app/... ./build_app.sh), where @State is
-#     still a property wrapper and no macro plugin is needed. So this formula is
-#     expected to work for contributors whose active Xcode is 26 — which is also
-#     the documented build requirement — but that combination has NOT been verified
-#     through `brew` (Homebrew does not pass DEVELOPER_DIR through to the build).
+#   * Resource and source fetching work, and the offline build path is verified:
+#     with .build/artifacts removed and SPARKLE_FRAMEWORK_PATH set, build_app.sh
+#     still produces a signed app whose CLI runs.
+#   * The formula cannot be exercised on macOS 27 (Golden Gate), by either Xcode:
+#       - with Xcode 27 active, the SDK 27 `@State` macro is expanded through
+#         swift-plugin-server, which Homebrew's formula build sandbox refuses, so
+#         the compiler reports "external macro implementation type
+#         'SwiftUIMacros.StateMacro' could not be found";
+#       - with Xcode 26 active, Homebrew itself refuses to build: on macOS 27 it
+#         requires Xcode 27 ("Your Xcode (26.3) ... is too outdated"), and
+#         HOMEBREW_DEVELOPER=1 does not bypass that check.
+#     The `depends_on macos: "<= :tahoe"` cap below therefore turns this into a
+#     clear "unsupported macOS" message instead of a confusing Xcode error.
+#   * On macOS 26 with a matching Xcode the formula is expected to work, because
+#     the macOS 26 SDK has no @State macro — but that combination could not be
+#     verified here, since this machine runs macOS 27.
 #
-# Until that is verified, the working Homebrew route for prebuilt, ad-hoc signed
-# releases is a cask in a custom tap, with caveats about Gatekeeper.
+# On macOS 27 install the cask instead: Casks/xcode-switcher.rb.
 class XcodeSwitcher < Formula
   desc "Discover, diagnose and switch between installed Xcode versions"
   homepage "https://github.com/Monkey0803/xcode-switcher-macos"
@@ -38,7 +36,7 @@ class XcodeSwitcher < Formula
   # NSGlassEffectView is a macOS 26 API that `#available` cannot guard at compile
   # time. Xcode 26.3 runs on macOS 15.6 and later.
   depends_on arch: :arm64
-  depends_on macos: :sequoia
+  depends_on macos: "<= :tahoe"
   depends_on xcode: ["26.0", :build]
 
   # Exactly the artifact Swift Package Manager fetches for the Sparkle binary

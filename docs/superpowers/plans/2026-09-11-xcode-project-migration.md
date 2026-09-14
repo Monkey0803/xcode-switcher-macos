@@ -189,3 +189,9 @@ CLI 与 app 共用同一份 catalog：`xcodeswitcher` 位于 `Contents/MacOS/` �
 
 - `Casks/xcode-switcher.rb`：指向 GitHub Release 的预编译 zip，`brew audit --cask` **通过（exit 0）**——因为不要求公证，这类定义只能放在自定义 tap 里。
 - `Formula/xcode-switcher.rb`：Sparkle 作为 `resource`（校验和与 Sparkle 自身 Package.swift 一致）、离线构建路径可用；但 `brew install` 在 active Xcode 为 **27** 时会失败——SDK 27 的 `@State` 宏经 `swift-plugin-server` 展开，被 Homebrew 的 formula 构建沙箱拒绝，且只对 cask 与 Linux 提供了沙箱开关。同一份源码用 **macOS 26 SDK（Xcode 26.3）** 可正常构建，故该组合预期可用，但未经 brew 验证（Homebrew 的 superenv 不传递 `DEVELOPER_DIR`）。
+
+### formula 的最终状态（2026-09-11 实测）
+
+在 macOS 27 上**两种 Xcode 都无法让 formula 构建成功**：Xcode 27 时 SDK 27 的 `@State` 宏经 `swift-plugin-server` 展开被 Homebrew 构建沙箱拒绝；Xcode 26 时 Homebrew 自己拒绝构建（macOS 27 要求 Xcode 27：「Your Xcode (26.3) … is too outdated」，`HOMEBREW_DEVELOPER=1` 也绕不过）。因此 formula 加了 `depends_on macos: "<= :tahoe"`，在 macOS 27 上给出明确的「不支持该 macOS」而不是令人困惑的 Xcode 报错。
+
+macOS 26 配对应 Xcode 预期可用（该 SDK 没有 `@State` 宏），但本机是 macOS 27，**未能验证该组合**。macOS 27 上请使用 cask。

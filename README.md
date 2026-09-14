@@ -94,7 +94,7 @@ open "build/Xcode Switcher.app"
 | 文件 | 用途 | 代价 |
 | --- | --- | --- |
 | `Casks/xcode-switcher.rb` | 安装 GitHub Release 的预编译 zip | 用户首次启动需放行 Gatekeeper，或安装时加 `--no-quarantine` |
-| `Formula/xcode-switcher.rb` | 从源码构建，产物无 quarantine 属性 | 需要 Xcode 26+；受 Homebrew 构建沙箱限制，尚需在 active Xcode 为 26 的机器上验证（见文件头注释） |
+| `Formula/xcode-switcher.rb` | 从源码构建，产物无 quarantine 属性 | 仅限 **macOS 26 及更早**：macOS 27 上 Homebrew 要求 Xcode 27，而 SDK 27 的 `@State` 宏经 `swift-plugin-server` 展开会被其构建沙箱拒绝；改用 Xcode 26 则 Homebrew 直接拒绝构建。macOS 27 请用 cask |
 
 两者已放进 tap 仓库 [Monkey0803/homebrew-xcode-switcher](https://github.com/Monkey0803/homebrew-xcode-switcher)（本仓库中的 `Casks/` 与 `Formula/` 是其源头）：
 
