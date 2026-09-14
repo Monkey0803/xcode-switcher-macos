@@ -44,6 +44,10 @@ private struct XcodeSwitcherCLI {
             return try unpinProject(options)
         case "sizes":
             return sizes(json: options.json)
+        case "alias":
+            return try setAlias(options)
+        case "unalias":
+            return try removeAlias(options)
         case "list":
             list(json: options.json)
             return installations.isEmpty ? 1 : 0
@@ -264,6 +268,65 @@ private struct XcodeSwitcherCLI {
         }
     }
 
+    /// Aliases live in the app configuration, which is the same file the app
+    /// writes; the CLI only reads it elsewhere.
+    private func setAlias(_ options: CLIOptions) throws -> Int32 {
+        guard options.values.count >= 2 else {
+            throw CLIError.usage(String(localized: "用法：xcodeswitcher alias <别名> <版本、别名或路径>"))
+        }
+        let alias = options.values[0]
+        let installation = try findInstallation(options.values[1])
+        let label = "\(installation.name) \(installation.displayVersion)"
+
+        // The matcher compares aliases case-insensitively, so a duplicate would
+        // make one of them unreachable.
+        if let clash = configuration.xcodeAliases.first(where: {
+            $0.key != installation.id && $0.value.localizedCaseInsensitiveCompare(alias) == .orderedSame
+        }) {
+            let owner = installations.first { $0.id == clash.key }
+                .map { "\($0.name) \($0.displayVersion)" } ?? clash.value
+            throw CLIError.failed(String(localized: "别名 \(alias) 已被 \(owner) 使用。"))
+        }
+
+        if options.dryRun {
+            print("[dry-run] " + String(localized: "已将 \(label) 的别名设为 \(alias)。"))
+            return 0
+        }
+        var updated = configuration
+        updated.xcodeAliases[installation.id] = alias
+        try saveConfiguration(updated)
+        print(String(localized: "已将 \(label) 的别名设为 \(alias)。"))
+        return 0
+    }
+
+    private func removeAlias(_ options: CLIOptions) throws -> Int32 {
+        guard let selector = options.values.first else {
+            throw CLIError.usage(String(localized: "用法：xcodeswitcher unalias <版本、别名或路径>"))
+        }
+        let installation = try findInstallation(selector)
+        let label = "\(installation.name) \(installation.displayVersion)"
+        guard configuration.xcodeAliases[installation.id] != nil else {
+            throw CLIError.failed(String(localized: "\(label) 没有别名。"))
+        }
+        if options.dryRun {
+            print("[dry-run] " + String(localized: "已移除 \(label) 的别名。"))
+            return 0
+        }
+        var updated = configuration
+        updated.xcodeAliases.removeValue(forKey: installation.id)
+        try saveConfiguration(updated)
+        print(String(localized: "已移除 \(label) 的别名。"))
+        return 0
+    }
+
+    private func saveConfiguration(_ configuration: AppConfiguration) throws {
+        do {
+            try AppConfigurationStore().save(configuration)
+        } catch {
+            throw CLIError.failed(String(localized: "写入应用配置失败：\(error.localizedDescription)"))
+        }
+    }
+
     private func sizes(json: Bool) -> Int32 {
         func entry(for label: String, path: String) -> DiskUsageReporter.Entry? {
             guard let bytes = DiskUsageReporter.allocatedBytes(ofPath: path) else { return nil }
@@ -273,8 +336,10 @@ private struct XcodeSwitcherCLI {
         let xcodeEntries = installations.compactMap {
             entry(for: "\($0.name) \($0.displayVersion)", path: $0.appURL.path)
         }
-        let runtimeEntries = DiskUsageReporter.simulatorRuntimePaths().compactMap {
-            entry(for: $0.deletingPathExtension().lastPathComponent, path: $0.path)
+        // simctl reports the runtime size itself, so runtimes cost no `du` call.
+        let runtimes = DiskUsageReporter.simulatorRuntimes()
+        let runtimeEntries = runtimes.map {
+            DiskUsageReporter.Entry(label: $0.label, path: $0.path, bytes: $0.bytes)
         }
         let total = (xcodeEntries + runtimeEntries).reduce(Int64(0)) { $0 + $1.bytes }
 
@@ -312,7 +377,7 @@ private struct XcodeSwitcherCLI {
                 print("  \(DiskUsageFormatter.humanReadable(bytes: entry.bytes))\t\(entry.label)")
             }
         }
-        let expected = installations.count + DiskUsageReporter.simulatorRuntimePaths().count
+        let expected = installations.count + runtimes.count
         if reportable < expected {
             print(String(localized: "无法读取占用：\(expected - reportable)"))
         }
@@ -433,6 +498,8 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher [--json] list
       xcodeswitcher version
       xcodeswitcher sizes
+      xcodeswitcher alias <别名> <版本、别名或路径>
+      xcodeswitcher unalias <版本、别名或路径>
       xcodeswitcher [--json] current
       xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>
       xcodeswitcher [--json] env [目录或项目路径]

@@ -53,16 +53,47 @@ enum DiskUsageReporter {
         return parseDuOutput(output)
     }
 
-    /// Runtimes live outside every Xcode bundle and routinely account for tens of
-    /// gigabytes on their own.
-    static func simulatorRuntimePaths(fileManager: FileManager = .default) -> [URL] {
-        let directory = fileManager.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Developer/CoreSimulator/Profiles/Runtimes", isDirectory: true)
-        let contents = (try? fileManager.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        )) ?? []
-        return contents.filter { $0.pathExtension == "simruntime" }.sorted { $0.path < $1.path }
+    /// A simulator runtime as `simctl` reports it.
+    struct SimulatorRuntime: Equatable, Sendable {
+        let name: String
+        /// Several seeds of the same version can be installed side by side, so the
+        /// version alone does not identify an image — the build does.
+        let build: String
+        let path: String
+        let bytes: Int64
+
+        var label: String { build.isEmpty ? name : "\(name) (\(build))" }
+    }
+
+    /// `xcrun simctl runtime list -j` is a dictionary keyed by runtime identifier.
+    /// It reports the bundle path *and* the size, which matters on current Xcode:
+    /// newer runtimes are cryptex images mounted under
+    /// `/Library/Developer/CoreSimulator/Volumes`, not directories inside
+    /// `~/Library/Developer/CoreSimulator/Profiles/Runtimes`, so scanning that
+    /// folder finds nothing at all.
+    static func parseSimulatorRuntimes(_ json: String) -> [SimulatorRuntime] {
+        struct Entry: Decodable {
+            let runtimeBundlePath: String?
+            let sizeBytes: Int64?
+            let build: String?
+        }
+        guard let data = json.data(using: .utf8),
+              let entries = try? JSONDecoder().decode([String: Entry].self, from: data)
+        else { return [] }
+        return entries.values.compactMap { entry in
+            guard let path = entry.runtimeBundlePath, let bytes = entry.sizeBytes else { return nil }
+            let name = (path as NSString).lastPathComponent
+                .replacingOccurrences(of: ".simruntime", with: "")
+            return SimulatorRuntime(name: name, build: entry.build ?? "", path: path, bytes: bytes)
+        }
+        .sorted { $0.label < $1.label }
+    }
+
+    static func simulatorRuntimes() -> [SimulatorRuntime] {
+        guard let output = ProcessRunner.output(
+            executable: "/usr/bin/xcrun",
+            arguments: ["simctl", "runtime", "list", "-j"]
+        ) else { return [] }
+        return parseSimulatorRuntimes(output)
     }
 }
