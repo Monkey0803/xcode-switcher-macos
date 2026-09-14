@@ -22,6 +22,16 @@ cd "$script_dir"
 "$app_bundle/Contents/MacOS/xcodeswitcher" current | /usr/bin/grep -q "developer="
 "$app_bundle/Contents/MacOS/xcodeswitcher" --json list | /usr/bin/grep -q '"name"'
 "$app_bundle/Contents/MacOS/xcodeswitcher" --json current | /usr/bin/grep -q '"developer"'
+
+
+# The script build must carry the same localizations as the Xcode build. Until
+# 2026-09-14 it did not: the bundle had icons but no .lproj folders, so the app was
+# source-language only and every translation was silently ignored.
+for language in en zh-Hans; do
+  /bin/test -f "$app_bundle/Contents/Resources/$language.lproj/Localizable.strings"
+done
+"$app_bundle/Contents/MacOS/xcodeswitcher" use 99.9 -AppleLanguages '(en)' 2>&1 \
+  | /usr/bin/grep -q "Xcode not found"
 /bin/bash -n \
   "$script_dir/build_app.sh" \
   "$script_dir/build_release.sh" \
@@ -60,4 +70,4 @@ trap cleanup EXIT
 
 "$script_dir/Scripts/shell_environment_e2e.sh"
 
-printf 'Smoke test passed: unit tests, Apple Silicon app/CLI, Sparkle link, plist, signature, scripts, and packaged launch.\n'
+printf 'Smoke test passed: unit tests, Apple Silicon app/CLI, Sparkle link, plist, signature, localizations, scripts, and packaged launch.\n'

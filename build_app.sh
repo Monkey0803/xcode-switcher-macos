@@ -12,6 +12,15 @@ app_arm64="$script_dir/build/XcodeSwitcher-app-arm64"
 cli_arm64="$script_dir/build/xcodeswitcher-cli-arm64"
 
 mkdir -p "$macos_dir" "$resources_dir" "$frameworks_dir"
+
+# The Xcode build compiles the String Catalog into per-language .lproj folders.
+# The script build has to do the same, otherwise the app it produces is
+# source-language only and every translation is silently ignored.
+localization_dir="$script_dir/build/l10n"
+/bin/rm -rf "$localization_dir"
+/usr/bin/xcrun xcstringstool compile "$script_dir/Resources/Localizable.xcstrings" \
+  --output-directory "$localization_dir"
+/usr/bin/ditto "$localization_dir" "$resources_dir"
 cp "$script_dir/Resources/Info.plist" "$app_bundle/Contents/Info.plist"
 /bin/rm -f "$macos_dir/XcodeSwitcher"
 
