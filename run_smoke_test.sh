@@ -30,8 +30,10 @@ cd "$script_dir"
 for language in en zh-Hans; do
   /bin/test -f "$app_bundle/Contents/Resources/$language.lproj/Localizable.strings"
 done
-"$app_bundle/Contents/MacOS/xcodeswitcher" use 99.9 -AppleLanguages '(en)' 2>&1 \
-  | /usr/bin/grep -q "Xcode not found"
+# `use` exits non-zero because the version does not exist; under `pipefail` that
+# would fail the pipeline even when grep matches, so capture first.
+localized_error="$("$app_bundle/Contents/MacOS/xcodeswitcher" use 99.9 -AppleLanguages '(en)' 2>&1 || true)"
+printf '%s' "$localized_error" | /usr/bin/grep -q "Xcode not found"
 /bin/bash -n \
   "$script_dir/build_app.sh" \
   "$script_dir/build_release.sh" \
