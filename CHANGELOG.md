@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.5.0 - 2026-09-15
+
+### 新增
+
+- **Xcode 磁盘清理**：详情页新增清理区，覆盖 DerivedData、Products、DeviceLogs、文档缓存与索引、CoreSimulator 缓存、Developer/Packages、SwiftPM 缓存、Archives 子项与 iOS DeviceSupport 子项。按「可安全清理 / 需谨慎清理」分级，可一键在 Finder 中显示或重新扫描。
+- **Simulator Runtime 回收**：列出每个运行时的占用大小与最近使用时间，可逐个删除；批量按 `--outdated`、`30 天未使用`、`--unusable` 处理。哪些镜像符合条件完全交给 `simctl` 判断，预览展示的就是它的 `--dry-run` 输出。
+- **删除不可用模拟器设备**：这类设备不受当前 Xcode SDK 支持，无法启动或抹掉，此前只能不断堆积。
+- **CLI 新增子命令**：`clean`、`sizes`、`pin`、`unpin`、`alias`、`unalias`、`workspace`、`unworkspace`、`completions`。`sizes` 分段列出各 Xcode 与各模拟器运行时的占用及合计，支持 `--json`。
+- **切换前检测运行中的 Xcode**：会说明哪些 Xcode 正在运行以及切换会影响其工具链，并要求确认。
+
+### 修复
+
+- **脚本构建缺少本地化资源**：`build_app.sh` 过去只产出图标、没有 `lproj`，脚本路径构建的 app 是中文单语，所有译文被静默忽略；现在用 `xcstringstool compile` 编译 String Catalog 并复制进 `Resources`，与 Xcode 构建一致。
+- **CLI 在符号链接下丢失译文**：Foundation 按调用路径决定 `Bundle.main`，经包管理器安装的符号链接会让 CLI 静默回退到源语言；改为按解析后的路径重新执行一次。
+- **切换前未检测运行中的 Xcode**：`xcode-select --switch` 会改变正在运行的 Xcode 使用的工具链，可能干扰构建或调试。
+- **清理类删除路径的安全性**：删除前必须同时满足「位于家目录内」「命中已知清理白名单」「路径不含符号链接组件」，且清理白名单由与界面同一个表派生，避免「界面能选、实际拒绝」的漂移。
+
+### 变更
+
+- 模拟器运行时大小改用 `simctl runtime list -j`：新运行时的 cryptex 镜像挂在 `/Library/Developer/CoreSimulator/Volumes`，不在 `Profiles/Runtimes` 下，旧扫描方式在新 Xcode 上找不到任何东西。
+- `sizes` 改为并发测量并增量输出；清理扫描同样并发执行，并支持被新的扫描取代时真正中止。
+- 需要谨慎清理的内容（归档、真机支持、包缓存）删除时移到废纸篓以便恢复；可自动重建的缓存仍直接删除。
+- `clean` 默认只预览，需显式 `--force` 才执行，`--all` 才会一并处理 Xcode 无法重建的内容。
+- String Catalog 同步脚本在 `xcstringstool sync` 之后把 JSON 归一化回仓库格式并排序键，同时报告真实键数（此前 `print | grep -c .` 会把 342 个键报成 367，并因 Xcode 版本差异产生整文件重排）。
+- `@available` 依赖的界面判断抽成纯函数，使只在旧系统执行的样式分支可在任意机器上被测试覆盖。
+
 ## 1.4.1 - 2026-09-11
 
 ### 修复
