@@ -469,7 +469,20 @@ enum XcodeCleanupReporter {
             collector.add(measure(roots[index], isCancelled: isCancelled))
         }
 
-        return collector.collected.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
+        return cleanable(
+            collector.collected.sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
+        )
+    }
+
+    /// Drops entries that would free nothing.
+    ///
+    /// A root can exist and measure 0 — an emptied cache, a directory whose contents
+    /// are all sub-kilobyte — and `du -sk` reports those as `0 B`. Listing them offers
+    /// a saving that is not there and pads the list with rows the user learns to
+    /// ignore. The allowlist is unaffected: such a root stays removable, because it
+    /// may well hold something by the time the next scan runs.
+    static func cleanable(_ entries: [XcodeCleanupEntry]) -> [XcodeCleanupEntry] {
+        entries.filter { $0.bytes > 0 }
     }
 
     private static func measure(

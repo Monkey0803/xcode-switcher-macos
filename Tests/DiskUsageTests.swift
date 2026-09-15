@@ -326,6 +326,19 @@ final class DiskUsageTests: XCTestCase {
         XCTAssertFalse(remover.isAllowed("/tmp"))
     }
 
+    func testCleanupListDropsEntriesThatFreeNothing() {
+        // A root can exist and measure 0 B — an emptied cache — and listing it claims
+        // a saving that is not there.
+        let empty = XcodeCleanupEntry(path: "/x/empty", label: "Empty", bytes: 0, safety: .safe, note: "")
+        let tiny = XcodeCleanupEntry(path: "/x/tiny", label: "Tiny", bytes: 1, safety: .safe, note: "")
+        let big = XcodeCleanupEntry(path: "/x/big", label: "Big", bytes: 2_000, safety: .caution, note: "")
+
+        let kept = XcodeCleanupReporter.cleanable([empty, tiny, big])
+
+        XCTAssertEqual(kept.map(\.label), ["Tiny", "Big"])
+        XCTAssertFalse(kept.contains { $0.bytes == 0 })
+    }
+
     // MARK: - 回收预览的可读化
 
     private func makeRuntime(
