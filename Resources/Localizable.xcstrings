@@ -1145,16 +1145,16 @@
     },
     "将清理 %lld 个 Runtime，可回收约 %@。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "将清理 %1$lld 个 Runtime，可回收约 %2$@。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Will clean %lld runtimes, reclaiming about %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "将清理 %1$lld 个 Runtime，可回收约 %2$@。"
           }
         }
       }
@@ -1463,6 +1463,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cleaned %@."
+          }
+        }
+      }
+    },
+    "已清理 %lld 个 Runtime：%@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已清理 %1$lld 个 Runtime：%2$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleaned %lld runtimes: %@."
           }
         }
       }

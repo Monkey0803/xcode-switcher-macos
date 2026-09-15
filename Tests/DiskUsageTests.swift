@@ -419,4 +419,45 @@ final class DiskUsageTests: XCTestCase {
         XCTAssertTrue(SimulatorRuntimeReclaim.preview(of: "", runtimes: []).isEmpty)
         XCTAssertTrue(SimulatorRuntimeReclaim.preview(of: "\n   \n", runtimes: []).isEmpty)
     }
+
+    func testNothingMatchedIsNotTreatedAsAFailure() {
+        // Exactly what `simctl runtime delete --unusable --dry-run` returns when
+        // nothing matches: exit 2, marker on stderr. Reporting that as 检查失败 was
+        // the bug — a machine used within 30 days legitimately has nothing to reclaim.
+        let nothing = ProcessResult(status: 2, stdout: "", stderr: "No matching images found to delete\n")
+        XCTAssertTrue(SimulatorRuntimeReclaim.matchedNothing(nothing))
+
+        // A real failure must still be a failure.
+        let real = ProcessResult(status: 1, stdout: "", stderr: "Invalid runtime: bogus\n")
+        XCTAssertFalse(SimulatorRuntimeReclaim.matchedNothing(real))
+
+        // A successful run is never "nothing matched", even if it printed nothing.
+        let ok = ProcessResult(
+            status: 0,
+            stdout: "Would delete P: AAAAAAAA-0000-0000-0000-000000000000 iOS (27.0 - 24A434) (Ready)\n",
+            stderr: ""
+        )
+        XCTAssertFalse(SimulatorRuntimeReclaim.matchedNothing(ok))
+    }
+
+    func testReclaimPreviewTargetsAreTheDeletableSet() {
+        // The bulk action deletes from `targets`, so an unresolved line must not end
+        // up in it: its identifier is unknown, and its raw text is not one.
+        let runtime = makeRuntime(
+            identifier: "AAAAAAAA-0000-0000-0000-000000000000",
+            name: "iOS 27.0",
+            build: "24A434",
+            bytes: 1_000_000_000
+        )
+        let output = """
+        Would delete P: AAAAAAAA-0000-0000-0000-000000000000 iOS (27.0 - 24A434) (Ready)
+        No matching images found to delete
+        """
+
+        let preview = SimulatorRuntimeReclaim.preview(of: output, runtimes: [runtime])
+
+        XCTAssertEqual(preview.lines.count, 2)
+        XCTAssertEqual(preview.targets.map(\.identifier), ["AAAAAAAA-0000-0000-0000-000000000000"])
+        XCTAssertEqual(preview.targets.map(\.label), ["iOS 27.0 (24A434)"])
+    }
 }

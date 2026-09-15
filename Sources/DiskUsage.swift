@@ -173,6 +173,19 @@ enum SimulatorRuntimeReclaim: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// `simctl runtime delete` exits non-zero and prints this — on stderr — when a
+    /// selector matches nothing. That is an outcome, not an error: a machine used
+    /// within the last 30 days legitimately has nothing "30 天未使用". Treating it as
+    /// a failure is what made the unusable-runtime preview report
+    /// `检查失败：No matching images found to delete`.
+    static let nothingMatchedMarker = "No matching images found to delete"
+
+    /// True when the command failed *only* because nothing matched.
+    static func matchedNothing(_ result: ProcessResult) -> Bool {
+        guard !result.succeeded else { return false }
+        return (result.stdout + "\n" + result.stderr).contains(nothingMatchedMarker)
+    }
+
     /// Resolves a `--dry-run` result against the installed runtimes so it can be
     /// shown as something a person reads.
     ///
@@ -253,6 +266,24 @@ struct SimulatorRuntimeReclaimPreview: Equatable, Sendable {
     }
 
     let lines: [Line]
+
+    /// One runtime the bulk action will delete.
+    struct Target: Identifiable, Equatable, Sendable {
+        let identifier: String
+        let label: String
+
+        var id: String { identifier }
+    }
+
+    /// The identifiers to delete, with the labels to name them by.
+    ///
+    /// The bulk action deletes from this set rather than re-running the selector,
+    /// because `simctl runtime delete` takes exactly **one** identifier per
+    /// invocation — passing two silently ignores the second — so a selector-based
+    /// delete removed a single image per click and the user could not tell which.
+    var targets: [Target] {
+        lines.filter(\.isResolved).map { Target(identifier: $0.id, label: $0.label) }
+    }
 
     var isEmpty: Bool { lines.isEmpty }
     var resolvedCount: Int { lines.filter(\.isResolved).count }

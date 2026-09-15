@@ -64,6 +64,8 @@ final class XcodeViewModel: ObservableObject {
     @Published private(set) var runtimeSizesByID: [String: [DiskUsageReporter.SimulatorRuntime]] = [:]
     @Published private(set) var runtimeSizesLoadingIDs: Set<String> = []
     @Published private(set) var runtimeReclaimPreview: SimulatorRuntimeReclaimPreview?
+    /// Which option the preview above belongs to, so 清理 deletes exactly that set.
+    private var runtimeReclaimPreviewOption: SimulatorRuntimeReclaim?
     @Published private(set) var isReclaimingRuntimes = false
     @Published var configuration: AppConfiguration
     @Published var pendingProjectOpen: ProjectOpenRequest?
@@ -372,10 +374,14 @@ final class XcodeViewModel: ObservableObject {
         isError = false
         statusMessage = String(localized: "正在删除 Runtime \(runtime.label)…")
         Task { [weak self] in
-            let result = await Task.detached(priority: .utility) {
-                XcodeTooling.deleteSimulatorRuntime(runtime.identifier, installation: installation)
+            let report = await Task.detached(priority: .utility) { () -> RuntimeRemovalReport in
+                let outcome = XcodeTooling.deleteSimulatorRuntimes([runtime.identifier], installation: installation)
+                return RuntimeRemovalReport(
+                    removed: outcome.succeeded.isEmpty ? [] : [runtime.label],
+                    failed: outcome.failed.isEmpty ? [] : [runtime.label]
+                )
             }.value
-            self?.completeRuntimeReclaim(result, installation: installation, label: runtime.label)
+            self?.completeRuntimeRemoval(report, installation: installation)
         }
     }
 
@@ -404,7 +410,16 @@ final class XcodeViewModel: ObservableObject {
             isReclaimingRuntimes = false
             if result.0.succeeded {
                 runtimeReclaimPreview = SimulatorRuntimeReclaim.preview(of: result.0.stdout, runtimes: result.1)
+                runtimeReclaimPreviewOption = reclaim
                 statusMessage = String(localized: "检查完成。")
+            } else if SimulatorRuntimeReclaim.matchedNothing(result.0) {
+                // Nothing matches. That is information, not a failure: a machine used
+                // within 30 days legitimately has nothing "30 天未使用", and reporting
+                // that as 检查失败 was wrong.
+                runtimeReclaimPreview = SimulatorRuntimeReclaimPreview(lines: [])
+                runtimeReclaimPreviewOption = reclaim
+                isError = false
+                statusMessage = String(localized: "没有需要清理的 Runtime。")
             } else {
                 isError = true
                 statusMessage = String(localized: "检查失败：\(result.0.failureDescription)")
@@ -416,29 +431,77 @@ final class XcodeViewModel: ObservableObject {
         guard !isReclaimingRuntimes else { return }
         isReclaimingRuntimes = true
         isError = false
+        // Resolved on the main actor before the work starts, so the deletion set is
+        // exactly what the preview showed.
+        let previewed = previewedTargets(for: reclaim)
         statusMessage = String(localized: "正在清理\(reclaim.title)的 Runtime…")
         Task { [weak self] in
-            let result = await Task.detached(priority: .utility) {
-                XcodeTooling.reclaimSimulatorRuntimes(reclaim, installation: installation, dryRun: false)
+            let report = await Task.detached(priority: .utility) { () -> RuntimeRemovalReport in
+                var targets = previewed
+                if targets.isEmpty {
+                    // 清理 without a preview first: resolve the set now, so the action
+                    // still deletes precisely what a preview would have listed.
+                    let runtimes = XcodeTooling.simulatorRuntimeSizes(for: installation)
+                    let dryRun = XcodeTooling.reclaimSimulatorRuntimes(
+                        reclaim,
+                        installation: installation,
+                        dryRun: true
+                    )
+                    guard dryRun.succeeded || SimulatorRuntimeReclaim.matchedNothing(dryRun) else {
+                        return RuntimeRemovalReport(removed: [], failed: [dryRun.failureDescription])
+                    }
+                    targets = SimulatorRuntimeReclaim.preview(of: dryRun.stdout, runtimes: runtimes).targets
+                }
+                guard !targets.isEmpty else { return RuntimeRemovalReport(removed: [], failed: []) }
+
+                // One `simctl` call per identifier: it accepts exactly one, and a
+                // selector deleted only a single image per click.
+                let outcome = XcodeTooling.deleteSimulatorRuntimes(
+                    targets.map(\.identifier),
+                    installation: installation
+                )
+                let labels = Dictionary(
+                    targets.map { ($0.identifier, $0.label) },
+                    uniquingKeysWith: { first, _ in first }
+                )
+                return RuntimeRemovalReport(
+                    removed: outcome.succeeded.compactMap { labels[$0] },
+                    failed: outcome.failed.map { labels[$0] ?? $0 }
+                )
             }.value
-            self?.completeRuntimeReclaim(result, installation: installation, label: reclaim.title)
+            self?.completeRuntimeRemoval(report, installation: installation)
         }
     }
 
-    private func completeRuntimeReclaim(
-        _ result: ProcessResult,
-        installation: XcodeInstallation,
-        label: String
-    ) {
+    /// What the current preview would delete, when it belongs to this option.
+    private func previewedTargets(for reclaim: SimulatorRuntimeReclaim) -> [SimulatorRuntimeReclaimPreview.Target] {
+        guard runtimeReclaimPreviewOption == reclaim, let runtimeReclaimPreview else { return [] }
+        return runtimeReclaimPreview.targets
+    }
+
+    /// What a bulk removal actually did, by label, so the result can name the
+    /// runtimes instead of reporting the selector that was clicked.
+    private struct RuntimeRemovalReport: Sendable {
+        let removed: [String]
+        let failed: [String]
+    }
+
+    private func completeRuntimeRemoval(_ report: RuntimeRemovalReport, installation: XcodeInstallation) {
         isReclaimingRuntimes = false
         runtimeReclaimPreview = nil
-        guard result.succeeded else {
+        runtimeReclaimPreviewOption = nil
+        if !report.failed.isEmpty {
             isError = true
-            statusMessage = String(localized: "清理失败：\(result.failureDescription)")
-            return
+            statusMessage = String(localized: "清理失败：\(report.failed.joined(separator: "、"))")
+        } else if report.removed.isEmpty {
+            isError = false
+            statusMessage = String(localized: "没有需要清理的 Runtime。")
+        } else {
+            isError = false
+            statusMessage = String(
+                localized: "已清理 \(report.removed.count) 个 Runtime：\(report.removed.joined(separator: "、"))。"
+            )
         }
-        isError = false
-        statusMessage = String(localized: "已清理 \(label)。")
         // Both the measured sizes and the installed-runtime list have changed.
         loadRuntimeSizes(for: installation, force: true)
         Task { [weak self] in

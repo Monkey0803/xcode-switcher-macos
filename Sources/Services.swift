@@ -439,6 +439,30 @@ enum XcodeTooling {
         )
     }
 
+    /// Deletes several runtime images, one call each.
+    ///
+    /// The loop is a hard requirement rather than a convenience: `simctl runtime
+    /// delete` accepts exactly one identifier per invocation, and passing two
+    /// silently ignores the second (verified with `--dry-run`). That is why a
+    /// selector-based delete removed a single image per invocation, leaving the user
+    /// to click 清理 once per runtime.
+    static func deleteSimulatorRuntimes(
+        _ identifiers: [String],
+        installation: XcodeInstallation
+    ) -> (succeeded: [String], failed: [String]) {
+        var succeeded: [String] = []
+        var failed: [String] = []
+        for identifier in identifiers {
+            let result = deleteSimulatorRuntime(identifier, installation: installation)
+            if result.succeeded {
+                succeeded.append(identifier)
+            } else {
+                failed.append(identifier)
+            }
+        }
+        return (succeeded, failed)
+    }
+
     /// Bulk reclaim. With `dryRun` this is simctl's own preview, so the user is shown
     /// exactly what simctl would remove rather than a locally derived guess.
     static func reclaimSimulatorRuntimes(
