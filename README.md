@@ -45,8 +45,9 @@ cd xcode-switcher-macos && ./build_app.sh
 - 通过 Spotlight、标准应用目录和自定义目录发现多个 Xcode，支持搜索、收藏和版本别名。
 - 使用进程内复用的系统管理员授权执行 `xcode-select --switch`，同一次运行期间首次切换后可连续切换，切换后自动验证当前 Developer 路径。
 - 查看 Xcode 路径、iPhoneOS SDK、Swift 和当前 `xcode-select` 环境诊断。
-- 查看 Simulator Runtime，并可启动 iOS Runtime 下载或打开所选 Xcode 的 Settings。
-- 查看 Simulator 设备状态，并可启动、关闭或抹掉设备；切换 Xcode 后可回滚到最近使用版本。
+- 查看 Simulator Runtime 的占用与最近使用时间，可逐个删除，或按 simctl 的「已过时 / 30 天未使用 / 不可用」批量回收；也可启动 iOS Runtime 下载或打开所选 Xcode 的 Settings。哪些镜像符合条件由 `simctl` 判断，预览即其 `--dry-run` 输出。
+- 查看 Simulator 设备状态，并可启动、关闭、抹掉或删除设备；不再受当前 Xcode SDK 支持的设备可一次性清理（这类设备无法启动也无法抹掉，此前只能不断堆积）；切换 Xcode 后可回滚到最近使用版本。
+- 清理 Xcode 磁盘占用：DerivedData、Products、DeviceLogs、文档缓存与索引、CoreSimulator 缓存、包缓存、Archives 与 iOS DeviceSupport 子项，按「可安全清理 / 需谨慎清理」分级；谨慎项（归档、真机支持、包缓存）删除时移到废纸篓以便恢复。
 - 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode，一键切换并打开项目。
 - 自动读取项目或上级目录中的 `.xcode-version`、`.tool-versions`，匹配对应 Xcode；绑定版本或项目路径失效时会阻止误开并给出提示。
 - 一键打开指定 Xcode，或打开注入对应 `DEVELOPER_DIR` 的 Terminal。
@@ -59,7 +60,7 @@ cd xcode-switcher-macos && ./build_app.sh
 - Runtime 下载显示命令进度，支持主动取消，并为外部命令设置超时保护。
 - 针对每个 Xcode 执行环境体检，检查安装路径、Command Line Tools、首次启动任务、License、iPhoneOS SDK、Simulator、Rosetta 与磁盘空间；报告支持复制和导出。
 - 菜单栏“项目”子菜单可直接按项目配置匹配 Xcode 并打开，失效项目会禁用并提示原因。
-- 内置 `xcodeswitcher` CLI，可列出/解析/诊断/切换 Xcode，并按项目配置打开工程。
+- 内置 `xcodeswitcher` CLI：列出/解析/诊断/切换 Xcode、按项目配置打开工程、统计各 Xcode 与 Runtime 的磁盘占用（`sizes`）、清理缓存（`clean`，默认仅预览、需 `--force` 才执行）、管理别名与项目绑定（`alias`/`pin`/`workspace`）、生成 shell 补全（`completions`）。
 - 支持登录时启动、仅在菜单栏运行；正式签名构建使用 Sparkle 2 自动更新，直接分发构建可检查 GitHub Releases 并跳转下载。
 - App 与 CLI 均仅面向 Apple Silicon（`arm64`）构建，并提供本地直接分发 ZIP/DMG，以及可选的 Developer ID 签名、公证、DMG 与 appcast 发布脚本。
 
