@@ -1,5 +1,19 @@
 import Foundation
 
+/// Every `xcodeswitcher` subcommand, in the order the help text lists them.
+///
+/// This is the single source for the shell completion scripts. It exists because
+/// those three scripts each used to carry their own copy of the list: when `clean`
+/// was added to the dispatcher and the help text, all three completions silently
+/// kept omitting it.
+enum CLISubcommands {
+    static let all = [
+        "list", "version", "sizes", "clean", "alias", "unalias", "current", "resolve",
+        "env", "shell-init", "doctor", "use", "pin", "unpin", "open", "workspace",
+        "unworkspace", "completions",
+    ]
+}
+
 struct CLIOptions: Equatable, Sendable {
     let json: Bool
     let dryRun: Bool

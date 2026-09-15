@@ -349,28 +349,35 @@ private struct XcodeSwitcherCLI {
 
     /// Completion scripts are plain shell, so they need no translation. Zsh and
     /// bash complete the subcommand list; fish is one line by design.
-    private static let completionScripts: [String: String] = [
-        "zsh": """
-        #compdef xcodeswitcher
-        _xcodeswitcher() {
-          local -a commands
-          commands=(list version sizes alias unalias current resolve env shell-init doctor use pin unpin open workspace unworkspace completions)
-          (( CURRENT == 2 )) && compadd -a commands
-        }
-        compdef _xcodeswitcher xcodeswitcher
-        """,
-        "bash": """
-        _xcodeswitcher() {
-          local commands="list version sizes alias unalias current resolve env shell-init doctor use pin unpin open workspace unworkspace completions"
-          [ "$COMP_CWORD" -eq 1 ] && COMPREPLY=( $(compgen -W "$commands" -- "${COMP_WORDS[COMP_CWORD]}") )
-        }
-        complete -F _xcodeswitcher xcodeswitcher
-        """,
-        "fish": """
-        complete -c xcodeswitcher -f
-        complete -c xcodeswitcher -n '__fish_use_subcommand' -a 'list version sizes alias unalias current resolve env shell-init doctor use pin unpin open workspace unworkspace completions'
-        """,
-    ]
+    ///
+    /// The three scripts are generated from `CLISubcommands.all` rather than each
+    /// repeating the list: they used to repeat it, and `clean` was consequently
+    /// left out of all three when it was added to the dispatcher.
+    private static var completionScripts: [String: String] {
+        let joined = CLISubcommands.all.joined(separator: " ")
+        return [
+            "zsh": """
+            #compdef xcodeswitcher
+            _xcodeswitcher() {
+              local -a commands
+              commands=(\(joined))
+              (( CURRENT == 2 )) && compadd -a commands
+            }
+            compdef _xcodeswitcher xcodeswitcher
+            """,
+            "bash": """
+            _xcodeswitcher() {
+              local commands="\(joined)"
+              [ "$COMP_CWORD" -eq 1 ] && COMPREPLY=( $(compgen -W "$commands" -- "${COMP_WORDS[COMP_CWORD]}") )
+            }
+            complete -F _xcodeswitcher xcodeswitcher
+            """,
+            "fish": """
+            complete -c xcodeswitcher -f
+            complete -c xcodeswitcher -n '__fish_use_subcommand' -a '\(joined)'
+            """,
+        ]
+    }
 
     /// Aliases live in the app configuration, which is the same file the app
     /// writes; the CLI only reads it elsewhere.
