@@ -72,6 +72,8 @@ private struct XcodeSwitcherCLI {
             return try unpinProject(options)
         case "sizes":
             return try sizes(options)
+        case "clean":
+            return try clean(options)
         case "workspace":
             return try setWorkspace(options)
         case "unworkspace":
@@ -512,6 +514,81 @@ private struct XcodeSwitcherCLI {
         return 0
     }
 
+    /// The CLI's only destructive command, so it previews by default: removal needs
+    /// an explicit `--force`, and the entries Xcode cannot rebuild on its own (an
+    /// archive, device support, a package cache) need `--all` as well. `.safe`
+    /// entries are deleted outright; `.caution` ones go to the Trash, as in the app.
+    private func clean(_ options: CLIOptions) throws -> Int32 {
+        let candidates = XcodeCleanupReporter.entries()
+        let selected = options.all ? candidates : candidates.filter { $0.safety == .safe }
+        let skipped = options.all ? [] : candidates.filter { $0.safety == .caution }
+        let total = selected.reduce(Int64(0)) { $0 + $1.bytes }
+        let performed = options.force && !options.dryRun
+
+        var removed: [XcodeCleanupEntry] = []
+        var failures: [String] = []
+        if performed {
+            for entry in selected {
+                do {
+                    try XcodeCleanupReporter.remove(entry)
+                    removed.append(entry)
+                } catch {
+                    failures.append("\(entry.label): \(error.localizedDescription)")
+                }
+            }
+        }
+
+        if options.json {
+            printJSON(CLICleanupOutput(
+                entries: selected.map {
+                    CLICleanupOutput.Entry(
+                        label: $0.label,
+                        path: $0.path,
+                        bytes: $0.bytes,
+                        size: $0.displaySize,
+                        safety: $0.safety == .safe ? "safe" : "caution"
+                    )
+                },
+                removed: removed.map(\.label),
+                skipped: skipped.map(\.label),
+                failures: failures,
+                totalBytes: total,
+                total: DiskUsageFormatter.humanReadable(bytes: total),
+                performed: performed
+            ))
+            return failures.isEmpty ? 0 : 1
+        }
+
+        guard !selected.isEmpty else {
+            print(String(localized: "未发现可清理目录。"))
+            return 0
+        }
+
+        for entry in selected {
+            print("  \(entry.displaySize)\t\(entry.label)  [\(entry.safety.title)]")
+        }
+        print(String(localized: "共 \(selected.count) 个目录，可释放约 \(DiskUsageFormatter.humanReadable(bytes: total))。"))
+        if !skipped.isEmpty {
+            print(String(localized: "已跳过 \(skipped.count) 项 Xcode 无法自动重建的内容；加 --all 会将它们移到废纸篓。"))
+        }
+
+        guard performed else {
+            print(String(localized: "[dry-run] 未删除任何内容；加 --force 才会真正清理。"))
+            return 0
+        }
+
+        for entry in removed {
+            switch entry.safety {
+            case .safe: print(String(localized: "已清理 \(entry.label)。"))
+            case .caution: print(String(localized: "已移到废纸篓：\(entry.label)。"))
+            }
+        }
+        for failure in failures {
+            FileHandle.standardError.write(Data((String(localized: "清理失败：\(failure)") + "\n").utf8))
+        }
+        return failures.isEmpty ? 0 : 1
+    }
+
     /// The project to bind: an explicit path, or the project in the current directory.
     private func boundProjectURL(from values: [String]) throws -> URL {
         guard let path = values.first else {
@@ -625,6 +702,7 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher [--json] list
       xcodeswitcher version
       xcodeswitcher sizes [版本、别名或路径]
+      xcodeswitcher clean [--force] [--all]
       xcodeswitcher workspace <工作区文件名> [项目路径]
       xcodeswitcher unworkspace [项目路径]
       xcodeswitcher completions <zsh|bash|fish>
@@ -641,7 +719,10 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>
 
     --json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。
-    --force 即使有 Xcode 正在运行也继续切换。
+    --force 即使有 Xcode 正在运行也继续切换；clean 则用它表示真正执行清理。
+    clean 默认只预览并列出可直接清理的缓存；--all 会一并处理 Xcode 无法自动
+    重建的内容（归档、真机支持、包缓存），这些会移到废纸篓。clean 不处理
+    Simulator Runtime，请在应用中清理。
     env 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。
     """)
 }

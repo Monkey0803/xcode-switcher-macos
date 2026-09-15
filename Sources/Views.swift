@@ -368,6 +368,7 @@ struct XcodeDetailView: View {
                 }
 
                 RuntimeSectionView(installation: installation, download: model.runtimeDownload)
+                CleanupSectionView(installation: installation)
             }
             .padding(28)
         }
@@ -393,16 +394,108 @@ struct XcodeDetailView: View {
     }
 }
 
+private struct CleanupSectionView: View {
+    @EnvironmentObject private var model: XcodeViewModel
+    let installation: XcodeInstallation
+    @State private var entryToRemove: XcodeCleanupEntry?
+
+    private var entries: [XcodeCleanupEntry] { model.cleanupEntries(for: installation) }
+    private var totalBytes: Int64 { entries.reduce(0) { $0 + $1.bytes } }
+
+    var body: some View {
+        // Sampled once per body. Inside the `ForEach` below this would enumerate
+        // every running application again for each row.
+        let xcodeRunning = model.isAnyXcodeRunning
+        GroupBox("Xcode 磁盘清理") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("这些目录由所有 Xcode 版本共享。清理不会删除 Xcode.app、项目或签名文件。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("重新扫描") { model.loadCleanupEntries(for: installation, force: true) }
+                        .disabled(model.isCleanupLoading(for: installation))
+                }
+                if xcodeRunning {
+                    Label("检测到 Xcode 正在运行。请退出所有 Xcode 后再清理。", systemImage: "pause.circle.fill")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+                if model.isCleanupLoading(for: installation) {
+                    ProgressView("正在扫描目录…")
+                } else if entries.isEmpty {
+                    Text("未发现可清理目录。")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("共 \(entries.count) 个目录，可释放约 \(DiskUsageFormatter.humanReadable(bytes: totalBytes))。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    ForEach(XcodeCleanupSafety.allCases) { safety in
+                        let group = entries.filter { $0.safety == safety }
+                        if !group.isEmpty {
+                            Text(safety.title).font(.subheadline.weight(.semibold))
+                            ForEach(group) { entry in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: safety == .safe ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                        .foregroundStyle(safety == .safe ? .green : .orange)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(entry.label)
+                                        Text(entry.displaySize).font(.caption).foregroundStyle(.secondary)
+                                        Text(entry.note).font(.caption).foregroundStyle(.secondary)
+                                        Text(entry.path).font(.caption2).foregroundStyle(.tertiary).textSelection(.enabled)
+                                    }
+                                    Spacer()
+                                    Button("在 Finder 中显示") {
+                                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: entry.path)])
+                                    }
+                                    .buttonStyle(.borderless)
+                                    Button("清理") { entryToRemove = entry }
+                                        .buttonStyle(.bordered)
+                                        .disabled(xcodeRunning || model.isRemovingCleanupEntry(entry))
+                                }
+                                .padding(.vertical, 3)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(4)
+        }
+        .confirmationDialog(
+            "确认清理目录？",
+            isPresented: Binding(
+                get: { entryToRemove != nil },
+                set: { if !$0 { entryToRemove = nil } }
+            ),
+            presenting: entryToRemove
+        ) { entry in
+            Button("清理 \(entry.label)", role: .destructive) {
+                model.removeCleanupEntry(entry)
+                entryToRemove = nil
+            }
+            Button("取消", role: .cancel) { entryToRemove = nil }
+        } message: { entry in
+            Text("\(entry.displaySize)\n\(entry.note)")
+        }
+    }
+}
+
 private struct SimulatorDevicesView: View {
     @EnvironmentObject private var model: XcodeViewModel
     let installation: XcodeInstallation
-    @State private var deviceToErase: SimulatorDevice?
+
+    private enum PendingDeviceAction {
+        case erase(SimulatorDevice)
+        case delete(SimulatorDevice)
+        case deleteUnavailable(Int)
+    }
+
+    @State private var pending: PendingDeviceAction?
+
+    private var devices: [SimulatorDevice] { model.simulatorDevices(for: installation) }
+    private var unavailableCount: Int { devices.filter { !$0.isAvailable }.count }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
             Text("Simulator 设备").font(.headline)
-            let devices = model.simulatorDevices(for: installation)
             if devices.isEmpty {
                 Text("未检测到 Simulator 设备。可在 Xcode 或 simctl 中创建。")
                     .font(.caption).foregroundStyle(.secondary)
@@ -414,6 +507,10 @@ private struct SimulatorDevicesView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(device.name)
                             Text(device.state).font(.caption).foregroundStyle(.secondary)
+                            if !device.isAvailable {
+                                Text("当前 Xcode 不再支持，无法启动或抹掉。")
+                                    .font(.caption).foregroundStyle(.orange)
+                            }
                         }
                         Spacer()
                         if device.isBooted {
@@ -421,24 +518,183 @@ private struct SimulatorDevicesView: View {
                         } else {
                             Button("启动") { model.performSimulatorAction("boot", device: device, installation: installation) }
                         }
-                        Button("抹掉") { deviceToErase = device }
+                        Button("抹掉") { pending = .erase(device) }
+                            .foregroundStyle(.red)
+                        Button("删除") { pending = .delete(device) }
                             .foregroundStyle(.red)
                     }
+                    // Unavailable rows cannot boot, be erased or deleted through the
+                    // per-device actions, which is exactly why they pile up; the bulk
+                    // action below is the only way to remove them.
                     .disabled(!device.isAvailable)
+                }
+                if unavailableCount > 0 {
+                    HStack(spacing: 8) {
+                        Text("有 \(unavailableCount) 个设备已不被当前 Xcode 支持。")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("删除不可用设备") { pending = .deleteUnavailable(unavailableCount) }
+                            .foregroundStyle(.red)
+                    }
                 }
             }
         }
-        .confirmationDialog("抹掉 Simulator 设备？", isPresented: Binding(
-            get: { deviceToErase != nil },
-            set: { if !$0 { deviceToErase = nil } }
-        ), presenting: deviceToErase) { device in
-            Button("抹掉 \(device.name)", role: .destructive) {
-                model.performSimulatorAction("erase", device: device, installation: installation)
-                deviceToErase = nil
+        .confirmationDialog(
+            dialogTitle,
+            isPresented: Binding(
+                get: { pending != nil },
+                set: { if !$0 { pending = nil } }
+            ),
+            presenting: pending
+        ) { action in
+            switch action {
+            case .erase(let device):
+                Button("抹掉 \(device.name)", role: .destructive) {
+                    model.performSimulatorAction("erase", device: device, installation: installation)
+                    pending = nil
+                }
+            case .delete(let device):
+                Button("删除 \(device.name)", role: .destructive) {
+                    model.performSimulatorAction("delete", device: device, installation: installation)
+                    pending = nil
+                }
+            case .deleteUnavailable:
+                Button("删除不可用设备", role: .destructive) {
+                    model.deleteUnavailableDevices(for: installation)
+                    pending = nil
+                }
             }
-            Button("取消", role: .cancel) { deviceToErase = nil }
-        } message: { _ in
-            Text("这会删除设备中的应用和数据，且无法撤销。")
+            Button("取消", role: .cancel) { pending = nil }
+        } message: { action in
+            switch action {
+            case .erase:
+                Text("这会删除设备中的应用和数据，且无法撤销。")
+            case .delete:
+                Text("这会永久删除该设备及其数据，且无法撤销。")
+            case .deleteUnavailable(let count):
+                Text("将永久删除 \(count) 个不被当前 Xcode 支持的设备，且无法撤销。")
+            }
+        }
+    }
+
+    private var dialogTitle: LocalizedStringKey {
+        switch pending {
+        case .erase: return "抹掉 Simulator 设备？"
+        case .delete: return "删除 Simulator 设备？"
+        case .deleteUnavailable: return "删除不可用 Simulator 设备？"
+        case nil: return "Simulator 设备"
+        }
+    }
+}
+
+/// Runtime images dominate a developer Mac's disk — each iOS runtime is several
+/// gigabytes, and several seeds of one version can coexist. Per-image deletion uses
+/// the size and `deletable` flag simctl reports; the bulk actions reuse simctl's own
+/// selectors and preview them with simctl's `--dry-run`.
+private struct RuntimeReclaimView: View {
+    @EnvironmentObject private var model: XcodeViewModel
+    let installation: XcodeInstallation
+
+    private enum PendingReclaim {
+        case deleteRuntime(DiskUsageReporter.SimulatorRuntime)
+        case bulk(SimulatorRuntimeReclaim)
+    }
+
+    @State private var pending: PendingReclaim?
+
+    private var runtimes: [DiskUsageReporter.SimulatorRuntime] { model.runtimeSizes(for: installation) }
+    private var totalBytes: Int64 { runtimes.reduce(0) { $0 + $1.bytes } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            HStack {
+                Text("Runtime 磁盘占用").font(.headline)
+                Spacer()
+                Button("重新测量") { model.loadRuntimeSizes(for: installation, force: true) }
+                    .disabled(model.isLoadingRuntimeSizes(for: installation) || model.isReclaimingRuntimes)
+            }
+
+            if model.isLoadingRuntimeSizes(for: installation) {
+                ProgressView("正在读取 Runtime…")
+            } else if runtimes.isEmpty {
+                Text("未检测到 Simulator Runtime。")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text("共 \(runtimes.count) 个 Runtime，占用约 \(DiskUsageFormatter.humanReadable(bytes: totalBytes))。")
+                    .font(.caption).foregroundStyle(.secondary)
+                ForEach(runtimes, id: \.identifier) { runtime in
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(runtime.label)
+                            Text(DiskUsageFormatter.humanReadable(bytes: runtime.bytes))
+                                .font(.caption).foregroundStyle(.secondary)
+                            if let used = runtime.lastUsedAt {
+                                Text("最近使用：\(used.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button("删除") { pending = .deleteRuntime(runtime) }
+                            .foregroundStyle(.red)
+                            .disabled(!runtime.isDeletable || model.isReclaimingRuntimes)
+                    }
+                }
+            }
+
+            Text("批量清理").font(.subheadline.weight(.semibold))
+            Text("由 simctl 判断哪些镜像符合条件，预览即 simctl 的 --dry-run 输出。")
+                .font(.caption).foregroundStyle(.secondary)
+            ForEach(SimulatorRuntimeReclaim.allCases) { reclaim in
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(reclaim.title)
+                        Text(reclaim.note).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("预览") { model.previewRuntimeReclaim(reclaim, for: installation) }
+                        .disabled(model.isReclaimingRuntimes)
+                    Button("清理") { pending = .bulk(reclaim) }
+                        .foregroundStyle(.red)
+                        .disabled(model.isReclaimingRuntimes)
+                }
+            }
+            if model.isReclaimingRuntimes { ProgressView().controlSize(.small) }
+            if !model.runtimeReclaimPreview.isEmpty {
+                Text(model.runtimeReclaimPreview)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+        .confirmationDialog(
+            "确认清理 Runtime？",
+            isPresented: Binding(
+                get: { pending != nil },
+                set: { if !$0 { pending = nil } }
+            ),
+            presenting: pending
+        ) { action in
+            switch action {
+            case .deleteRuntime(let runtime):
+                Button("删除 \(runtime.label)", role: .destructive) {
+                    model.deleteRuntime(runtime, for: installation)
+                    pending = nil
+                }
+            case .bulk(let reclaim):
+                Button("清理\(reclaim.title)的 Runtime", role: .destructive) {
+                    model.reclaimRuntimes(reclaim, for: installation)
+                    pending = nil
+                }
+            }
+            Button("取消", role: .cancel) { pending = nil }
+        } message: { action in
+            switch action {
+            case .deleteRuntime(let runtime):
+                Text("将删除 \(runtime.label)，占用约 \(DiskUsageFormatter.humanReadable(bytes: runtime.bytes))。该 Runtime 需要重新下载才能恢复。")
+            case .bulk(let reclaim):
+                Text("删除前可先用「预览」查看 simctl 将删除哪些镜像。\(reclaim.note)")
+            }
         }
     }
 }
@@ -498,6 +754,8 @@ struct RuntimeSectionView: View {
                 .lineLimit(3)
                 .textSelection(.enabled)
         }
+
+        RuntimeReclaimView(installation: installation)
 
         SimulatorDevicesView(installation: installation)
     }

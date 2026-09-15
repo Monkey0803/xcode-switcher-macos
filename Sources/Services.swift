@@ -399,6 +399,63 @@ enum XcodeTooling {
         )
     }
 
+    /// Devices not supported by the current Xcode SDK. They cannot be booted or
+    /// erased, so nothing in the UI can act on them one by one and they accumulate
+    /// until `simctl delete unavailable` removes them.
+    static func deleteUnavailableDevices(for installation: XcodeInstallation) -> ProcessResult {
+        ProcessRunner.run(
+            executable: "/usr/bin/xcrun",
+            arguments: ["simctl", "delete", "unavailable"],
+            environment: ["DEVELOPER_DIR": installation.developerURL.path],
+            timeout: 300
+        )
+    }
+
+    /// Lists installed runtime images with the given Xcode's own `simctl`, so the
+    /// listing and the deletions below resolve against the same developer directory.
+    static func simulatorRuntimeSizes(
+        for installation: XcodeInstallation
+    ) -> [DiskUsageReporter.SimulatorRuntime] {
+        let result = ProcessRunner.run(
+            executable: "/usr/bin/xcrun",
+            arguments: ["simctl", "runtime", "list", "-j"],
+            environment: ["DEVELOPER_DIR": installation.developerURL.path],
+            timeout: 120
+        )
+        guard result.succeeded else { return [] }
+        return DiskUsageReporter.parseSimulatorRuntimes(result.stdout)
+    }
+
+    /// Deletes one runtime image by the UUID `simctl runtime list -j` reports.
+    static func deleteSimulatorRuntime(
+        _ identifier: String,
+        installation: XcodeInstallation
+    ) -> ProcessResult {
+        ProcessRunner.run(
+            executable: "/usr/bin/xcrun",
+            arguments: ["simctl", "runtime", "delete", identifier],
+            environment: ["DEVELOPER_DIR": installation.developerURL.path],
+            timeout: 600
+        )
+    }
+
+    /// Bulk reclaim. With `dryRun` this is simctl's own preview, so the user is shown
+    /// exactly what simctl would remove rather than a locally derived guess.
+    static func reclaimSimulatorRuntimes(
+        _ reclaim: SimulatorRuntimeReclaim,
+        installation: XcodeInstallation,
+        dryRun: Bool
+    ) -> ProcessResult {
+        var arguments = ["simctl", "runtime", "delete"] + reclaim.selectorArguments
+        if dryRun { arguments.append("--dry-run") }
+        return ProcessRunner.run(
+            executable: "/usr/bin/xcrun",
+            arguments: arguments,
+            environment: ["DEVELOPER_DIR": installation.developerURL.path],
+            timeout: 1_800
+        )
+    }
+
     static func downloadIOSRuntime(
         for installation: XcodeInstallation,
         progress: (@Sendable (String) -> Void)? = nil

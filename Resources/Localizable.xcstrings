@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "zh-Hans",
   "strings": {
+    "%@\n%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@\n%2$@"
+          }
+        }
+      }
+    },
     "%@ %@": {
       "localizations": {
         "zh-Hans": {
@@ -109,6 +119,16 @@
         }
       }
     },
+    "30 天未使用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not used in 30 days"
+          }
+        }
+      }
+    },
     "Command Line Tools": {},
     "Configuration": {},
     "CoreSimulator 可正常响应。": {
@@ -150,6 +170,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Runtime installed"
+          }
+        }
+      }
+    },
+    "Runtime 磁盘占用": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runtime Disk Usage"
           }
         }
       }
@@ -196,6 +226,16 @@
         }
       }
     },
+    "Simulator 缓存。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator cache."
+          }
+        }
+      }
+    },
     "Simulator 设备": {
       "localizations": {
         "en": {
@@ -207,15 +247,35 @@
       }
     },
     "Swift": {},
-    "Xcode": {},
-    "Xcode License": {},
-    "Xcode Switcher": {},
-    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [版本、别名或路径]\n  xcodeswitcher workspace <工作区文件名> [项目路径]\n  xcodeswitcher unworkspace [项目路径]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher alias <别名> <版本、别名或路径>\n  xcodeswitcher unalias <版本、别名或路径>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher pin <版本、别名或路径> [项目路径]\n  xcodeswitcher unpin [项目路径]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\n--force 即使有 Xcode 正在运行也继续切换。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
+    "Swift Package Manager 缓存。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [version, alias or path]\n  xcodeswitcher alias <name> <version, alias or path>\n  xcodeswitcher unalias <version, alias or path>\n  xcodeswitcher workspace <workspace file> [project path]\n  xcodeswitcher unworkspace [project path]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher pin <version, alias or path> [project path]\n  xcodeswitcher unpin [project path]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\n--force switches even while an Xcode is running.\nenv and shell-init zsh only read the project environment and never change xcode-select."
+            "value": "Swift Package Manager cache."
+          }
+        }
+      }
+    },
+    "Swift/Xcode 包缓存，删除后会重新下载。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swift/Xcode package cache, redownloaded after cleaning."
+          }
+        }
+      }
+    },
+    "Xcode": {},
+    "Xcode License": {},
+    "Xcode Switcher": {},
+    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [版本、别名或路径]\n  xcodeswitcher clean [--force] [--all]\n  xcodeswitcher workspace <工作区文件名> [项目路径]\n  xcodeswitcher unworkspace [项目路径]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher alias <别名> <版本、别名或路径>\n  xcodeswitcher unalias <版本、别名或路径>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher pin <版本、别名或路径> [项目路径]\n  xcodeswitcher unpin [项目路径]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\n--force 即使有 Xcode 正在运行也继续切换；clean 则用它表示真正执行清理。\nclean 默认只预览并列出可直接清理的缓存；--all 会一并处理 Xcode 无法自动\n重建的内容（归档、真机支持、包缓存），这些会移到废纸篓。clean 不处理\nSimulator Runtime，请在应用中清理。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [version, alias or path]\n  xcodeswitcher clean [--force] [--all]\n  xcodeswitcher workspace <workspace file> [project path]\n  xcodeswitcher unworkspace [project path]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher alias <name> <version, alias or path>\n  xcodeswitcher unalias <version, alias or path>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher pin <version, alias or path> [project path]\n  xcodeswitcher unpin [project path]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\n--force switches even while an Xcode is running; clean uses it to actually remove anything.\nclean only previews the caches Xcode rebuilds on demand; --all also handles what Xcode\ncannot regenerate (archives, device support, package caches) and moves those to the Trash.\nclean does not handle Simulator runtimes; use the app for those.\nenv and shell-init zsh only read the project environment and never change xcode-select."
           }
         }
       }
@@ -280,6 +340,26 @@
         }
       }
     },
+    "Xcode 用户缓存。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode user cache."
+          }
+        }
+      }
+    },
+    "Xcode 磁盘清理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode Disk Cleanup"
+          }
+        }
+      }
+    },
     "[dry-run] 将使用 %@ 打开 %@": {
       "localizations": {
         "en": {
@@ -324,6 +404,16 @@
           "stringUnit": {
             "state": "new",
             "value": "[dry-run] 将激活 %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "[dry-run] 未删除任何内容；加 --force 才会真正清理。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[dry-run] Nothing was deleted; add --force to actually clean."
           }
         }
       }
@@ -441,6 +531,38 @@
         }
       }
     },
+    "共 %lld 个 Runtime，占用约 %@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "共 %1$lld 个 Runtime，占用约 %2$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld runtimes, about %@ in total."
+          }
+        }
+      }
+    },
+    "共 %lld 个目录，可释放约 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld directories, about %@ reclaimable."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "共 %1$lld 个目录，可释放约 %2$@。"
+          }
+        }
+      }
+    },
     "关闭": {
       "localizations": {
         "en": {
@@ -521,6 +643,76 @@
         }
       }
     },
+    "删除": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "删除 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete %@"
+          }
+        }
+      }
+    },
+    "删除 Simulator 设备？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Simulator device?"
+          }
+        }
+      }
+    },
+    "删除不可用 Simulator 设备？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete unavailable Simulator devices?"
+          }
+        }
+      }
+    },
+    "删除不可用设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete unavailable Simulator devices"
+          }
+        }
+      }
+    },
+    "删除前可先用「预览」查看 simctl 将删除哪些镜像。%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Preview first to see which images simctl would delete. %@"
+          }
+        }
+      }
+    },
+    "删除后无法从 Xcode Organizer 恢复归档。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once deleted, it cannot be restored from Xcode Organizer."
+          }
+        }
+      }
+    },
     "别名 %@ 已被 %@ 使用。": {
       "localizations": {
         "en": {
@@ -597,6 +789,16 @@
         }
       }
     },
+    "可安全清理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe to Clean"
+          }
+        }
+      }
+    },
     "可用": {
       "localizations": {
         "en": {
@@ -613,6 +815,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Total: %@"
+          }
+        }
+      }
+    },
+    "同一 Runtime 已有更新的构建，只保留最新的一个。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A newer build of the same runtime exists; only the newest is kept."
           }
         }
       }
@@ -663,6 +875,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The command failed (exit code %d)."
+          }
+        }
+      }
+    },
+    "命令行构建缓存。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command-line build cache."
           }
         }
       }
@@ -895,6 +1117,32 @@
         }
       }
     },
+    "将删除 %@，占用约 %@。该 Runtime 需要重新下载才能恢复。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "将删除 %1$@，占用约 %2$@。该 Runtime 需要重新下载才能恢复。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deletes %@, about %@. The runtime must be downloaded again to be restored."
+          }
+        }
+      }
+    },
+    "将永久删除 %lld 个不被当前 Xcode 支持的设备，且无法撤销。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently deletes %lld devices the current Xcode does not support. This cannot be undone."
+          }
+        }
+      }
+    },
     "尝试搜索其他名称或路径。": {
       "localizations": {
         "en": {
@@ -927,6 +1175,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Launch at login turned off."
+          }
+        }
+      }
+    },
+    "已删除 %lld 个不可用 Simulator 设备。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted %lld unavailable Simulator devices."
           }
         }
       }
@@ -1117,16 +1375,16 @@
     },
     "已把 %@ 的工作区设为 %@。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "已把 %1$@ 的工作区设为 %2$@。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Set the workspace of %@ to %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已把 %1$@ 的工作区设为 %2$@。"
           }
         }
       }
@@ -1169,6 +1427,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "已添加项目 %1$@，自动匹配 Xcode %2$@。"
+          }
+        }
+      }
+    },
+    "已清理 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleaned %@."
           }
         }
       }
@@ -1225,6 +1493,16 @@
         }
       }
     },
+    "已移到废纸篓：%@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moved to the Trash: %@."
+          }
+        }
+      }
+    },
     "已移除 %@ 的别名。": {
       "localizations": {
         "en": {
@@ -1267,12 +1545,42 @@
         }
       }
     },
+    "已被标记为不可用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marked as unusable."
+          }
+        }
+      }
+    },
     "已解除 %@ 的项目绑定。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Removed the project binding for %@."
+          }
+        }
+      }
+    },
+    "已跳过 %lld 项 Xcode 无法自动重建的内容；加 --all 会将它们移到废纸篓。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped %lld items Xcode cannot rebuild on its own; --all moves them to the Trash."
+          }
+        }
+      }
+    },
+    "已过时": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outdated"
           }
         }
       }
@@ -1343,6 +1651,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "This Mac uses %@, so Rosetta does not need checking."
+          }
+        }
+      }
+    },
+    "当前 Xcode 不再支持，无法启动或抹掉。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not supported by the current Xcode; it cannot be booted or erased."
           }
         }
       }
@@ -1583,6 +1901,16 @@
         }
       }
     },
+    "批量清理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bulk Cleanup"
+          }
+        }
+      }
+    },
     "报告导出失败：%@": {
       "localizations": {
         "en": {
@@ -1619,6 +1947,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erase Simulator device?"
+          }
+        }
+      }
+    },
+    "拒绝清理不在允许列表中的路径：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refused to clean a path outside the allowlist: %@"
           }
         }
       }
@@ -1699,6 +2037,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Favorite the current version"
+          }
+        }
+      }
+    },
+    "文档索引，删除后会重新建立。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Documentation index, rebuilt after cleaning."
+          }
+        }
+      }
+    },
+    "文档缓存，删除后会重新下载。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Documentation cache, redownloaded after cleaning."
           }
         }
       }
@@ -1843,6 +2201,36 @@
         }
       }
     },
+    "最近 30 天没有使用过。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not used in the last 30 days."
+          }
+        }
+      }
+    },
+    "最近使用：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last used: %@"
+          }
+        }
+      }
+    },
+    "有 %lld 个设备已不被当前 Xcode 支持。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld devices are no longer supported by the current Xcode."
+          }
+        }
+      }
+    },
     "有效": {
       "localizations": {
         "en": {
@@ -1879,6 +2267,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Xcode found."
+          }
+        }
+      }
+    },
+    "未发现可清理目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No directories to clean."
+          }
+        }
+      }
+    },
+    "未完成的开发者资源下载。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete developer resource downloads."
           }
         }
       }
@@ -2003,6 +2411,16 @@
         }
       }
     },
+    "构建产物，删除后会重新生成。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build products, regenerated after cleaning."
+          }
+        }
+      }
+    },
     "根据 %@ 自动匹配 Xcode %@": {
       "localizations": {
         "en": {
@@ -2025,6 +2443,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Check that the Xcode installation is complete, or reinstall the matching platform component."
+          }
+        }
+      }
+    },
+    "检查失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check failed: %@"
+          }
+        }
+      }
+    },
+    "检查完成。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check complete."
           }
         }
       }
@@ -2055,6 +2493,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Checking…"
+          }
+        }
+      }
+    },
+    "检测到 Xcode 正在运行。请退出所有 Xcode 后再清理。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode is running. Quit all Xcode instances before cleaning."
           }
         }
       }
@@ -2099,6 +2547,36 @@
         }
       }
     },
+    "正在删除 %lld 个不可用 Simulator 设备…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleting %lld unavailable Simulator devices…"
+          }
+        }
+      }
+    },
+    "正在删除 Runtime %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleting runtime %@…"
+          }
+        }
+      }
+    },
+    "正在删除 Simulator %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleting Simulator %@…"
+          }
+        }
+      }
+    },
     "正在启动 Simulator %@…": {
       "localizations": {
         "en": {
@@ -2129,6 +2607,16 @@
         }
       }
     },
+    "正在扫描目录…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanning directories…"
+          }
+        }
+      }
+    },
     "正在抹掉 Simulator %@…": {
       "localizations": {
         "en": {
@@ -2145,6 +2633,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Checking GitHub Releases…"
+          }
+        }
+      }
+    },
+    "正在检查%@的 Runtime…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking runtimes that are %@…"
           }
         }
       }
@@ -2169,12 +2667,32 @@
         }
       }
     },
+    "正在清理%@的 Runtime…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleaning runtimes that are %@…"
+          }
+        }
+      }
+    },
     "正在请求管理员授权…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Requesting administrator authorization…"
+          }
+        }
+      }
+    },
+    "正在读取 Runtime…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading runtimes…"
           }
         }
       }
@@ -2269,6 +2787,16 @@
         }
       }
     },
+    "没有需要清理的 Runtime。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No runtimes to clean."
+          }
+        }
+      }
+    },
     "添加搜索目录…": {
       "localizations": {
         "en": {
@@ -2299,12 +2827,52 @@
         }
       }
     },
+    "清理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean"
+          }
+        }
+      }
+    },
+    "清理 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean %@"
+          }
+        }
+      }
+    },
+    "清理%@的 Runtime": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean %@ Runtimes"
+          }
+        }
+      }
+    },
     "清理失效项目": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Remove Missing Projects"
+          }
+        }
+      }
+    },
+    "清理失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleanup failed: %@"
           }
         }
       }
@@ -2491,6 +3059,16 @@
         }
       }
     },
+    "由 simctl 判断哪些镜像符合条件，预览即 simctl 的 --dry-run 输出。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "simctl decides which images qualify; the preview is simctl's own --dry-run output."
+          }
+        }
+      }
+    },
     "登录时启动": {
       "localizations": {
         "en": {
@@ -2511,12 +3089,42 @@
         }
       }
     },
+    "真机调试日志。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device debugging logs."
+          }
+        }
+      }
+    },
     "确认 Xcode.app 完整，并重新选择 Developer 目录。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Verify that Xcode.app is complete and select the Developer directory again."
+          }
+        }
+      }
+    },
+    "确认清理 Runtime？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean this runtime?"
+          }
+        }
+      }
+    },
+    "确认清理目录？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean this directory?"
           }
         }
       }
@@ -2597,6 +3205,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The bound Xcode no longer exists: %@. Rebind it before opening."
+          }
+        }
+      }
+    },
+    "编译中间产物，Xcode 会自动重建。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build intermediates, rebuilt automatically by Xcode."
           }
         }
       }
@@ -2811,12 +3429,42 @@
         }
       }
     },
+    "这些目录由所有 Xcode 版本共享。清理不会删除 Xcode.app、项目或签名文件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These directories are shared by every Xcode version. Cleaning does not delete Xcode.app, your projects, or signing files."
+          }
+        }
+      }
+    },
     "这会删除设备中的应用和数据，且无法撤销。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "This deletes the apps and data on the device and cannot be undone."
+          }
+        }
+      }
+    },
+    "这会永久删除该设备及其数据，且无法撤销。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanently deletes the device and its data. This cannot be undone."
+          }
+        }
+      }
+    },
+    "连接对应系统的真机调试时会重新准备。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepared again when you debug on a device with that OS."
           }
         }
       }
@@ -2931,6 +3579,16 @@
         }
       }
     },
+    "重新测量": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remeasure"
+          }
+        }
+      }
+    },
     "错误": {
       "localizations": {
         "en": {
@@ -2997,6 +3655,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Opening Xcode Settings automatically needs Accessibility permission. Grant it in System Settings and try again."
+          }
+        }
+      }
+    },
+    "需谨慎清理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean with Caution"
           }
         }
       }
@@ -3129,6 +3797,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "项目：%1$@\n当前：%2$@ %3$@\n推荐：%4$@ %5$@\n依据：%6$@"
+          }
+        }
+      }
+    },
+    "预览": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview"
           }
         }
       }

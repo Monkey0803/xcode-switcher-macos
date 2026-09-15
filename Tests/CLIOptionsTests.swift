@@ -26,6 +26,20 @@ final class CLIOptionsTests: XCTestCase {
         XCTAssertEqual(options.values, ["16.4"])
     }
 
+    func testAllFlagIsOffUnlessRequested() throws {
+        // `clean` uses --all to opt into the entries Xcode cannot rebuild, so the
+        // default has to stay conservative.
+        let plain = try CLIOptions.parse(["clean"])
+        XCTAssertFalse(plain.all)
+        XCTAssertFalse(plain.force)
+        XCTAssertEqual(plain.command, "clean")
+
+        let all = try CLIOptions.parse(["clean", "--force", "--all"])
+        XCTAssertTrue(all.all)
+        XCTAssertTrue(all.force)
+        XCTAssertEqual(all.values, [])
+    }
+
     func testParsesEnvironmentCommands() throws {
         let env = try CLIOptions.parse(["--json", "env", "/tmp/App.xcodeproj"])
         XCTAssertEqual(env.command, "env")

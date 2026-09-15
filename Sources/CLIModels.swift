@@ -3,8 +3,12 @@ import Foundation
 struct CLIOptions: Equatable, Sendable {
     let json: Bool
     let dryRun: Bool
-    /// Set by `--force`: switch even though a running Xcode would be disturbed.
+    /// Set by `--force`: switch even though a running Xcode would be disturbed, and
+    /// for `clean` the flag that turns a preview into an actual removal.
     let force: Bool
+    /// Set by `--all`: for `clean`, also include the entries Xcode cannot rebuild on
+    /// its own (archives, device support, package caches), which go to the Trash.
+    let all: Bool
     let command: String?
     let values: [String]
 
@@ -12,12 +16,14 @@ struct CLIOptions: Equatable, Sendable {
         var json = false
         var dryRun = false
         var force = false
+        var all = false
         var remaining: [String] = []
         for argument in arguments {
             switch argument {
             case "--json": json = true
             case "--dry-run": dryRun = true
             case "--force": force = true
+            case "--all": all = true
             default: remaining.append(argument)
             }
         }
@@ -25,6 +31,7 @@ struct CLIOptions: Equatable, Sendable {
             json: json,
             dryRun: dryRun,
             force: force,
+            all: all,
             command: remaining.first,
             values: Array(remaining.dropFirst())
         )
@@ -87,4 +94,31 @@ struct CLIEnvironmentOutput: Codable, Equatable, Sendable {
 struct CLIErrorOutput: Codable, Equatable, Sendable {
     let code: String
     let message: String
+}
+
+struct CLICleanupOutput: Codable, Equatable, Sendable {
+    struct Entry: Codable, Equatable, Sendable {
+        let label: String
+        let path: String
+        let bytes: Int64
+        let size: String
+        /// `safe` entries are caches Xcode rebuilds; `caution` entries are moved to
+        /// the Trash instead, because Xcode cannot regenerate them.
+        let safety: String
+    }
+
+    /// Every candidate, whether or not it was removed: the listing is the preview.
+    let entries: [Entry]
+    /// Only populated when something was actually removed.
+    let removed: [String]
+    /// Candidates left alone: the non-regenerable ones unless `--all` was given.
+    let skipped: [String]
+    /// Per-entry failures. A partial cleanup is reported here rather than thrown, so
+    /// the caller still learns how much succeeded.
+    let failures: [String]
+    let totalBytes: Int64
+    let total: String
+    /// True only when entries were really removed, so a consumer can tell a preview
+    /// from a cleanup without inspecting the flags.
+    let performed: Bool
 }

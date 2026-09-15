@@ -54,6 +54,25 @@ fi
 
 /usr/bin/xcrun xcstringstool sync "$catalog" --stringsdata "${stringsdata[@]}"
 
-count="$(/usr/bin/xcrun xcstringstool print "$catalog" 2>/dev/null | /usr/bin/grep -c . || true)"
+# `xcstringstool sync` re-serialises the *whole* file in its own JSON style, and that
+# style moves between Xcode releases: Xcode 26.3 writes `"key" : value` and drops the
+# trailing newline, while the committed catalog uses `"key": value` with one. The CI
+# gate (`Verify the string catalog is in sync with the sources`) diffs this file right
+# after running this script, so a style-only rewrite would fail a build whose strings
+# are in fact correct. Normalise back to the committed style — and sort the keys, so
+# the result does not depend on merge order — then report the real key count, which
+# `xcstringstool print | grep -c .` over-reported (it counted structure lines too).
+key_count="$(/usr/bin/python3 - "$catalog" <<'PY'
+import json, pathlib, sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+strings = dict(sorted(data.get("strings", {}).items()))
+data["strings"] = strings
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print(len(strings))
+PY
+)"
+
 printf '已合并 %d 个 .stringsdata，%s 现在包含 %s 个字符串键。\n' \
-  "${#stringsdata[@]}" "${catalog#"$script_dir"/}" "${count:-?}"
+  "${#stringsdata[@]}" "${catalog#"$script_dir"/}" "$key_count"
