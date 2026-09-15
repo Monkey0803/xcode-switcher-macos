@@ -317,13 +317,17 @@ enum XcodeCleanupReporter {
 
     /// Standardized once and reused by both the home-prefix check and the
     /// allowlist, so the two checks can never compare against different strings.
-    private static let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+    static let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+
+    /// The templates of every root, which is also the allowlist removal uses.
+    /// Derived from `roots`, so what the UI offers and what removal permits cannot
+    /// disagree.
+    static var allowedRootTemplates: [String] { roots.map(\.template) }
 
     /// Expands only a *leading* `~`. A `~` anywhere else is a literal character,
     /// which `replacingOccurrences` would have rewritten.
     private static func expand(_ template: String) -> String {
-        guard template.hasPrefix("~/") else { return template }
-        return home + "/" + String(template.dropFirst(2))
+        XcodeCleanupRemover.expand(template, home: home)
     }
 
     /// Measures every root concurrently.
@@ -407,23 +411,13 @@ enum XcodeCleanupReporter {
     /// entries are things Xcode cannot regenerate by itself: an archive, the device
     /// support for an OS, a package cache. Those go to the Trash so the user can
     /// still recover them, which is what the Archive note promises.
-    static func remove(_ entry: XcodeCleanupEntry) throws {
-        let target = URL(fileURLWithPath: entry.path).standardizedFileURL.path
-        guard target.hasPrefix(home + "/"), isKnownCleanupPath(target), !containsSymlinkComponent(target) else {
-            throw XcodeCleanupRefusedError(path: target)
-        }
-        switch entry.safety {
-        case .safe:
-            try FileManager.default.removeItem(atPath: target)
-        case .caution:
-            try FileManager.default.trashItem(at: URL(fileURLWithPath: target), resultingItemURL: nil)
-        }
-    }
-
-    /// Derived from the same `roots` table `entries()` reads, so what the UI
-    /// offers and what removal accepts cannot disagree.
-    private static func isKnownCleanupPath(_ target: String) -> Bool {
-        roots.map { expand($0.template) }.contains { target == $0 || target.hasPrefix($0 + "/") }
+    ///
+    /// The decision and the two behaviours live in `XcodeCleanupRemover`, which
+    /// takes its allowlist and home as state so they can be covered by tests; this
+    /// is the standard-policy entry point the app and CLI use.
+    @discardableResult
+    static func remove(_ entry: XcodeCleanupEntry) throws -> URL? {
+        try XcodeCleanupRemover.standard.remove(entry)
     }
 
     /// `standardizedFileURL` collapses `..` but does **not** resolve symlinks, so
@@ -438,5 +432,70 @@ enum XcodeCleanupReporter {
             }
         }
         return false
+    }
+}
+
+/// Decides whether a path may be removed, and performs the removal.
+///
+/// Split out from `XcodeCleanupReporter` with an injectable allowlist and home
+/// because the production allowlist only ever points at the real `~/Library`. With
+/// those compiled in, the three outcomes that matter — refuse, delete outright,
+/// move to the Trash — had no test coverage at all, and this is the part of the
+/// feature that can destroy data. Injecting the scope lets a test drive all three
+/// against a temporary directory.
+struct XcodeCleanupRemover: Sendable {
+    /// Allowed roots, as templates. A leading `~/` expands against `home`.
+    let allowedRootTemplates: [String]
+    /// The directory `~` expands to. A target outside it is refused.
+    let home: String
+
+    /// The policy the app and CLI use: the standard roots under the real home.
+    static var standard: XcodeCleanupRemover {
+        XcodeCleanupRemover(
+            allowedRootTemplates: XcodeCleanupReporter.allowedRootTemplates,
+            home: XcodeCleanupReporter.home
+        )
+    }
+
+    /// Expands only a *leading* `~`. A `~` anywhere else is a literal character,
+    /// which `replacingOccurrences` would have rewritten.
+    static func expand(_ template: String, home: String) -> String {
+        guard template.hasPrefix("~/") else { return template }
+        return home + "/" + String(template.dropFirst(2))
+    }
+
+    /// An exact match on a root, or a descendant of one — the same rule the
+    /// enumeration uses, which is what keeps the offered and permitted sets equal.
+    func isAllowed(_ target: String) -> Bool {
+        allowedRootTemplates
+            .map { Self.expand($0, home: home) }
+            .contains { target == $0 || target.hasPrefix($0 + "/") }
+    }
+
+    /// Deletes `.safe` entries outright — Xcode rebuilds those, so trashing them
+    /// would only move the space elsewhere — and moves `.caution` entries to the
+    /// Trash, because Xcode cannot regenerate an archive, device support or a
+    /// package cache on its own. Returns where a ``.caution`` entry was trashed,
+    /// and nil when the entry was deleted.
+    @discardableResult
+    func remove(_ entry: XcodeCleanupEntry) throws -> URL? {
+        let target = URL(fileURLWithPath: entry.path).standardizedFileURL.path
+        guard target.hasPrefix(home + "/"),
+              isAllowed(target),
+              !XcodeCleanupReporter.containsSymlinkComponent(target) else {
+            throw XcodeCleanupRefusedError(path: target)
+        }
+        switch entry.safety {
+        case .safe:
+            try FileManager.default.removeItem(atPath: target)
+            return nil
+        case .caution:
+            var trashed: NSURL?
+            try FileManager.default.trashItem(
+                at: URL(fileURLWithPath: target),
+                resultingItemURL: &trashed
+            )
+            return trashed as URL?
+        }
     }
 }

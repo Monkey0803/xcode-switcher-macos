@@ -208,4 +208,121 @@ final class DiskUsageTests: XCTestCase {
         // is only true if the scan honours the flag before measuring anything.
         XCTAssertTrue(XcodeCleanupReporter.entries(isCancelled: { true }).isEmpty)
     }
+
+    // MARK: - 删除策略
+
+    /// A remover whose allowlist is one directory inside a fresh scratch tree, so
+    /// the delete and trash paths can be driven without touching the real
+    /// `~/Library` cleanup targets. Before the scope was injectable this behaviour —
+    /// the part of the feature that can destroy data — had no coverage at all.
+    ///
+    /// Deliberately not `NSTemporaryDirectory()`: that lives under `/var`, which is
+    /// a symlink to `/private/var`, and a symlinked ancestor is refused by design —
+    /// so a *successful* removal can never be driven from there. The real home has no
+    /// symlinked ancestor, so a scratch directory under its `Caches` exercises the
+    /// path the way it actually runs.
+    private func makeRemovalScope() throws -> (root: String, remover: XcodeCleanupRemover) {
+        let home = XcodeCleanupReporter.home
+        let root = "\(home)/Library/Caches/xcode-switcher-removal-tests-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: root, withIntermediateDirectories: true)
+        return (root, XcodeCleanupRemover(allowedRootTemplates: ["\(root)/cache"], home: home))
+    }
+
+    func testRemovalDeletesASafeEntry() throws {
+        let (root, remover) = try makeRemovalScope()
+        defer { try? FileManager.default.removeItem(atPath: root) }
+        let target = "\(root)/cache"
+        try FileManager.default.createDirectory(atPath: target, withIntermediateDirectories: true)
+        try Data("payload".utf8).write(to: URL(fileURLWithPath: "\(target)/file"))
+
+        let entry = XcodeCleanupEntry(path: target, label: "Cache", bytes: 1, safety: .safe, note: "")
+        let trashed = try remover.remove(entry)
+
+        XCTAssertNil(trashed, "可自动重建的缓存应直接删除，而不是移入废纸篓")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target))
+    }
+
+    func testRemovalMovesACautionEntryToTheTrash() throws {
+        let (root, remover) = try makeRemovalScope()
+        defer { try? FileManager.default.removeItem(atPath: root) }
+        let target = "\(root)/cache"
+        try FileManager.default.createDirectory(atPath: target, withIntermediateDirectories: true)
+
+        let entry = XcodeCleanupEntry(path: target, label: "Archive", bytes: 1, safety: .caution, note: "")
+        let trashed = try XCTUnwrap(try remover.remove(entry))
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target), "原路径应已不在")
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: trashed.path),
+            "谨慎清理项必须仍可在废纸篓中找到，否则「无法自动重建」的提示就是假的"
+        )
+        try? FileManager.default.removeItem(at: trashed)
+    }
+
+    func testRemovalRefusesAPathOutsideTheScopeHome() throws {
+        let (root, remover) = try makeRemovalScope()
+        defer { try? FileManager.default.removeItem(atPath: root) }
+        let entry = XcodeCleanupEntry(
+            path: "/tmp/xcode-switcher-not-allowed",
+            label: "nope",
+            bytes: 1,
+            safety: .safe,
+            note: ""
+        )
+        XCTAssertThrowsError(try remover.remove(entry)) { error in
+            XCTAssertTrue(error is XcodeCleanupRefusedError)
+        }
+    }
+
+    func testRemovalRefusesAnAllowedHomeButDisallowedSubpath() throws {
+        // The path is inside the scope's home, so only the allowlist can reject it.
+        // That branch was unreachable while the allowlist was compiled in.
+        let (root, remover) = try makeRemovalScope()
+        defer { try? FileManager.default.removeItem(atPath: root) }
+        let inside = "\(root)/Documents"
+        try FileManager.default.createDirectory(atPath: inside, withIntermediateDirectories: true)
+
+        let entry = XcodeCleanupEntry(path: inside, label: "Documents", bytes: 1, safety: .safe, note: "")
+        XCTAssertThrowsError(try remover.remove(entry)) { error in
+            XCTAssertTrue(error is XcodeCleanupRefusedError)
+        }
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: inside),
+            "被拒绝的路径不能被改动"
+        )
+    }
+
+    func testRemovalRefusesASymlinkedAncestor() throws {
+        // An allowlisted path that is a symlink must not redirect the delete.
+        let (root, remover) = try makeRemovalScope()
+        defer { try? FileManager.default.removeItem(atPath: root) }
+        let real = "\(root)/real-cache"
+        let link = "\(root)/cache"
+        try FileManager.default.createDirectory(atPath: real, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: real)
+
+        let entry = XcodeCleanupEntry(path: link, label: "Cache", bytes: 1, safety: .safe, note: "")
+        XCTAssertThrowsError(try remover.remove(entry)) { error in
+            XCTAssertTrue(error is XcodeCleanupRefusedError)
+        }
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: real),
+            "链接指向的目标不能被删除"
+        )
+    }
+
+    func testStandardPolicyPermitsEveryRootTheReporterOffers() {
+        // The offered set and the permitted set come from one table; this fails if
+        // that ever stops being the case.
+        let templates = XcodeCleanupReporter.allowedRootTemplates
+        XCTAssertEqual(templates.count, 13)
+        let remover = XcodeCleanupRemover.standard
+        for template in templates {
+            let root = XcodeCleanupRemover.expand(template, home: XcodeCleanupReporter.home)
+            XCTAssertTrue(remover.isAllowed(root), "枚举出的根必须可被删除：\(root)")
+            XCTAssertTrue(remover.isAllowed(root + "/child"))
+        }
+        XCTAssertFalse(remover.isAllowed("/etc"))
+        XCTAssertFalse(remover.isAllowed("/tmp"))
+    }
 }
