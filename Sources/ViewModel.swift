@@ -63,7 +63,7 @@ final class XcodeViewModel: ObservableObject {
     @Published private(set) var cleanupRemovingPaths: Set<String> = []
     @Published private(set) var runtimeSizesByID: [String: [DiskUsageReporter.SimulatorRuntime]] = [:]
     @Published private(set) var runtimeSizesLoadingIDs: Set<String> = []
-    @Published private(set) var runtimeReclaimPreview = ""
+    @Published private(set) var runtimeReclaimPreview: SimulatorRuntimeReclaimPreview?
     @Published private(set) var isReclaimingRuntimes = false
     @Published var configuration: AppConfiguration
     @Published var pendingProjectOpen: ProjectOpenRequest?
@@ -385,23 +385,29 @@ final class XcodeViewModel: ObservableObject {
         guard !isReclaimingRuntimes else { return }
         isReclaimingRuntimes = true
         isError = false
-        runtimeReclaimPreview = ""
+        runtimeReclaimPreview = nil
         statusMessage = String(localized: "正在检查\(reclaim.title)的 Runtime…")
         Task { [weak self] in
             let result = await Task.detached(priority: .utility) {
-                XcodeTooling.reclaimSimulatorRuntimes(reclaim, installation: installation, dryRun: true)
+                // simctl decides which images qualify; the listing is read alongside
+                // it only so its UUIDs can be shown as the versions and sizes the
+                // runtime list already displays.
+                let runtimes = XcodeTooling.simulatorRuntimeSizes(for: installation)
+                let outcome = XcodeTooling.reclaimSimulatorRuntimes(
+                    reclaim,
+                    installation: installation,
+                    dryRun: true
+                )
+                return (outcome, runtimes)
             }.value
             guard let self else { return }
             isReclaimingRuntimes = false
-            if result.succeeded {
-                let output = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-                runtimeReclaimPreview = output.isEmpty
-                    ? String(localized: "没有需要清理的 Runtime。")
-                    : output
+            if result.0.succeeded {
+                runtimeReclaimPreview = SimulatorRuntimeReclaim.preview(of: result.0.stdout, runtimes: result.1)
                 statusMessage = String(localized: "检查完成。")
             } else {
                 isError = true
-                statusMessage = String(localized: "检查失败：\(result.failureDescription)")
+                statusMessage = String(localized: "检查失败：\(result.0.failureDescription)")
             }
         }
     }
@@ -425,7 +431,7 @@ final class XcodeViewModel: ObservableObject {
         label: String
     ) {
         isReclaimingRuntimes = false
-        runtimeReclaimPreview = ""
+        runtimeReclaimPreview = nil
         guard result.succeeded else {
             isError = true
             statusMessage = String(localized: "清理失败：\(result.failureDescription)")

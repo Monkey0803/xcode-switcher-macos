@@ -172,6 +172,91 @@ enum SimulatorRuntimeReclaim: String, CaseIterable, Identifiable, Sendable {
         case .unusable: return ["--unusable"]
         }
     }
+
+    /// Resolves a `--dry-run` result against the installed runtimes so it can be
+    /// shown as something a person reads.
+    ///
+    /// simctl prints one log line per image:
+    ///
+    ///     Would delete P: C04E2269-5D69-49B7-8BFD-2FECDC949FFA iOS (27.0 - 24A5380i) (Ready)
+    ///
+    /// That is accurate but unfriendly — a bare UUID, an opaque `P:` marker, and the
+    /// version and build fused into one token. The runtime list already reports each
+    /// image's name, build and size, so the identifier is resolved back to those.
+    ///
+    /// A line whose identifier cannot be resolved is kept verbatim rather than
+    /// dropped: raw text is worse than a tidy row, but silently hiding a line would
+    /// understate what is about to be removed.
+    static func preview(
+        of output: String,
+        runtimes: [DiskUsageReporter.SimulatorRuntime]
+    ) -> SimulatorRuntimeReclaimPreview {
+        let byIdentifier = Dictionary(
+            runtimes.map { ($0.identifier.lowercased(), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        var lines: [SimulatorRuntimeReclaimPreview.Line] = []
+        for raw in output.split(whereSeparator: \.isNewline) {
+            let text = raw.trimmingCharacters(in: .whitespaces)
+            guard !text.isEmpty else { continue }
+            guard let identifier = firstIdentifier(in: text),
+                  let runtime = byIdentifier[identifier.lowercased()] else {
+                lines.append(
+                    SimulatorRuntimeReclaimPreview.Line(id: text, label: text, bytes: nil, isResolved: false)
+                )
+                continue
+            }
+            lines.append(
+                SimulatorRuntimeReclaimPreview.Line(
+                    id: identifier,
+                    label: runtime.label,
+                    bytes: runtime.bytes,
+                    isResolved: true
+                )
+            )
+        }
+        return SimulatorRuntimeReclaimPreview(lines: lines)
+    }
+
+    /// The first UUID-shaped token, which is the runtime identifier simctl prints.
+    /// A shape check rather than a regex: one token, and it keeps the rule visible.
+    private static func firstIdentifier(in text: String) -> String? {
+        for token in text.split(whereSeparator: { $0 == " " || $0 == "\t" }) {
+            let parts = token.split(separator: "-", omittingEmptySubsequences: false)
+            guard parts.count == 5,
+                  parts.map(\.count) == [8, 4, 4, 4, 12],
+                  parts.allSatisfy({ $0.allSatisfy(\.isHexDigit) }) else { continue }
+            return String(token)
+        }
+        return nil
+    }
+}
+
+/// A `simctl runtime delete --dry-run` result, resolved for display.
+struct SimulatorRuntimeReclaimPreview: Equatable, Sendable {
+    struct Line: Identifiable, Equatable, Sendable {
+        let id: String
+        /// `iOS 27.0 (24A5380i)` once resolved; otherwise the line simctl printed.
+        let label: String
+        let bytes: Int64?
+        let isResolved: Bool
+
+        var displaySize: String? {
+            bytes.map { DiskUsageFormatter.humanReadable(bytes: $0) }
+        }
+
+        /// Label and size on one line, or the label alone when the size is unknown.
+        var summary: String {
+            guard let displaySize else { return label }
+            return "\(label) — \(displaySize)"
+        }
+    }
+
+    let lines: [Line]
+
+    var isEmpty: Bool { lines.isEmpty }
+    var resolvedCount: Int { lines.filter(\.isResolved).count }
+    var totalBytes: Int64 { lines.compactMap(\.bytes).reduce(0, +) }
 }
 
 enum XcodeCleanupSafety: Int, CaseIterable, Identifiable, Sendable {

@@ -325,4 +325,98 @@ final class DiskUsageTests: XCTestCase {
         XCTAssertFalse(remover.isAllowed("/etc"))
         XCTAssertFalse(remover.isAllowed("/tmp"))
     }
+
+    // MARK: - 回收预览的可读化
+
+    private func makeRuntime(
+        identifier: String,
+        name: String,
+        build: String,
+        bytes: Int64
+    ) -> DiskUsageReporter.SimulatorRuntime {
+        DiskUsageReporter.SimulatorRuntime(
+            identifier: identifier,
+            name: name,
+            build: build,
+            version: "27.0",
+            runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+            path: "/x/\(name).simruntime",
+            bytes: bytes,
+            isDeletable: true,
+            state: "Ready",
+            lastUsedAt: nil
+        )
+    }
+
+    func testReclaimPreviewResolvesSimctlUUIDsIntoReadableRows() {
+        let runtime = makeRuntime(
+            identifier: "C04E2269-5D69-49B7-8BFD-2FECDC949FFA",
+            name: "iOS 27.0",
+            build: "24A5380i",
+            bytes: 8_400_000_000
+        )
+        // Exactly what simctl prints.
+        let output = "Would delete P: C04E2269-5D69-49B7-8BFD-2FECDC949FFA iOS (27.0 - 24A5380i) (Ready)\n"
+
+        let preview = SimulatorRuntimeReclaim.preview(of: output, runtimes: [runtime])
+
+        XCTAssertEqual(preview.lines.count, 1)
+        let line = preview.lines[0]
+        XCTAssertTrue(line.isResolved)
+        XCTAssertEqual(line.label, "iOS 27.0 (24A5380i)")
+        XCTAssertEqual(line.summary, "iOS 27.0 (24A5380i) — 8.4 GB")
+        XCTAssertEqual(preview.totalBytes, 8_400_000_000)
+        XCTAssertEqual(preview.resolvedCount, 1)
+        // What the user reads must not be simctl's log line.
+        XCTAssertFalse(line.summary.contains("Would delete"))
+        XCTAssertFalse(line.summary.contains("C04E2269"))
+        XCTAssertFalse(line.summary.contains("P:"))
+    }
+
+    func testReclaimPreviewSumsEveryResolvedSize() {
+        let first = makeRuntime(
+            identifier: "AAAAAAAA-0000-0000-0000-000000000000",
+            name: "iOS 27.0",
+            build: "24A434",
+            bytes: 1_000_000_000
+        )
+        let second = makeRuntime(
+            identifier: "BBBBBBBB-0000-0000-0000-000000000000",
+            name: "iOS 26.3",
+            build: "23D8133",
+            bytes: 2_000_000_000
+        )
+        let output = """
+        Would delete P: AAAAAAAA-0000-0000-0000-000000000000 iOS (27.0 - 24A434) (Ready)
+        Would delete P: BBBBBBBB-0000-0000-0000-000000000000 iOS (26.3 - 23D8133) (Ready)
+        """
+
+        let preview = SimulatorRuntimeReclaim.preview(of: output, runtimes: [first, second])
+
+        XCTAssertEqual(preview.resolvedCount, 2)
+        XCTAssertEqual(preview.totalBytes, 3_000_000_000)
+        XCTAssertEqual(preview.lines.map(\.label), ["iOS 27.0 (24A434)", "iOS 26.3 (23D8133)"])
+    }
+
+    func testReclaimPreviewKeepsUnresolvableLinesVerbatim() {
+        // Dropping a line would understate what is about to be removed.
+        let output = """
+        Would delete P: 00000000-0000-0000-0000-000000000000 iOS (26.0 - 1A1) (Ready)
+        No matching images found to delete
+        """
+
+        let preview = SimulatorRuntimeReclaim.preview(of: output, runtimes: [])
+
+        XCTAssertEqual(preview.lines.count, 2)
+        XCTAssertEqual(preview.resolvedCount, 0)
+        XCTAssertEqual(preview.totalBytes, 0)
+        XCTAssertFalse(preview.lines[0].isResolved)
+        XCTAssertTrue(preview.lines[0].label.contains("00000000-0000"))
+        XCTAssertEqual(preview.lines[1].label, "No matching images found to delete")
+    }
+
+    func testReclaimPreviewOfEmptyOutputIsEmpty() {
+        XCTAssertTrue(SimulatorRuntimeReclaim.preview(of: "", runtimes: []).isEmpty)
+        XCTAssertTrue(SimulatorRuntimeReclaim.preview(of: "\n   \n", runtimes: []).isEmpty)
+    }
 }

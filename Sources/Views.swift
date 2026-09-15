@@ -605,6 +605,17 @@ private struct RuntimeReclaimView: View {
     private var runtimes: [DiskUsageReporter.SimulatorRuntime] { model.runtimeSizes(for: installation) }
     private var totalBytes: Int64 { runtimes.reduce(0) { $0 + $1.bytes } }
 
+    /// simctl reports which images qualify but not how much they add up to, so the
+    /// total is summed from the sizes the listing already carries.
+    private func reclaimPreviewHeadline(_ preview: SimulatorRuntimeReclaimPreview) -> String {
+        guard preview.resolvedCount > 0 else {
+            return String(localized: "将清理 \(preview.lines.count) 项。")
+        }
+        return String(
+            localized: "将清理 \(preview.resolvedCount) 个 Runtime，可回收约 \(DiskUsageFormatter.humanReadable(bytes: preview.totalBytes))。"
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
@@ -660,11 +671,25 @@ private struct RuntimeReclaimView: View {
                 }
             }
             if model.isReclaimingRuntimes { ProgressView().controlSize(.small) }
-            if !model.runtimeReclaimPreview.isEmpty {
-                Text(model.runtimeReclaimPreview)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
+            if let preview = model.runtimeReclaimPreview {
+                VStack(alignment: .leading, spacing: 3) {
+                    if preview.isEmpty {
+                        Text("没有需要清理的 Runtime。")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text(reclaimPreviewHeadline(preview))
+                            .font(.caption).foregroundStyle(.secondary)
+                        // Resolved rows show the version, build and size; a line that
+                        // could not be resolved is shown as simctl printed it rather
+                        // than dropped, which would understate the removal.
+                        ForEach(preview.lines) { line in
+                            Text(line.summary)
+                                .font(.caption)
+                                .foregroundStyle(line.isResolved ? Color.secondary : Color.orange)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
             }
         }
         .confirmationDialog(

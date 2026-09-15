@@ -533,16 +533,16 @@
     },
     "共 %lld 个 Runtime，占用约 %@。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "共 %1$lld 个 Runtime，占用约 %2$@。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld runtimes, about %@ in total."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "共 %1$lld 个 Runtime，占用约 %2$@。"
           }
         }
       }
@@ -1119,16 +1119,16 @@
     },
     "将删除 %@，占用约 %@。该 Runtime 需要重新下载才能恢复。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "将删除 %1$@，占用约 %2$@。该 Runtime 需要重新下载才能恢复。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Deletes %@, about %@. The runtime must be downloaded again to be restored."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "将删除 %1$@，占用约 %2$@。该 Runtime 需要重新下载才能恢复。"
           }
         }
       }
@@ -1139,6 +1139,32 @@
           "stringUnit": {
             "state": "translated",
             "value": "Permanently deletes %lld devices the current Xcode does not support. This cannot be undone."
+          }
+        }
+      }
+    },
+    "将清理 %lld 个 Runtime，可回收约 %@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "将清理 %1$lld 个 Runtime，可回收约 %2$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will clean %lld runtimes, reclaiming about %@."
+          }
+        }
+      }
+    },
+    "将清理 %lld 项。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will clean %lld items."
           }
         }
       }
