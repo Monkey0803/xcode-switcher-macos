@@ -150,6 +150,7 @@ struct ContentView: View {
                         } label: {
                             Label("所有版本…", systemImage: "list.bullet.rectangle")
                         }
+                        .accessibilityIdentifier("all-versions-button")
                         .help("列出索引中的全部 Xcode 版本，可筛选与排序")
                         Button {
                             model.showSettings()
@@ -612,6 +613,7 @@ private struct VersionInfoSectionView: View {
                 } label: {
                     Label("所有版本…", systemImage: "list.bullet.rectangle")
                 }
+                .accessibilityIdentifier("all-versions-button-detail")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(4)
