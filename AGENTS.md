@@ -52,6 +52,43 @@ environmental — the sandbox blocks `swift-plugin-server`. Building outside it 
 Xcode 26 **or** Xcode 27 succeeds, and all `@State` sites in `Sources/` follow the
 shape above.
 
+## `accessibilityIdentifier` and the accessibility tree
+
+`bc08f77`'s message ends with the conclusion that SwiftUI "did not expose it as a
+readable `AXIdentifier` on macOS, so this verification did not benefit from it".
+**That does not hold for the running app.** Verified 2026-09-17 against the Debug
+build, with the main window open:
+
+```bash
+osascript -e 'tell application "System Events" to tell (first process whose name is "XcodeSwitcherApp")' \
+  -e 'set all to entire contents of window 1' \
+  -e 'set acc to {}' \
+  -e 'repeat with e in all' \
+  -e 'try' \
+  -e 'set v to (value of attribute "AXIdentifier" of e) as text' \
+  -e 'if v is not "" and v is not "missing value" then set end of acc to v' \
+  -e 'end try' \
+  -e 'end repeat' \
+  -e 'return acc' \
+  -e 'end tell'
+```
+
+prints every identifier the sources set — `xcode-search-field`,
+`refresh-xcodes-button`, `all-versions-button`, `activate-selected-xcode-button`,
+`rollback-xcode-button`, `list-pane-toggle-button` and the per-installation
+`open-developer-dir-terminal-…` — alongside SwiftUI's own `ListColumn` for the
+`List`. `ToolbarItem` buttons are included.
+
+Two ways to "disprove" this by accident:
+
+- `repeat with e in (entire contents of window 1)` silently yields nothing. Assign
+  `entire contents` to a variable first, as above.
+- The window has to exist: `window 1` is whichever window is open, and the process
+  is named `XcodeSwitcherApp` regardless of the bundle's display name.
+
+Still untested: whether XCUITest's `XCUIElement` layer sees these identifiers —
+this repository has no UI test target, so nothing exercises that path.
+
 ## Translations
 
 Read [TRANSLATION.md](TRANSLATION.md) before adding or changing translations in
