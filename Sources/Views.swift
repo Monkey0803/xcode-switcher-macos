@@ -104,63 +104,69 @@ struct InstallationRow: View {
 struct ContentView: View {
     @EnvironmentObject private var model: XcodeViewModel
     @FocusState private var isSearchFieldFocused: Bool
+    /// Folding the list hands its width to the detail pane. The divider between the
+    /// two panes stays draggable, so the button is a shortcut, not the only way to
+    /// rebalance them.
+    @State private var isListCollapsed = false
 
     var body: some View {
         VStack(spacing: 0) {
             HSplitView {
-                VStack(spacing: 0) {
-                    HStack {
-                        TextField("搜索版本或路径", text: $model.filter)
-                            .textFieldStyle(.roundedBorder)
-                            .accessibilityIdentifier("xcode-search-field")
-                            .focused($isSearchFieldFocused)
-                        Button { model.refresh() } label: { Image(systemName: "arrow.clockwise") }
-                            .disabled(model.isRefreshing || model.isSwitching)
-                            .help("重新扫描")
-                            .accessibilityIdentifier("refresh-xcodes-button")
-                    }
-                    .padding(10)
-                    if !model.installations.isEmpty {
-                        List(selection: Binding(
-                            get: { model.selectedID },
-                            set: { selection in
-                                // Clicking the empty area of a macOS List sends nil.
-                                // Keep the current Xcode selected instead of replacing
-                                // the detail pane with the empty-state view.
-                                guard let selection,
-                                      let installation = model.installations.first(where: { $0.id == selection }) else { return }
-                                model.select(installation)
+                if !isListCollapsed {
+                    VStack(spacing: 0) {
+                        HStack {
+                            TextField("搜索版本或路径", text: $model.filter)
+                                .textFieldStyle(.roundedBorder)
+                                .accessibilityIdentifier("xcode-search-field")
+                                .focused($isSearchFieldFocused)
+                            Button { model.refresh() } label: { Image(systemName: "arrow.clockwise") }
+                                .disabled(model.isRefreshing || model.isSwitching)
+                                .help("重新扫描")
+                                .accessibilityIdentifier("refresh-xcodes-button")
+                        }
+                        .padding(10)
+                        if !model.installations.isEmpty {
+                            List(selection: Binding(
+                                get: { model.selectedID },
+                                set: { selection in
+                                    // Clicking the empty area of a macOS List sends nil.
+                                    // Keep the current Xcode selected instead of replacing
+                                    // the detail pane with the empty-state view.
+                                    guard let selection,
+                                          let installation = model.installations.first(where: { $0.id == selection }) else { return }
+                                    model.select(installation)
+                                }
+                            )) {
+                                ForEach(model.filteredInstallations) { installation in
+                                    InstallationRow(installation: installation).tag(installation.id)
+                                }
                             }
-                        )) {
-                            ForEach(model.filteredInstallations) { installation in
-                                InstallationRow(installation: installation).tag(installation.id)
+                        } else {
+                            EmptyStateView(title: String(localized: "未发现 Xcode"), systemImage: "hammer", description: String(localized: "请重新扫描，或在设置中添加搜索目录。"))
+                        }
+                        HStack {
+                            Text("\(model.installations.count) 个版本").font(.caption).foregroundStyle(.secondary)
+                            Spacer()
+                            // The window needs its own way in: the menu command is only
+                            // reachable while the app is frontmost, which a menu bar utility
+                            // usually is not.
+                            Button {
+                                model.showAllVersions()
+                            } label: {
+                                Label("所有版本…", systemImage: "list.bullet.rectangle")
+                            }
+                            .accessibilityIdentifier("all-versions-button")
+                            .help("列出索引中的全部 Xcode 版本，可筛选与排序")
+                            Button {
+                                model.showSettings()
+                            } label: {
+                                Label("项目设置…", systemImage: "gear")
                             }
                         }
-                    } else {
-                        EmptyStateView(title: String(localized: "未发现 Xcode"), systemImage: "hammer", description: String(localized: "请重新扫描，或在设置中添加搜索目录。"))
+                        .padding(10)
                     }
-                    HStack {
-                        Text("\(model.installations.count) 个版本").font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        // The window needs its own way in: the menu command is only
-                        // reachable while the app is frontmost, which a menu bar utility
-                        // usually is not.
-                        Button {
-                            model.showAllVersions()
-                        } label: {
-                            Label("所有版本…", systemImage: "list.bullet.rectangle")
-                        }
-                        .accessibilityIdentifier("all-versions-button")
-                        .help("列出索引中的全部 Xcode 版本，可筛选与排序")
-                        Button {
-                            model.showSettings()
-                        } label: {
-                            Label("项目设置…", systemImage: "gear")
-                        }
-                    }
-                    .padding(10)
+                    .frame(minWidth: 360, idealWidth: 410)
                 }
-                .frame(minWidth: 360, idealWidth: 410)
 
                 Group {
                     if let installation = model.selectedInstallation {
@@ -203,6 +209,22 @@ struct ContentView: View {
             .padding()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // The title bar is where macOS puts a sidebar toggle. Icon only, as the
+        // system apps do; the tooltip and the accessibility label carry the words.
+        // The divider itself stays draggable, so this is a shortcut, not the only
+        // way to rebalance the panes.
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    isListCollapsed.toggle()
+                } label: {
+                    Image(systemName: "sidebar.left")
+                }
+                .help(isListCollapsed ? "显示列表" : "隐藏列表")
+                .accessibilityLabel(isListCollapsed ? "显示列表" : "隐藏列表")
+                .accessibilityIdentifier("list-pane-toggle-button")
+            }
+        }
         .onAppear {
             // SwiftUI may make the first TextField the window's first responder.
             // Keep the initial window neutral; the global shortcut explicitly

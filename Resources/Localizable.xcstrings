@@ -2564,6 +2564,26 @@
         }
       }
     },
+    "显示列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show List"
+          }
+        }
+      }
+    },
+    "显示版本详情": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Version Details"
+          }
+        }
+      }
+    },
     "最低 macOS": {
       "localizations": {
         "en": {
@@ -4218,6 +4238,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Included SDKs"
+          }
+        }
+      }
+    },
+    "隐藏列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide List"
+          }
+        }
+      }
+    },
+    "隐藏版本详情": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide Version Details"
           }
         }
       }

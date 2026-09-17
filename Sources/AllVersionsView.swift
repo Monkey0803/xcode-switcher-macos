@@ -13,6 +13,10 @@ struct AllVersionsView: View {
     @State private var query = XcodeReleaseQuery()
     @State private var selectedBuild: String?
     @FocusState private var isSearchFieldFocused: Bool
+    /// Folding the facts sidebar hands its width to the list. The divider between the
+    /// two panes stays draggable, so the button is a shortcut, not the only way to
+    /// rebalance them.
+    @State private var isDetailsCollapsed = false
 
     private var releases: [XcodeReleaseInfo] {
         query.apply(to: model.allReleases, installedBuilds: model.installedBuilds)
@@ -32,6 +36,21 @@ struct AllVersionsView: View {
             content
         }
         .frame(minWidth: 900, minHeight: 460)
+        // Trailing, next to where macOS puts an inspector toggle: the pane it folds
+        // lives on the right. Icon only, as the system apps do; the tooltip and the
+        // accessibility label carry the words. The divider itself stays draggable.
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isDetailsCollapsed.toggle()
+                } label: {
+                    Image(systemName: "sidebar.right")
+                }
+                .help(isDetailsCollapsed ? "显示版本详情" : "隐藏版本详情")
+                .accessibilityLabel(isDetailsCollapsed ? "显示版本详情" : "隐藏版本详情")
+                .accessibilityIdentifier("release-details-toggle-button")
+            }
+        }
         .onAppear {
             model.loadReleaseCatalog()
             // Opening the window must not start a search. SwiftUI hands a new
@@ -120,14 +139,16 @@ struct AllVersionsView: View {
             }
 
         case .loaded(let cachedAt, let refreshFailed):
-            HStack(alignment: .top, spacing: 0) {
+            // A split view rather than a fixed 300 pt column: the two sides trade
+            // width with the window, and the divider can be dragged.
+            HSplitView {
                 list(cachedAt: cachedAt, refreshFailed: refreshFailed)
-                    .frame(maxWidth: .infinity)
+                    .frame(minWidth: 420, maxWidth: .infinity)
 
-                Divider()
-
-                ReleaseInfoSidebar(release: selectedRelease)
-                    .frame(width: 300)
+                if !isDetailsCollapsed {
+                    ReleaseInfoSidebar(release: selectedRelease)
+                        .frame(minWidth: 240, idealWidth: 300, maxWidth: 420)
+                }
             }
         }
     }
