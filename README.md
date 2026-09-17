@@ -45,6 +45,10 @@ cd xcode-switcher-macos && ./build_app.sh
 - 通过 Spotlight、标准应用目录和自定义目录发现多个 Xcode，支持搜索、收藏和版本别名。
 - 使用进程内复用的系统管理员授权执行 `xcode-select --switch`，同一次运行期间首次切换后可连续切换，切换后自动验证当前 Developer 路径。
 - 查看 Xcode 路径、iPhoneOS SDK、Swift 和当前 `xcode-select` 环境诊断。
+- 浏览索引中的全部 Xcode 版本（含本机未安装的）：「所有 Xcode 版本」窗口按渠道、安装状态、版本号或构建号筛选，按版本或发布日期排序，每行显示图标，未安装的给出发行说明与下载链接；数据来自 `xcodereleases.com` 的索引，刷新失败时改用上次缓存并标注缓存时间。主窗口左栏底部、状态栏菜单、详情页「版本与兼容」区与应用菜单 `⌘⇧V` 都能打开它。
+- 该窗口右侧显示所选版本的版本与兼容信息：构建号、发布日期与渠道、最低 macOS、架构、随附 SDK、编译器；所选版本本机已安装时，并列显示 bundle 自身的平台版本、iPhoneOS SDK 构建与其声明的最低 macOS，便于与索引数据对照，并可跳回主窗口查看该安装。
+- 主窗口与「所有 Xcode 版本」窗口都是可拖动的左右分栏，标题栏各有一个开关可一键折叠侧栏：主窗口折叠版本列表、详情页随即占满整宽，「所有 Xcode 版本」折叠右侧版本详情栏；开关只用图标，文字放在悬停提示与无障碍标签里。
+- 详情页按「概览 / 环境 / 版本与兼容 / 模拟器 / 磁盘清理」分类切换，不再是一条需要长距离滚动的列表；「版本与兼容」区汇总该安装的版本、构建、发布日期与渠道、最低 macOS、平台版本、iPhoneOS SDK 构建、安装路径、随附 SDK 与编译器。
 - 查看 Simulator Runtime 的占用与最近使用时间，可逐个删除，或按 simctl 的「已过时 / 30 天未使用 / 不可用」批量回收；也可启动 iOS Runtime 下载或打开所选 Xcode 的 Settings。哪些镜像符合条件由 `simctl` 判断，预览即其 `--dry-run` 输出。
 - 查看 Simulator 设备状态，并可启动、关闭、抹掉或删除设备；不再受当前 Xcode SDK 支持的设备可一次性清理（这类设备无法启动也无法抹掉，此前只能不断堆积）；切换 Xcode 后可回滚到最近使用版本。
 - 清理 Xcode 磁盘占用：DerivedData、Products、DeviceLogs、文档缓存与索引、CoreSimulator 缓存、包缓存、Archives 与 iOS DeviceSupport 子项，按「可安全清理 / 需谨慎清理」分级；谨慎项（归档、真机支持、包缓存）删除时移到废纸篓以便恢复。
@@ -75,7 +79,7 @@ cd /Users/huxiaohui/Documents/scripts/xcode-switcher-macos
 xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
   -configuration Debug -derivedDataPath build/DerivedData build
 xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
-  -configuration Debug -derivedDataPath build/DerivedData test   # 53 XCTest + 15 Swift Testing
+  -configuration Debug -derivedDataPath build/DerivedData test   # 128 XCTest + 20 Swift Testing
 open "build/DerivedData/Build/Products/Debug/Xcode Switcher.app"
 ```
 
