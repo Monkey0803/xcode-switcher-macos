@@ -66,6 +66,10 @@ final class XcodeViewModel: ObservableObject {
     @Published private(set) var runtimeReclaimPreview: SimulatorRuntimeReclaimPreview?
     /// Which option the preview above belongs to, so 清理 deletes exactly that set.
     private var runtimeReclaimPreviewOption: SimulatorRuntimeReclaim?
+    @Published private(set) var releaseCatalog: [XcodeReleaseInfo] = []
+    @Published private(set) var releaseCatalogState: ReleaseCatalogState = .idle
+    @Published private(set) var installDetailsByID: [String: XcodeInstallDetails] = [:]
+
     @Published private(set) var isReclaimingRuntimes = false
     @Published var configuration: AppConfiguration
     @Published var pendingProjectOpen: ProjectOpenRequest?
@@ -80,6 +84,7 @@ final class XcodeViewModel: ObservableObject {
     let runtimeDownload = RuntimeDownloadState()
 
     private let store: AppConfigurationStore
+    private let releaseCatalogStore: XcodeReleaseCatalogStore
     private var refreshTask: Task<Void, Never>?
     private var detailTasks: [String: Task<Void, Never>] = [:]
     private var runtimeDownloadTask: Task<Void, Never>?
@@ -90,6 +95,16 @@ final class XcodeViewModel: ObservableObject {
     private var cleanupCancellations: [String: XcodeCleanupCancellation] = [:]
     private var cleanupSharedEntries: [XcodeCleanupEntry]?
     private var runtimeSizesTasks: [String: Task<Void, Never>] = [:]
+    private var releaseCatalogTask: Task<Void, Never>?
+
+    /// How the release-index fetch is going, so the panel can tell "not fetched yet"
+    /// from "network unreachable" from "showing a stale copy".
+    enum ReleaseCatalogState: Equatable, Sendable {
+        case idle
+        case loading
+        case loaded(cachedAt: Date?, refreshFailed: Bool)
+        case unavailable(String)
+    }
 
     /// Resolving a project reads `.xcode-switcher.json`, `.xcode-version` and
     /// `.tool-versions` from disk. View bodies and the status menu ask for the
@@ -116,8 +131,13 @@ final class XcodeViewModel: ObservableObject {
     /// change, so the app can re-arm its directory monitors.
     var onSearchPathsChanged: (() -> Void)?
 
-    init(store: AppConfigurationStore = .shared, configuresSystemServices: Bool = true) {
+    init(
+        store: AppConfigurationStore = .shared,
+        releaseCatalogStore: XcodeReleaseCatalogStore = .live,
+        configuresSystemServices: Bool = true
+    ) {
         self.store = store
+        self.releaseCatalogStore = releaseCatalogStore
         configuration = store.load()
         isLaunchAtLoginEnabled = LaunchAtLoginService.isEnabled
         // Tests construct the model to exercise caching and persistence without
@@ -196,6 +216,8 @@ final class XcodeViewModel: ObservableObject {
                 loadDetails(for: selectedInstallation)
                 loadCleanupEntries(for: selectedInstallation)
                 loadRuntimeSizes(for: selectedInstallation)
+                loadInstallDetails(for: selectedInstallation)
+                loadReleaseCatalog()
             }
         }
     }
@@ -222,6 +244,8 @@ final class XcodeViewModel: ObservableObject {
         loadDetails(for: installation)
         loadCleanupEntries(for: installation)
         loadRuntimeSizes(for: installation)
+        loadInstallDetails(for: installation)
+        loadReleaseCatalog()
     }
 
     func cleanupEntries(for installation: XcodeInstallation) -> [XcodeCleanupEntry] {
@@ -534,6 +558,59 @@ final class XcodeViewModel: ObservableObject {
             } else {
                 isError = true
                 statusMessage = String(localized: "Simulator 操作失败：\(result.0.failureDescription)")
+            }
+        }
+    }
+
+    // MARK: - 版本详细信息
+
+    /// What the installed bundle says about itself.
+    ///
+    /// Two plist reads, so it is done on demand rather than inside the toolchain
+    /// scan, which shells out to several processes.
+    func loadInstallDetails(for installation: XcodeInstallation) {
+        guard installDetailsByID[installation.id] == nil else { return }
+        installDetailsByID[installation.id] = XcodeInstallDetails.read(
+            appURL: installation.appURL,
+            fallbackBuild: installation.build
+        )
+    }
+
+    func installDetails(for installation: XcodeInstallation) -> XcodeInstallDetails? {
+        installDetailsByID[installation.id]
+    }
+
+    /// The index entry for an installation, matched on Apple's published build.
+    func releaseInfo(for installation: XcodeInstallation) -> XcodeReleaseInfo? {
+        XcodeReleaseCatalog.release(matchingBuild: installation.build, in: releaseCatalog)
+    }
+
+    /// Fetches the release index, served from a cached copy for a day.
+    ///
+    /// Called when a detail page is opened, which is what makes this automatic; a
+    /// loaded or in-flight fetch is not repeated. A previous failure is retried,
+    /// since opening the page again is a reasonable way to ask again.
+    func loadReleaseCatalog(force: Bool = false) {
+        if !force {
+            switch releaseCatalogState {
+            case .loading, .loaded: return
+            case .idle, .unavailable: break
+            }
+        }
+        releaseCatalogTask?.cancel()
+        releaseCatalogState = .loading
+        let store = releaseCatalogStore
+        releaseCatalogTask = Task { [weak self] in
+            let result = await store.load(forceRefresh: force)
+            guard let self else { return }
+            switch result {
+            case .success(let snapshot):
+                releaseCatalog = snapshot.releases
+                releaseCatalogState = .loaded(cachedAt: snapshot.cachedAt, refreshFailed: snapshot.refreshFailed)
+            case .failure(let error):
+                releaseCatalogState = .unavailable(
+                    error.errorDescription ?? String(localized: "无法获取发布信息。")
+                )
             }
         }
     }

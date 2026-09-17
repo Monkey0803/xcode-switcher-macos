@@ -140,6 +140,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>A63A7F5AEB6B4E1AF977AECE</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>XcodeReleaseInfo.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>B79B798320A209E6266959C7</key>
 		<dict>
 			<key>isa</key>
@@ -404,6 +415,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>D60DB81089C930E80F8721DE</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>XcodeReleaseInfoTests.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>4DE67949251C57619C3CB4A6</key>
 		<dict>
 			<key>isa</key>
@@ -638,6 +660,13 @@
 			<key>fileRef</key>
 			<string>F2A572658942DB0C69AB335C</string>
 		</dict>
+		<key>795DAEA3ACF008FBB6DDB5C1</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>A63A7F5AEB6B4E1AF977AECE</string>
+		</dict>
 		<key>B8F4398F71385546CBEB4436</key>
 		<dict>
 			<key>isa</key>
@@ -813,6 +842,13 @@
 			<key>fileRef</key>
 			<string>925275FB104EC55A92CE2016</string>
 		</dict>
+		<key>E082C57F092B9E72933C068B</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>D60DB81089C930E80F8721DE</string>
+		</dict>
 		<key>965FDB09CB3CA4FBF76FC940</key>
 		<dict>
 			<key>isa</key>
@@ -854,6 +890,7 @@
 				<string>4C6BCEACF6AD7E25378952B7</string>
 				<string>494E32776E5F35E31CD54533</string>
 				<string>95B9CFB9A0B1F06CD4F7D69D</string>
+				<string>795DAEA3ACF008FBB6DDB5C1</string>
 				<string>B8F4398F71385546CBEB4436</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
@@ -980,6 +1017,7 @@
 				<string>F3095A3BDDEAC248F0ED42C7</string>
 				<string>B773FF146CE2DDA004B3084D</string>
 				<string>E648DC7793718D965FB05241</string>
+				<string>E082C57F092B9E72933C068B</string>
 				<string>965FDB09CB3CA4FBF76FC940</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
@@ -1433,6 +1471,7 @@
 				<string>0EA8E87FC77BC2A066A54EB2</string>
 				<string>D5B826D7063557F87C97E8E0</string>
 				<string>F2A572658942DB0C69AB335C</string>
+				<string>A63A7F5AEB6B4E1AF977AECE</string>
 				<string>B79B798320A209E6266959C7</string>
 			</array>
 			<key>path</key>
@@ -1505,6 +1544,7 @@
 				<string>57FB700E19CFBDDCB95A6C43</string>
 				<string>EFFFF68CFB69190935A03796</string>
 				<string>925275FB104EC55A92CE2016</string>
+				<string>D60DB81089C930E80F8721DE</string>
 				<string>4DE67949251C57619C3CB4A6</string>
 			</array>
 			<key>path</key>

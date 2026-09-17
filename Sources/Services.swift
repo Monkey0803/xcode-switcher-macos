@@ -309,7 +309,30 @@ enum XcodeLocator {
               FileManager.default.fileExists(atPath: resolvedURL.appendingPathComponent("Contents/Developer").path) else {
             return nil
         }
-        return XcodeInstallation(appURL: resolvedURL, version: version, build: info["CFBundleVersion"] as? String ?? "")
+        return XcodeInstallation(
+            appURL: resolvedURL,
+            version: version,
+            build: XcodeBundleMetadata.publicBuild(appURL: resolvedURL)
+                ?? (info["CFBundleVersion"] as? String ?? "")
+        )
+    }
+}
+
+/// Apple's public build string for an installed Xcode.
+///
+/// `Contents/version.plist` is authoritative and agrees with `xcodebuild -version`.
+/// The two build-shaped numbers in `Info.plist` are **not** it — for Xcode 26.3,
+/// `DTXcodeBuild` is `17C528` (the RC 2 build) and `CFBundleVersion` is `24587`,
+/// while the released build is `17C529`. Showing either in the UI would label a
+/// shipped Xcode with a build Apple never published for it, and matching release
+/// notes on it would pick the wrong entry.
+enum XcodeBundleMetadata {
+    static func publicBuild(appURL: URL) -> String? {
+        let versionURL = appURL.appendingPathComponent("Contents/version.plist")
+        guard let version = NSDictionary(contentsOf: versionURL) as? [String: Any],
+              let build = version["ProductBuildVersion"] as? String,
+              !build.isEmpty else { return nil }
+        return build
     }
 }
 

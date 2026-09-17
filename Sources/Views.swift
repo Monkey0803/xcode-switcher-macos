@@ -367,6 +367,8 @@ struct XcodeDetailView: View {
                     .padding(4)
                 }
 
+                VersionInfoSectionView(installation: installation)
+
                 RuntimeSectionView(installation: installation, download: model.runtimeDownload)
                 CleanupSectionView(installation: installation)
             }
@@ -473,6 +475,140 @@ private struct CleanupSectionView: View {
             Button("取消", role: .cancel) { entryToRemove = nil }
         } message: { entry in
             Text("\(entry.displaySize)\n\(entry.note)")
+        }
+    }
+}
+
+/// What is known about one Xcode version: everything the installed bundle states
+/// locally, plus — when the community release index can be reached — the release
+/// date, the channel and the official SDK and toolchain versions.
+private struct VersionInfoSectionView: View {
+    @EnvironmentObject private var model: XcodeViewModel
+    let installation: XcodeInstallation
+
+    private var details: XcodeInstallDetails? { model.installDetails(for: installation) }
+    private var release: XcodeReleaseInfo? { model.releaseInfo(for: installation) }
+
+    /// Built as a property rather than inside the view builder: a mutating statement
+    /// in an `if let` there is not a view, which the builder rejects.
+    private var toolchainLabels: [String] {
+        guard let release else { return [] }
+        var values: [String] = []
+        if let swift = release.swift { values.append("Swift \(swift.label)") }
+        if let clang = release.clang { values.append("Clang \(clang.label)") }
+        return values
+    }
+
+    var body: some View {
+        GroupBox("版本详细信息") {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 5) {
+                    row("版本", installation.version)
+                    row("构建", details?.build ?? installation.build)
+                    if let release, let date = release.releaseDateText() {
+                        row("发布日期", "\(date) · \(release.channel.label)")
+                    }
+                    if let minimum = release?.minimumMacOS ?? details?.minimumMacOS {
+                        row("最低 macOS", minimum)
+                    }
+                    if let platform = details?.platformVersion {
+                        row("平台版本", platform)
+                    }
+                    if let sdk = details?.sdkBuild {
+                        row("iPhoneOS SDK 构建", sdk)
+                    }
+                    row("安装路径", installation.appURL.path)
+                }
+
+                if let release, !release.sdks.isEmpty {
+                    detailList("随附 SDK", values: release.sdks.map(\.label))
+                }
+                if !toolchainLabels.isEmpty {
+                    detailList("编译器", values: toolchainLabels)
+                }
+
+                releaseStatus
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        }
+    }
+
+    private func row(_ title: LocalizedStringKey, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 130, alignment: .leading)
+            Text(value)
+                .font(.caption)
+                .textSelection(.enabled)
+            Spacer()
+        }
+    }
+
+    private func detailList(_ title: LocalizedStringKey, values: [String]) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 130, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(values, id: \.self) { value in
+                    Text(value).font(.caption).textSelection(.enabled)
+                }
+            }
+            Spacer()
+        }
+    }
+
+    /// The release index is fetched automatically, so this reports how that went —
+    /// distinguishing "still fetching" from "unreachable" from "showing a stale copy"
+    /// rather than silently showing older data as current.
+    @ViewBuilder
+    private var releaseStatus: some View {
+        switch model.releaseCatalogState {
+        case .idle, .loading:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("正在获取发布信息…").font(.caption).foregroundStyle(.secondary)
+            }
+        case .loaded(let cachedAt, let refreshFailed):
+            VStack(alignment: .leading, spacing: 4) {
+                if refreshFailed, let cachedAt {
+                    Label(
+                        "无法刷新，显示的是 \(cachedAt.formatted(date: .abbreviated, time: .shortened)) 的缓存副本。",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                }
+                if release == nil {
+                    Text("发布信息索引里没有构建号 \(installation.build) 对应的条目。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if let release {
+                    HStack(spacing: 12) {
+                        if let notes = release.notesURL {
+                            Link("发行说明", destination: notes).font(.caption)
+                        }
+                        if let download = release.downloadURL {
+                            Link("下载", destination: download).font(.caption)
+                        }
+                        if !release.downloadArchitectures.isEmpty {
+                            Text(release.downloadArchitectures.joined(separator: " / "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+        case .unavailable(let message):
+            Label("无法获取发布信息：\(message)", systemImage: "wifi.slash")
+                .font(.caption)
+                .foregroundStyle(.orange)
         }
     }
 }

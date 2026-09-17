@@ -1,0 +1,308 @@
+import Foundation
+import XCTest
+@testable import XcodeSwitcher
+
+final class XcodeReleaseInfoTests: XCTestCase {
+    /// Trimmed from the real `xcodereleases.com/data.json`, keeping one entry of
+    /// each channel and the fields the app displays.
+    private static let dataset = """
+    [
+      {
+        "name": "Xcode",
+        "version": { "number": "26.3", "build": "17C529", "release": { "release": true } },
+        "date": { "year": 2026, "month": 2, "day": 26 },
+        "requires": "15.6",
+        "sdks": {
+          "iOS": [ { "number": "26.2", "build": "23C57" } ],
+          "macOS": [ { "number": "26.2", "build": "25C58" } ]
+        },
+        "compilers": {
+          "clang": [ { "number": "17.0.0", "build": "1700.6.4.2" } ],
+          "swift": [ { "number": "6.2.4", "build": "6.2.4.1.4" } ]
+        },
+        "links": {
+          "notes": { "url": "https://developer.apple.com/documentation/xcode-release-notes/xcode-26_3-release-notes" },
+          "download": {
+            "url": "https://download.developer.apple.com/Developer_Tools/Xcode_26.3/Xcode_26.3_Universal.xip",
+            "architectures": [ "arm64", "x86_64" ]
+          }
+        }
+      },
+      {
+        "name": "Xcode (Apple Silicon)",
+        "version": { "number": "26.3", "build": "17C529", "release": { "release": true } },
+        "date": { "year": 2026, "month": 2, "day": 26 },
+        "requires": "15.6"
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "26.3", "build": "17C528", "release": { "rc": 2 } },
+        "date": { "year": 2026, "month": 2, "day": 20 },
+        "requires": "15.6"
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "27.2", "build": "27B5019j", "release": { "beta": 1 } },
+        "date": { "year": 2026, "month": 9, "day": 16 },
+        "requires": "26.6"
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "12.1", "build": "12A7403", "release": { "gm": true } },
+        "date": { "year": 2020, "month": 11, "day": 10 },
+        "requires": "10.15.4"
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "12.1", "build": "12A7397e", "release": { "gmSeed": 2 } },
+        "date": { "year": 2020, "month": 11, "day": 5 },
+        "requires": "10.15.4"
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "5.1", "build": "5B71f", "release": { "dp": 2 } },
+        "date": { "year": 2013, "month": 6, "day": 12 },
+        "requires": "10.8",
+        "sdks": { "iOS": [ { "build": "15E5201e" } ] }
+      }
+    ]
+    """.data(using: .utf8)!
+
+    private func catalog() throws -> [XcodeReleaseInfo] {
+        try XcodeReleaseCatalog.parse(Self.dataset)
+    }
+
+    // MARK: - Parsing
+
+    func testParsesEntriesAndDropsOnesWithoutABuild() throws {
+        let releases = try catalog()
+        XCTAssertEqual(releases.count, 7)
+        XCTAssertFalse(releases.contains { $0.build.isEmpty })
+    }
+
+    func testParsesTheFieldsThePanelShows() throws {
+        let release = try XCTUnwrap(XcodeReleaseCatalog.release(matchingBuild: "17C529", in: try catalog()))
+
+        XCTAssertEqual(release.name, "Xcode")
+        XCTAssertEqual(release.version, "26.3")
+        XCTAssertEqual(release.channel, .release)
+        XCTAssertEqual(release.minimumMacOS, "15.6")
+        XCTAssertEqual(release.releaseDate, DateComponents(year: 2026, month: 2, day: 26))
+        XCTAssertEqual(release.sdks.map(\.platform), ["iOS", "macOS"])
+        XCTAssertEqual(release.sdks.first?.label, "iOS 26.2 (23C57)")
+        XCTAssertEqual(release.swift?.label, "6.2.4 (6.2.4.1.4)")
+        XCTAssertEqual(release.clang?.version, "17.0.0")
+        XCTAssertEqual(release.downloadArchitectures, ["arm64", "x86_64"])
+        XCTAssertEqual(release.notesURL?.host, "developer.apple.com")
+    }
+
+    func testReleaseChannelsAreDistinguished() throws {
+        let releases = try catalog()
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "17C528", in: releases)?.channel, .releaseCandidate(2))
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "27B5019j", in: releases)?.channel, .beta(1))
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "17C529", in: releases)?.channel, .release)
+    }
+
+    func testMatchingPrefersThePlainXcodeEntry() throws {
+        // The index carries both names for one build; the plain one is the app's.
+        let release = try XCTUnwrap(XcodeReleaseCatalog.release(matchingBuild: "17C529", in: try catalog()))
+        XCTAssertEqual(release.name, "Xcode")
+    }
+
+    func testMatchingIsCaseInsensitiveAndTolerantOfWhitespace() throws {
+        let releases = try catalog()
+        XCTAssertNotNil(XcodeReleaseCatalog.release(matchingBuild: "17c529", in: releases))
+        XCTAssertNotNil(XcodeReleaseCatalog.release(matchingBuild: " 17C529 ", in: releases))
+        XCTAssertNil(XcodeReleaseCatalog.release(matchingBuild: "", in: releases))
+        XCTAssertNil(XcodeReleaseCatalog.release(matchingBuild: "0X0000", in: releases))
+    }
+
+    /// The trap this whole lookup exists to avoid.
+    ///
+    /// Xcode 26.3's `Info.plist` says `DTXcodeBuild = 17C528`, which the index
+    /// records as **RC 2**; the shipped build is `17C529`. So a lookup keyed on
+    /// `DTXcodeBuild` would confidently label a released Xcode a release candidate —
+    /// which is why `XcodeBundleMetadata` reads `version.plist` instead.
+    func testDtxcodeBuildWouldResolveToTheWrongChannel() throws {
+        let releases = try catalog()
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "17C528", in: releases)?.channel, .releaseCandidate(2))
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "17C529", in: releases)?.channel, .release)
+    }
+
+    func testReleaseDateIsFormattedInUTC() throws {
+        let release = try XCTUnwrap(XcodeReleaseCatalog.release(matchingBuild: "17C529", in: try catalog()))
+        // Formatting in the machine's timezone west of Greenwich would print Feb 25.
+        XCTAssertEqual(release.releaseDateText(locale: Locale(identifier: "en_US_POSIX")), "Feb 26, 2026")
+    }
+
+    func testMalformedDataIsRejectedRatherThanSilentlyEmpty() {
+        XCTAssertThrowsError(try XcodeReleaseCatalog.parse(Data("not json".utf8)))
+    }
+
+    // MARK: - Caching and offline behaviour
+
+    private final class FetchCounter: @unchecked Sendable {
+        private let lock = NSLock()
+        private var count = 0
+        func increment() { lock.lock(); count += 1; lock.unlock() }
+        var value: Int { lock.lock(); defer { lock.unlock() }; return count }
+    }
+
+    private func makeStore(
+        cacheURL: URL,
+        maxAge: TimeInterval = 24 * 60 * 60,
+        fetch: @escaping XcodeReleaseCatalogStore.Fetch
+    ) -> XcodeReleaseCatalogStore {
+        XcodeReleaseCatalogStore(fetch: fetch, cacheURL: cacheURL, maxAge: maxAge)
+    }
+
+    private func temporaryCacheURL() -> URL {
+        URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("xcode-switcher-release-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("xcodereleases.json")
+    }
+
+    func testFetchIsUsedWhenThereIsNoCache() async throws {
+        let cacheURL = temporaryCacheURL()
+        defer { try? FileManager.default.removeItem(at: cacheURL.deletingLastPathComponent()) }
+        let store = makeStore(cacheURL: cacheURL, fetch: { Self.dataset })
+
+        let result = await store.load()
+
+        let snapshot = try XCTUnwrap(try? result.get())
+        XCTAssertEqual(snapshot.releases.count, 7)
+        XCTAssertFalse(snapshot.refreshFailed)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: cacheURL.path), "抓取后应写入缓存")
+    }
+
+    func testFreshCacheIsServedWithoutFetching() async throws {
+        let cacheURL = temporaryCacheURL()
+        defer { try? FileManager.default.removeItem(at: cacheURL.deletingLastPathComponent()) }
+        let counter = FetchCounter()
+        let store = makeStore(cacheURL: cacheURL, fetch: {
+            counter.increment()
+            return Self.dataset
+        })
+
+        _ = await store.load()                      // populates the cache
+        let second = await store.load()             // must not fetch again
+
+        let snapshot = try XCTUnwrap(try? second.get())
+        XCTAssertEqual(counter.value, 1, "24 小时内的缓存不应再次联网")
+        XCTAssertFalse(snapshot.refreshFailed)
+        XCTAssertNotNil(snapshot.cachedAt)
+    }
+
+    func testStaleCacheIsServedWhenTheRefreshFails() async throws {
+        let cacheURL = temporaryCacheURL()
+        defer { try? FileManager.default.removeItem(at: cacheURL.deletingLastPathComponent()) }
+        let populated = makeStore(cacheURL: cacheURL, maxAge: 0, fetch: { Self.dataset })
+        _ = await populated.load()
+
+        // maxAge 0 makes any cache stale, so this must attempt a refresh.
+        let offline = makeStore(cacheURL: cacheURL, maxAge: 0, fetch: {
+            throw URLError(.notConnectedToInternet)
+        })
+        let result = await offline.load()
+
+        let snapshot = try XCTUnwrap(try? result.get())
+        XCTAssertEqual(snapshot.releases.count, 7, "离线时应回退到过期缓存，而不是什么都不显示")
+        XCTAssertTrue(snapshot.refreshFailed, "回退到过期缓存时必须标记出来")
+    }
+
+    func testNoCacheAndFailedFetchReportsUnavailable() async {
+        let cacheURL = temporaryCacheURL()
+        let store = makeStore(cacheURL: cacheURL, fetch: { throw URLError(.notConnectedToInternet) })
+
+        let result = await store.load()
+
+        guard case .failure = result else {
+            return XCTFail("既无缓存又抓取失败时应当报不可用")
+        }
+    }
+
+    func testCorruptCacheIsNotServed() async {
+        let cacheURL = temporaryCacheURL()
+        defer { try? FileManager.default.removeItem(at: cacheURL.deletingLastPathComponent()) }
+        try? FileManager.default.createDirectory(at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Data("garbage".utf8).write(to: cacheURL)
+
+        let store = makeStore(cacheURL: cacheURL, fetch: { throw URLError(.notConnectedToInternet) })
+
+        guard case .failure = await store.load() else {
+            return XCTFail("损坏的缓存不能被当成有效数据")
+        }
+    }
+
+    // MARK: - Local bundle details
+
+    func testLocalDetailsPreferTheVersionPlistBuild() throws {
+        // A synthetic bundle: Info.plist carries the numbers that are *not* the
+        // public build, version.plist carries the one that is.
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("xcode-switcher-bundle-\(UUID().uuidString)", isDirectory: true)
+        let contents = root.appendingPathComponent("Contents", isDirectory: true)
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let info: [String: Any] = [
+            "CFBundleShortVersionString": "26.3",
+            "CFBundleVersion": "24587",
+            "DTXcodeBuild": "17C528",
+            "LSMinimumSystemVersion": "15.6",
+            "DTPlatformVersion": "26.2",
+            "DTSDKBuild": "25C16",
+            "DTCompiler": "com.apple.compilers.llvm.clang.1_0"
+        ]
+        let version: [String: Any] = ["ProductBuildVersion": "17C529"]
+        try (info as NSDictionary).write(to: contents.appendingPathComponent("Info.plist"))
+        try (version as NSDictionary).write(to: contents.appendingPathComponent("version.plist"))
+
+        let details = XcodeInstallDetails.read(appURL: root, fallbackBuild: "fallback")
+
+        XCTAssertEqual(details.version, "26.3")
+        XCTAssertEqual(details.build, "17C529", "必须用 version.plist，而不是 DTXcodeBuild/CFBundleVersion")
+        XCTAssertEqual(details.minimumMacOS, "15.6")
+        XCTAssertEqual(details.platformVersion, "26.2")
+        XCTAssertEqual(details.sdkBuild, "25C16")
+        XCTAssertEqual(details.compiler, "com.apple.compilers.llvm.clang.1_0")
+    }
+
+    /// The index uses six channel keys, and every entry carries exactly one. Reading
+    /// only `release`/`rc`/`beta` would report a GM seed or a developer preview as a
+    /// shipped release.
+    func testAllSixChannelKeysAreDistinguished() throws {
+        let releases = try catalog()
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "17C529", in: releases)?.channel, .release)
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "12A7403", in: releases)?.channel, .goldenMaster(seed: nil))
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "12A7397e", in: releases)?.channel, .goldenMaster(seed: 2))
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "17C528", in: releases)?.channel, .releaseCandidate(2))
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "27B5019j", in: releases)?.channel, .beta(1))
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "5B71f", in: releases)?.channel, .developerPreview(2))
+    }
+
+    /// 365 SDK components in the real index have a build but no version, which used
+    /// to make the whole decode throw — taking the entire feature down with it.
+    func testAnSDKWithoutAVersionDoesNotBreakDecoding() throws {
+        let release = try XCTUnwrap(XcodeReleaseCatalog.release(matchingBuild: "5B71f", in: try catalog()))
+        XCTAssertEqual(release.sdks.count, 1)
+        XCTAssertEqual(release.sdks.first?.version, "")
+        XCTAssertEqual(release.sdks.first?.build, "15E5201e")
+        XCTAssertEqual(release.sdks.first?.label, "iOS 15E5201e", "只有构建号时也要能显示")
+    }
+
+    func testLocalDetailsFallBackWhenVersionPlistIsMissing() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("xcode-switcher-bundle-\(UUID().uuidString)", isDirectory: true)
+        let contents = root.appendingPathComponent("Contents", isDirectory: true)
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try (["CFBundleShortVersionString": "26.3"] as NSDictionary)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+
+        let details = XcodeInstallDetails.read(appURL: root, fallbackBuild: "26.3 (fallback)")
+
+        XCTAssertEqual(details.build, "26.3 (fallback)")
+        XCTAssertNil(details.minimumMacOS)
+    }
+}

@@ -101,6 +101,7 @@ cli_app_only_sources=(
   Views.swift
   XcodeSwitcherApp.swift
   LifecycleServices.swift
+  XcodeReleaseInfo.swift
 )
 
 for source_file in "$script_dir"/Sources/*.swift; do
