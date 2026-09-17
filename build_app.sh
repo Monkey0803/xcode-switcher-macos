@@ -103,6 +103,7 @@ cli_app_only_sources=(
   LifecycleServices.swift
   XcodeReleaseInfo.swift
   SemanticTextStyles.swift
+  AllVersionsView.swift
 )
 
 for source_file in "$script_dir"/Sources/*.swift; do

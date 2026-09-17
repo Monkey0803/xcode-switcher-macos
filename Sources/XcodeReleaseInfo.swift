@@ -20,6 +20,22 @@ struct XcodeReleaseInfo: Equatable, Sendable {
         case beta(Int)
         case developerPreview(Int)
 
+        /// Precedence used to choose one entry when a build appears more than once.
+        ///
+        /// 32 of the 60 repeated builds in the real index disagree about the channel —
+        /// `27A266a` is both `release` and `rc1`, `17F113` both `release` and `rc2` —
+        /// so the choice has to be a rule. Taking "the first match" is how a shipped
+        /// Xcode gets listed as a release candidate.
+        var precedence: Int {
+            switch self {
+            case .release: return 0
+            case .goldenMaster: return 1
+            case .releaseCandidate: return 2
+            case .beta: return 3
+            case .developerPreview: return 4
+            }
+        }
+
         var label: String {
             switch self {
             case .release: return String(localized: "正式版")
@@ -134,13 +150,64 @@ enum XcodeReleaseCatalog {
 
     /// The entry for a build string.
     ///
-    /// The index carries both `Xcode` and `Xcode (Apple Silicon)` entries for the
-    /// same build, so the plain name wins when both are present.
+    /// A build can appear several times — as `Xcode` and as `Xcode (Apple Silicon)`,
+    /// and even under different channels — so the winner is chosen by
+    /// `mostReleased(in:)` rather than by whichever happens to come first. The
+    /// earlier version of this function compared only the distribution name, which
+    /// made the result depend on the order of the data file.
     static func release(matchingBuild build: String, in catalog: [XcodeReleaseInfo]) -> XcodeReleaseInfo? {
         let target = build.trimmingCharacters(in: .whitespaces).lowercased()
         guard !target.isEmpty else { return nil }
-        let matches = catalog.filter { $0.build.lowercased() == target }
-        return matches.first { $0.name == "Xcode" } ?? matches.first
+        return mostReleased(in: catalog.filter { $0.build.lowercased() == target })
+    }
+
+    /// The entry that best represents one build: the most released channel first,
+    /// then the plain distribution name over its variants.
+    static func mostReleased(in releases: [XcodeReleaseInfo]) -> XcodeReleaseInfo? {
+        releases.min { preference($0) < preference($1) }
+    }
+
+    /// One row per build, which is what a "every Xcode version" list needs: 453
+    /// index entries collapse to 387 distinct builds.
+    static func uniqueReleases(from catalog: [XcodeReleaseInfo]) -> [XcodeReleaseInfo] {
+        Dictionary(grouping: catalog, by: { $0.build.lowercased() })
+            .values
+            .compactMap { mostReleased(in: $0) }
+    }
+
+    private static func preference(_ release: XcodeReleaseInfo) -> (Int, Int) {
+        (release.channel.precedence, nameRank(release.name))
+    }
+
+    /// The plain `Xcode` entry is the one whose metadata the app shows; the Apple
+    /// Silicon and Universal entries describe the same build.
+    private static func nameRank(_ name: String) -> Int {
+        switch name {
+        case "Xcode": return 0
+        case "Xcode (Universal)": return 1
+        case "Xcode (Apple Silicon)": return 2
+        default: return 3
+        }
+    }
+
+    /// Orders dotted version numbers numerically.
+    ///
+    /// Text comparison puts `9.0` above `26.3`, which is exactly wrong in a list of
+    /// releases, so the components are compared as integers and missing ones count
+    /// as zero (`9.3.1` vs `9.3`).
+    static func compareVersions(_ lhs: String, _ rhs: String) -> ComparisonResult {
+        let left = components(of: lhs)
+        let right = components(of: rhs)
+        for index in 0..<max(left.count, right.count) {
+            let a = index < left.count ? left[index] : 0
+            let b = index < right.count ? right[index] : 0
+            if a != b { return a < b ? .orderedAscending : .orderedDescending }
+        }
+        return .orderedSame
+    }
+
+    private static func components(of version: String) -> [Int] {
+        version.split(separator: ".").map { Int($0) ?? 0 }
     }
 
     /// A toolchain entry, or nil when it carries neither a version nor a build.
@@ -400,5 +467,140 @@ struct XcodeInstallDetails: Equatable, Sendable {
             sdkBuild: info["DTSDKBuild"] as? String,
             compiler: info["DTCompiler"] as? String
         )
+    }
+}
+
+/// How the "every Xcode version" list is narrowed and ordered.
+///
+/// Pure: the window holds one as state and calls `apply(to:installedBuilds:)`, so
+/// filtering and ordering are covered by tests instead of by looking at the list.
+struct XcodeReleaseQuery: Equatable, Sendable {
+    /// Which channels to keep. A golden master counts as shipping — it is the build
+    /// that becomes the release.
+    enum ChannelScope: String, CaseIterable, Identifiable, Sendable {
+        case all
+        case shipping
+        case prerelease
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .all: return String(localized: "全部渠道")
+            case .shipping: return String(localized: "仅正式版")
+            case .prerelease: return String(localized: "仅预发布")
+            }
+        }
+
+        func includes(_ channel: XcodeReleaseInfo.Channel) -> Bool {
+            let isShipping: Bool
+            switch channel {
+            case .release, .goldenMaster: isShipping = true
+            case .releaseCandidate, .beta, .developerPreview: isShipping = false
+            }
+            switch self {
+            case .all: return true
+            case .shipping: return isShipping
+            case .prerelease: return !isShipping
+            }
+        }
+    }
+
+    enum InstallationScope: String, CaseIterable, Identifiable, Sendable {
+        case all
+        case installed
+        case notInstalled
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .all: return String(localized: "全部")
+            case .installed: return String(localized: "已安装")
+            case .notInstalled: return String(localized: "未安装")
+            }
+        }
+    }
+
+    enum Sort: String, CaseIterable, Identifiable, Sendable {
+        case version
+        case releaseDate
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .version: return String(localized: "按版本")
+            case .releaseDate: return String(localized: "按发布日期")
+            }
+        }
+    }
+
+    enum SortDirection: String, CaseIterable, Identifiable, Sendable {
+        case descending
+        case ascending
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .descending: return String(localized: "从新到旧")
+            case .ascending: return String(localized: "从旧到新")
+            }
+        }
+    }
+
+    /// Free text, matched against both the version and the build, because those are
+    /// the two things someone arrives with.
+    var search = ""
+    var channelScope: ChannelScope = .all
+    var installationScope: InstallationScope = .all
+    var sort: Sort = .version
+    var direction: SortDirection = .descending
+    /// The index carries eight 2005-era `Xcode Tools` packages next to Xcode itself.
+    /// They stay in by default, since they are genuinely Xcode releases, and can be
+    /// hidden.
+    var includesTools = true
+
+    func apply(to releases: [XcodeReleaseInfo], installedBuilds: Set<String>) -> [XcodeReleaseInfo] {
+        let needle = search.trimmingCharacters(in: .whitespaces).lowercased()
+        let filtered = releases.filter { release in
+            if !includesTools, release.name == "Xcode Tools" { return false }
+            guard channelScope.includes(release.channel) else { return false }
+
+            let installed = installedBuilds.contains(release.build.lowercased())
+            switch installationScope {
+            case .all: break
+            case .installed: guard installed else { return false }
+            case .notInstalled: guard !installed else { return false }
+            }
+
+            guard !needle.isEmpty else { return true }
+            return release.version.lowercased().contains(needle)
+                || release.build.lowercased().contains(needle)
+        }
+
+        return filtered.sorted { lhs, rhs in
+            let ascending: Bool
+            switch sort {
+            case .version:
+                let result = XcodeReleaseCatalog.compareVersions(lhs.version, rhs.version)
+                // A version number can be shared by several builds, so the build
+                // breaks the tie and the order stays stable.
+                ascending = result == .orderedSame ? lhs.build < rhs.build : result == .orderedAscending
+            case .releaseDate:
+                // Undated entries sort as oldest rather than dropping out.
+                ascending = (dateKey(lhs) ?? 0) < (dateKey(rhs) ?? 0)
+            }
+            return direction == .descending ? !ascending : ascending
+        }
+    }
+
+    /// A locale-independent integer for a release date, so ordering never depends on
+    /// how a date happens to be formatted.
+    private func dateKey(_ release: XcodeReleaseInfo) -> Int? {
+        guard let date = release.releaseDate,
+              let year = date.year, let month = date.month, let day = date.day else { return nil }
+        return year * 10_000 + month * 100 + day
     }
 }

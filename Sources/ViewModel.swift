@@ -585,6 +585,21 @@ final class XcodeViewModel: ObservableObject {
         XcodeReleaseCatalog.release(matchingBuild: installation.build, in: releaseCatalog)
     }
 
+    /// One row per build across the whole index, for the "every version" window.
+    var allReleases: [XcodeReleaseInfo] {
+        XcodeReleaseCatalog.uniqueReleases(from: releaseCatalog)
+    }
+
+    /// The builds installed here, so the list can mark them. Uses the public build
+    /// string, which is what the index is keyed by.
+    var installedBuilds: Set<String> {
+        Set(installations.map { $0.build.lowercased() })
+    }
+
+    func isInstalled(_ release: XcodeReleaseInfo) -> Bool {
+        installedBuilds.contains(release.build.lowercased())
+    }
+
     /// Fetches the release index, served from a cached copy for a day.
     ///
     /// Called when a detail page is opened, which is what makes this automatic; a

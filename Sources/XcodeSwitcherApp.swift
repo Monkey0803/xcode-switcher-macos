@@ -18,6 +18,10 @@ struct XcodeSwitcherApp: App {
                 Button("设置…") { AppDelegate.shared?.showSettings() }
                     .keyboardShortcut(",", modifiers: .command)
             }
+            CommandGroup(after: .appSettings) {
+                Button("所有 Xcode 版本…") { AppDelegate.shared?.showAllVersions() }
+                    .keyboardShortcut("v", modifiers: [.command, .shift])
+            }
         }
     }
 }
@@ -29,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let menu = NSMenu()
     private var settingsWindow: NSWindow?
+    private var allVersionsWindow: NSWindow?
     private var directoryMonitors: [DispatchSourceFileSystemObject] = []
     private var directoryRefreshTask: Task<Void, Never>?
     private let monitorQueue = DispatchQueue(label: "com.yostar.xcodeswitcher.directory-monitor")
@@ -278,6 +283,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.model.requestSearchFocus()
             }
         }
+    }
+
+    /// A window rather than a sheet: browsing releases is a comparison task, and it
+    /// should not block the detail pane it is meant to be read next to.
+    @objc func showAllVersions(_ notification: Notification? = nil) {
+        if let allVersionsWindow {
+            allVersionsWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let content = AllVersionsView().environmentObject(model)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 820, height: 620),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "所有 Xcode 版本"
+        window.contentViewController = NSHostingController(rootView: content)
+        window.center()
+        window.isReleasedWhenClosed = false
+        allVersionsWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc func showSettings(_ notification: Notification? = nil) {

@@ -64,6 +64,42 @@ final class XcodeReleaseInfoTests: XCTestCase {
         "date": { "year": 2013, "month": 6, "day": 12 },
         "requires": "10.8",
         "sdks": { "iOS": [ { "build": "15E5201e" } ] }
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "26.6", "build": "17F113", "release": { "release": true } },
+        "date": { "year": 2026, "month": 8, "day": 1 },
+        "requires": "15.6"
+      },
+      {
+        "name": "Xcode (Apple Silicon)",
+        "version": { "number": "26.6", "build": "17F113", "release": { "release": true } },
+        "date": { "year": 2026, "month": 8, "day": 1 },
+        "requires": "15.6"
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "26.6", "build": "17F113", "release": { "rc": 2 } },
+        "date": { "year": 2026, "month": 7, "day": 20 },
+        "requires": "15.6"
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "9.0", "build": "9A1000", "release": { "release": true } },
+        "date": { "year": 2017, "month": 9, "day": 19 },
+        "requires": "10.12.6"
+      },
+      {
+        "name": "Xcode Tools",
+        "version": { "number": "2.2.1", "build": "8G1165", "release": { "release": true } },
+        "date": { "year": 2006, "month": 1, "day": 13 },
+        "requires": "10.4"
+      },
+      {
+        "name": "Xcode (Universal)",
+        "version": { "number": "12.0", "build": "12A8161k", "release": { "release": true } },
+        "date": { "year": 2020, "month": 7, "day": 7 },
+        "requires": "10.15.4"
       }
     ]
     """.data(using: .utf8)!
@@ -76,7 +112,7 @@ final class XcodeReleaseInfoTests: XCTestCase {
 
     func testParsesEntriesAndDropsOnesWithoutABuild() throws {
         let releases = try catalog()
-        XCTAssertEqual(releases.count, 7)
+        XCTAssertEqual(releases.count, 13)
         XCTAssertFalse(releases.contains { $0.build.isEmpty })
     }
 
@@ -170,7 +206,7 @@ final class XcodeReleaseInfoTests: XCTestCase {
         let result = await store.load()
 
         let snapshot = try XCTUnwrap(try? result.get())
-        XCTAssertEqual(snapshot.releases.count, 7)
+        XCTAssertEqual(snapshot.releases.count, 13)
         XCTAssertFalse(snapshot.refreshFailed)
         XCTAssertTrue(FileManager.default.fileExists(atPath: cacheURL.path), "抓取后应写入缓存")
     }
@@ -206,7 +242,7 @@ final class XcodeReleaseInfoTests: XCTestCase {
         let result = await offline.load()
 
         let snapshot = try XCTUnwrap(try? result.get())
-        XCTAssertEqual(snapshot.releases.count, 7, "离线时应回退到过期缓存，而不是什么都不显示")
+        XCTAssertEqual(snapshot.releases.count, 13, "离线时应回退到过期缓存，而不是什么都不显示")
         XCTAssertTrue(snapshot.refreshFailed, "回退到过期缓存时必须标记出来")
     }
 
@@ -289,6 +325,122 @@ final class XcodeReleaseInfoTests: XCTestCase {
         XCTAssertEqual(release.sdks.first?.version, "")
         XCTAssertEqual(release.sdks.first?.build, "15E5201e")
         XCTAssertEqual(release.sdks.first?.label, "iOS 15E5201e", "只有构建号时也要能显示")
+    }
+
+
+    // MARK: - 去重与择优
+
+    /// The real index contains 60 repeated builds, and 32 of them disagree about the
+    /// channel: build 17F113 is listed as both a release and an RC 2. Choosing by
+    /// "first match" would list a shipped Xcode as a release candidate.
+    func testMostReleasedChoosesByChannelNotByPosition() throws {
+        let releases = try catalog().filter { $0.build == "17F113" }
+        XCTAssertEqual(releases.count, 3, "fixture 有意包含同 build 的三种条目")
+
+        let best = try XCTUnwrap(XcodeReleaseCatalog.mostReleased(in: releases))
+        XCTAssertEqual(best.channel, .release)
+        XCTAssertEqual(best.name, "Xcode")
+    }
+
+    /// And the plain-name preference must not beat the channel: with the release
+    /// entry named `Xcode (Universal)`, it still wins over a plain-named RC.
+    func testChannelOutranksTheDistributionName() throws {
+        let rc = XcodeReleaseInfo(
+            name: "Xcode", version: "26.6", build: "17F113", channel: .releaseCandidate(2),
+            releaseDate: nil, minimumMacOS: nil, sdks: [], swift: nil, clang: nil,
+            notesURL: nil, downloadURL: nil, downloadArchitectures: []
+        )
+        let shipped = XcodeReleaseInfo(
+            name: "Xcode (Universal)", version: "26.6", build: "17F113", channel: .release,
+            releaseDate: nil, minimumMacOS: nil, sdks: [], swift: nil, clang: nil,
+            notesURL: nil, downloadURL: nil, downloadArchitectures: []
+        )
+        XCTAssertEqual(XcodeReleaseCatalog.mostReleased(in: [rc, shipped])?.channel, .release)
+        XCTAssertEqual(XcodeReleaseCatalog.mostReleased(in: [shipped, rc])?.channel, .release)
+    }
+
+    func testUniqueReleasesCollapsesRepeatedBuilds() throws {
+        let unique = XcodeReleaseCatalog.uniqueReleases(from: try catalog())
+        XCTAssertEqual(unique.count, 10, "13 条应折叠为 10 个唯一构建号")
+        XCTAssertEqual(Set(unique.map(\.build)).count, unique.count)
+
+        let collapsed = try XCTUnwrap(unique.first { $0.build == "17F113" })
+        XCTAssertEqual(collapsed.channel, .release)
+    }
+
+    func testMatchingABuildNowPrefersTheShippedEntry() throws {
+        // 17F113 的 release 与 rc2 在同一条 fixture 里，顺序被刻意打乱
+        let releases = try catalog()
+        XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "17F113", in: releases)?.channel, .release)
+    }
+
+    // MARK: - 版本号比较
+
+    func testVersionComparisonIsNumericNotTextual() {
+        // 字符串比较会把 9.0 排在 26.3 前面
+        XCTAssertEqual(XcodeReleaseCatalog.compareVersions("26.3", "9.0"), .orderedDescending)
+        XCTAssertEqual(XcodeReleaseCatalog.compareVersions("9.0", "26.3"), .orderedAscending)
+        XCTAssertEqual(XcodeReleaseCatalog.compareVersions("9.3.1", "9.3"), .orderedDescending)
+        XCTAssertEqual(XcodeReleaseCatalog.compareVersions("9.3", "9.3.0"), .orderedSame)
+        XCTAssertEqual(XcodeReleaseCatalog.compareVersions("26.3", "26.3"), .orderedSame)
+    }
+
+    // MARK: - 筛选与排序
+
+    private func query(_ configure: (inout XcodeReleaseQuery) -> Void) throws -> [XcodeReleaseInfo] {
+        var query = XcodeReleaseQuery()
+        configure(&query)
+        return query.apply(to: XcodeReleaseCatalog.uniqueReleases(from: try catalog()), installedBuilds: [])
+    }
+
+    func testDefaultOrderPutsTheNewestReleaseFirst() throws {
+        let versions = try query { _ in }.map(\.version)
+        XCTAssertEqual(versions.first, "27.2", "27.2 是 fixture 里最新的版本")
+        XCTAssertEqual(versions.last, "2.2.1", "最旧的在最后")
+    }
+
+    func testAscendingVersionOrderReversesIt() throws {
+        let versions = try query { $0.direction = .ascending }.map(\.version)
+        XCTAssertEqual(versions.first, "2.2.1")
+        XCTAssertEqual(versions.last, "27.2")
+    }
+
+    func testChannelScopeSeparatesShippingFromPrerelease() throws {
+        let shipping = try query { $0.channelScope = .shipping }.map(\.channel)
+        XCTAssertFalse(shipping.isEmpty)
+        XCTAssertTrue(shipping.allSatisfy { $0 == .release || $0 == .goldenMaster(seed: nil) || $0.precedence <= 1 })
+
+        let prerelease = try query { $0.channelScope = .prerelease }
+        XCTAssertTrue(prerelease.allSatisfy { $0.channel.precedence > 1 })
+        XCTAssertEqual(shipping.count + prerelease.count, 10, "两种渠道应覆盖全部且不重叠")
+    }
+
+    func testInstallationScopeUsesTheBuildString() throws {
+        var query = XcodeReleaseQuery()
+        query.installationScope = .installed
+        let releases = XcodeReleaseCatalog.uniqueReleases(from: try catalog())
+        let installed = query.apply(to: releases, installedBuilds: ["17c529"])
+        XCTAssertEqual(installed.map(\.build), ["17C529"])
+
+        query.installationScope = .notInstalled
+        XCTAssertFalse(query.apply(to: releases, installedBuilds: ["17c529"]).contains { $0.build == "17C529" })
+    }
+
+    func testSearchMatchesVersionAndBuild() throws {
+        XCTAssertEqual(try query { $0.search = "26.3" }.map(\.version).sorted(), ["26.3", "26.3"])
+        XCTAssertEqual(try query { $0.search = "17f113" }.map(\.build), ["17F113"])
+        XCTAssertTrue(try query { $0.search = "没有这个" }.isEmpty)
+    }
+
+    func testToolsPackagesCanBeHidden() throws {
+        XCTAssertTrue(try query { _ in }.contains { $0.name == "Xcode Tools" })
+        XCTAssertFalse(try query { $0.includesTools = false }.contains { $0.name == "Xcode Tools" })
+        XCTAssertEqual(try query { $0.includesTools = false }.count, 9)
+    }
+
+    func testSortingByReleaseDateOrdersUndatedEntriesLast() throws {
+        let releases = try query { $0.sort = .releaseDate }
+        XCTAssertEqual(releases.first?.build, "27B5019j", "2026-09-16 是最新发布日期")
     }
 
     func testLocalDetailsFallBackWhenVersionPlistIsMissing() throws {
