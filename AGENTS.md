@@ -89,6 +89,34 @@ Two ways to "disprove" this by accident:
 Still untested: whether XCUITest's `XCUIElement` layer sees these identifiers —
 this repository has no UI test target, so nothing exercises that path.
 
+## `sync_string_catalog.sh` and stale `.stringsdata`
+
+`Scripts/sync_string_catalog.sh` decides a `.stringsdata` is stale by **mtime** and
+skips it with a warning (`skipping stale <File>.stringsdata (source is newer; rebuild
+the app target)`). Xcode decides whether to recompile by **content** signature, so a
+source file whose content is unchanged but whose mtime moved — a `cp` of an identical
+file, a `git checkout` that restores the same content, a `touch` — is not recompiled,
+and its old `.stringsdata` stays older than the source.
+
+What follows is a false alarm that fails the catalog gate: every string that file
+contributes is marked `"extractionState": "stale"`, and `verify_string_catalog.sh`
+treats any stale entry as a hard error, so CI goes red with the strings themselves
+perfectly fine. Verified 2026-09-17, after restoring `Sources/AllVersionsView.swift`
+with `cp` while splitting commits.
+
+Force that one file to recompile, then sync again:
+
+```bash
+find build/DerivedData/Build/Intermediates.noindex -name "AllVersionsView.*" -delete
+xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
+  -configuration Debug -derivedDataPath build/DerivedData build
+./Scripts/sync_string_catalog.sh   # 期望「已合并 N 个 .stringsdata」，且没有 skipping stale
+```
+
+Do not truncate the sync output — the warning is one line next to the merge count, and
+`tail -1` hides exactly it. Afterwards `git diff -- Resources/Localizable.xcstrings`
+must be empty.
+
 ## Translations
 
 Read [TRANSLATION.md](TRANSLATION.md) before adding or changing translations in
