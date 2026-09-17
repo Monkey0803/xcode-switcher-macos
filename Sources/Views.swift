@@ -250,20 +250,84 @@ struct XcodeDetailView: View {
     @EnvironmentObject private var model: XcodeViewModel
     let installation: XcodeInstallation
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(alignment: .top) {
-                    Image(nsImage: model.icon(for: installation))
-                        .resizable().frame(width: 64, height: 64)
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(installation.name).font(.largeTitle.bold())
-                        Text(installation.displayVersion).font(.title3).foregroundStyle(.secondary)
-                        Text(installation.appURL.path).font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
+    /// One kind of information at a time.
+    ///
+    /// The pane used to be a single scroll of every section, which ran past 80 rows
+    /// on this machine — the simulator device list alone is 27 — so seeing anything
+    /// near the bottom meant a long scroll. Splitting it also gives the sections a
+    /// home: actions, environment health, version facts, simulators, disk.
+    private enum Category: String, CaseIterable, Identifiable {
+        case overview
+        case environment
+        case version
+        case simulators
+        case cleanup
 
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .overview: return String(localized: "概览")
+            case .environment: return String(localized: "环境")
+            case .version: return String(localized: "版本与兼容")
+            case .simulators: return String(localized: "模拟器")
+            case .cleanup: return String(localized: "磁盘清理")
+            }
+        }
+    }
+
+    @State private var category: Category = .overview
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // The header and the category picker stay outside the scroll view, so
+            // switching category never requires scrolling back to the top.
+            header
+            Divider()
+            ScrollView {
+                content
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(24)
+            }
+        }
+        .navigationTitle(installation.name)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(nsImage: model.icon(for: installation))
+                    .resizable().frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(installation.name).font(.title2.bold())
+                    Text(installation.displayVersion).font(.caption).foregroundStyle(.secondary)
+                    Text(installation.appURL.path)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                }
+                Spacer()
+            }
+            Picker("分类", selection: $category) {
+                ForEach(Category.allCases) { category in
+                    Text(category.title).tag(category)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch category {
+        case .overview:
+            VStack(alignment: .leading, spacing: 20) {
                 TextField("版本别名（可选）", text: Binding(
                     get: { model.alias(for: installation) },
                     set: { model.updateAlias(for: installation, value: $0) }
@@ -304,7 +368,10 @@ struct XcodeDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(4)
                 }
+            }
 
+        case .environment:
+            VStack(alignment: .leading, spacing: 20) {
                 GroupBox("环境诊断") {
                     // A Grid sizes each column to its content instead of pinning a
                     // fixed width, so longer labels and larger text do not truncate.
@@ -366,15 +433,17 @@ struct XcodeDetailView: View {
                     }
                     .padding(4)
                 }
-
-                VersionInfoSectionView(installation: installation)
-
-                RuntimeSectionView(installation: installation, download: model.runtimeDownload)
-                CleanupSectionView(installation: installation)
             }
-            .padding(28)
+
+        case .version:
+            VersionInfoSectionView(installation: installation)
+
+        case .simulators:
+            RuntimeSectionView(installation: installation, download: model.runtimeDownload)
+
+        case .cleanup:
+            CleanupSectionView(installation: installation)
         }
-        .navigationTitle(installation.name)
     }
 
     private func environmentIcon(_ severity: EnvironmentCheckSeverity) -> String {

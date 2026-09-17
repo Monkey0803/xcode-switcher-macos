@@ -618,6 +618,16 @@
         }
       }
     },
+    "分类": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
     "切换命令完成，但 Developer 目录验证失败。": {
       "localizations": {
         "en": {
@@ -2674,6 +2684,26 @@
         }
       }
     },
+    "概览": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overview"
+          }
+        }
+      }
+    },
+    "模拟器": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator"
+          }
+        }
+      }
+    },
     "模拟器运行时": {
       "localizations": {
         "en": {
@@ -3084,6 +3114,16 @@
         }
       }
     },
+    "版本与兼容": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version & Compatibility"
+          }
+        }
+      }
+    },
     "版本别名（可选）": {
       "localizations": {
         "en": {
@@ -3100,6 +3140,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Version Details"
+          }
+        }
+      }
+    },
+    "环境": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment"
           }
         }
       }
@@ -3332,6 +3382,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Clean this directory?"
+          }
+        }
+      }
+    },
+    "磁盘清理": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disk Cleanup"
           }
         }
       }
