@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Every Xcode release in the community index, with the ones installed here marked.
@@ -11,6 +12,7 @@ struct AllVersionsView: View {
     @EnvironmentObject private var model: XcodeViewModel
     @State private var query = XcodeReleaseQuery()
     @State private var selectedBuild: String?
+    @FocusState private var isSearchFieldFocused: Bool
 
     private var releases: [XcodeReleaseInfo] {
         query.apply(to: model.allReleases, installedBuilds: model.installedBuilds)
@@ -30,7 +32,18 @@ struct AllVersionsView: View {
             content
         }
         .frame(minWidth: 900, minHeight: 460)
-        .onAppear { model.loadReleaseCatalog() }
+        .onAppear {
+            model.loadReleaseCatalog()
+            // Opening the window must not start a search. SwiftUI hands a new
+            // window's first TextField the focus on appearance, which would leave
+            // the query armed for the first keystroke; the list opens neutral, as
+            // the main window does, and the field takes focus on a click.
+            isSearchFieldFocused = false
+            DispatchQueue.main.async {
+                isSearchFieldFocused = false
+                NSApp.keyWindow?.makeFirstResponder(nil)
+            }
+        }
     }
 
     private var controls: some View {
@@ -39,6 +52,8 @@ struct AllVersionsView: View {
                 TextField("搜索版本号或构建号", text: $query.search)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 240)
+                    .accessibilityIdentifier("all-versions-search-field")
+                    .focused($isSearchFieldFocused)
 
                 // Deliberately no fixed widths: a menu picker lays out its title and its
                 // selected value side by side, so a width chosen in advance truncates the
