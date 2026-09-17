@@ -213,6 +213,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let refresh = NSMenuItem(title: String(localized: "重新扫描"), action: #selector(refreshXcodes), keyEquivalent: "")
         refresh.target = self
         menu.addItem(refresh)
+        let allVersions = NSMenuItem(title: String(localized: "所有 Xcode 版本…"), action: #selector(openAllVersions), keyEquivalent: "")
+        allVersions.target = self
+        menu.addItem(allVersions)
         let settings = NSMenuItem(title: String(localized: "设置…"), action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
@@ -254,6 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openMainWindow() { model.showMainWindow() }
     @objc private func refreshXcodes() { model.refresh() }
+    @objc private func openAllVersions() { showAllVersions(nil) }
     @objc private func openSettings() { showSettings(nil) }
     @objc private func checkForUpdates() { model.checkForUpdates() }
 

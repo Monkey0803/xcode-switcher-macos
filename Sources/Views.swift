@@ -142,6 +142,15 @@ struct ContentView: View {
                     HStack {
                         Text("\(model.installations.count) 个版本").font(.caption).foregroundStyle(.secondary)
                         Spacer()
+                        // The window needs its own way in: the menu command is only
+                        // reachable while the app is frontmost, which a menu bar utility
+                        // usually is not.
+                        Button {
+                            model.showAllVersions()
+                        } label: {
+                            Label("所有版本…", systemImage: "list.bullet.rectangle")
+                        }
+                        .help("列出索引中的全部 Xcode 版本，可筛选与排序")
                         Button {
                             model.showSettings()
                         } label: {
@@ -597,6 +606,12 @@ private struct VersionInfoSectionView: View {
                 }
 
                 releaseStatus
+
+                Button {
+                    model.showAllVersions()
+                } label: {
+                    Label("所有版本…", systemImage: "list.bullet.rectangle")
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(4)

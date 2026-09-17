@@ -1567,4 +1567,8 @@ final class XcodeViewModel: ObservableObject {
     func showSettings() {
         AppDelegate.shared?.showSettings()
     }
+
+    func showAllVersions() {
+        AppDelegate.shared?.showAllVersions()
+    }
 }

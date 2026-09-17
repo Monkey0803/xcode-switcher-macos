@@ -754,6 +754,16 @@
         }
       }
     },
+    "列出索引中的全部 Xcode 版本，可筛选与排序": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "List every Xcode version in the index, with filters and sorting"
+          }
+        }
+      }
+    },
     "创建授权会话": {
       "localizations": {
         "en": {
@@ -2010,6 +2020,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "All Xcode Versions…"
+          }
+        }
+      }
+    },
+    "所有版本…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Versions…"
           }
         }
       }
