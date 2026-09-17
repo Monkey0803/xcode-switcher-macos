@@ -378,9 +378,9 @@ struct XcodeDetailView: View {
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 8) {
                         ForEach(model.diagnostics(for: installation)) { item in
                             GridRow {
-                                Text(item.title).foregroundStyle(.secondary)
+                                Text(item.title).textRole(.fieldLabel)
                                 Text(item.value).textSelection(.enabled)
-                                    .foregroundStyle(item.isWarning ? .orange : .primary)
+                                    .textRole(.fieldValue, emphasis: item.isWarning ? AnyShapeStyle(Color.orange) : nil)
                                     .gridColumnAlignment(.leading)
                             }
                         }
@@ -420,10 +420,10 @@ struct XcodeDetailView: View {
                                     Image(systemName: environmentIcon(check.severity))
                                         .foregroundStyle(environmentColor(check.severity))
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(check.title).font(.subheadline.weight(.medium))
-                                        Text(check.detail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                                        Text(check.title).textRole(.itemTitle)
+                                        Text(check.detail).textRole(.note).textSelection(.enabled)
                                         if let remediation = check.remediation {
-                                            Text("建议：\(remediation)").font(.caption).foregroundStyle(.orange).textSelection(.enabled)
+                                            Text("建议：\(remediation)").textRole(.warning).textSelection(.enabled)
                                         }
                                     }
                                     Spacer()
@@ -507,10 +507,10 @@ private struct CleanupSectionView: View {
                                     Image(systemName: safety == .safe ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                                         .foregroundStyle(safety == .safe ? .green : .orange)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(entry.label)
-                                        Text(entry.displaySize).font(.caption).foregroundStyle(.secondary)
-                                        Text(entry.note).font(.caption).foregroundStyle(.secondary)
-                                        Text(entry.path).font(.caption2).foregroundStyle(.tertiary).textSelection(.enabled)
+                                        Text(entry.label).textRole(.itemTitle)
+                                        Text(entry.displaySize).textRole(.fieldValue)
+                                        Text(entry.note).textRole(.note)
+                                        Text(entry.path).textRole(.identifier).textSelection(.enabled)
                                     }
                                     Spacer()
                                     Button("在 Finder 中显示") {
@@ -572,8 +572,8 @@ private struct VersionInfoSectionView: View {
         GroupBox("版本详细信息") {
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 5) {
-                    row("版本", installation.version)
-                    row("构建", details?.build ?? installation.build)
+                    row("版本", installation.version, role: .fieldValueStrong)
+                    row("构建", details?.build ?? installation.build, role: .identifier)
                     if let release, let date = release.releaseDateText() {
                         row("发布日期", "\(date) · \(release.channel.label)")
                     }
@@ -581,12 +581,12 @@ private struct VersionInfoSectionView: View {
                         row("最低 macOS", minimum)
                     }
                     if let platform = details?.platformVersion {
-                        row("平台版本", platform)
+                        row("平台版本", platform, role: .identifier)
                     }
                     if let sdk = details?.sdkBuild {
-                        row("iPhoneOS SDK 构建", sdk)
+                        row("iPhoneOS SDK 构建", sdk, role: .identifier)
                     }
-                    row("安装路径", installation.appURL.path)
+                    row("安装路径", installation.appURL.path, role: .identifier)
                 }
 
                 if let release, !release.sdks.isEmpty {
@@ -603,14 +603,17 @@ private struct VersionInfoSectionView: View {
         }
     }
 
-    private func row(_ title: LocalizedStringKey, _ value: String) -> some View {
+    private func row(
+        _ title: LocalizedStringKey,
+        _ value: String,
+        role: TextRole = .fieldValue
+    ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .textRole(.fieldLabel)
                 .frame(width: 130, alignment: .leading)
             Text(value)
-                .font(.caption)
+                .textRole(role)
                 .textSelection(.enabled)
             Spacer()
         }
@@ -619,12 +622,13 @@ private struct VersionInfoSectionView: View {
     private func detailList(_ title: LocalizedStringKey, values: [String]) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .textRole(.fieldLabel)
                 .frame(width: 130, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
+                // SDK builds and toolchain versions are read character by character,
+                // so they get the monospaced identifier role.
                 ForEach(values, id: \.self) { value in
-                    Text(value).font(.caption).textSelection(.enabled)
+                    Text(value).textRole(.identifier).textSelection(.enabled)
                 }
             }
             Spacer()
@@ -640,7 +644,7 @@ private struct VersionInfoSectionView: View {
         case .idle, .loading:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
-                Text("正在获取发布信息…").font(.caption).foregroundStyle(.secondary)
+                Text("正在获取发布信息…").textRole(.note)
             }
         case .loaded(let cachedAt, let refreshFailed):
             VStack(alignment: .leading, spacing: 4) {
@@ -649,26 +653,23 @@ private struct VersionInfoSectionView: View {
                         "无法刷新，显示的是 \(cachedAt.formatted(date: .abbreviated, time: .shortened)) 的缓存副本。",
                         systemImage: "exclamationmark.triangle.fill"
                     )
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+                    .textRole(.warning)
                 }
                 if release == nil {
                     Text("发布信息索引里没有构建号 \(installation.build) 对应的条目。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .textRole(.note)
                 }
                 if let release {
                     HStack(spacing: 12) {
                         if let notes = release.notesURL {
-                            Link("发行说明", destination: notes).font(.caption)
+                            Link("发行说明", destination: notes).font(.subheadline)
                         }
                         if let download = release.downloadURL {
-                            Link("下载", destination: download).font(.caption)
+                            Link("下载", destination: download).font(.subheadline)
                         }
                         if !release.downloadArchitectures.isEmpty {
                             Text(release.downloadArchitectures.joined(separator: " / "))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .textRole(.identifier)
                         }
                         Spacer()
                     }
@@ -676,8 +677,7 @@ private struct VersionInfoSectionView: View {
             }
         case .unavailable(let message):
             Label("无法获取发布信息：\(message)", systemImage: "wifi.slash")
-                .font(.caption)
-                .foregroundStyle(.orange)
+                .textRole(.warning)
         }
     }
 }
@@ -710,11 +710,11 @@ private struct SimulatorDevicesView: View {
                         Image(systemName: device.isBooted ? "power.circle.fill" : "circle")
                             .foregroundStyle(device.isBooted ? .green : .secondary)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(device.name)
-                            Text(device.state).font(.caption).foregroundStyle(.secondary)
+                            Text(device.name).textRole(.itemTitle)
+                            Text(device.state).textRole(.note)
                             if !device.isAvailable {
                                 Text("当前 Xcode 不再支持，无法启动或抹掉。")
-                                    .font(.caption).foregroundStyle(.orange)
+                                    .textRole(.warning)
                             }
                         }
                         Spacer()
@@ -736,7 +736,7 @@ private struct SimulatorDevicesView: View {
                 if unavailableCount > 0 {
                     HStack(spacing: 8) {
                         Text("有 \(unavailableCount) 个设备已不被当前 Xcode 支持。")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .textRole(.note)
                         Spacer()
                         Button("删除不可用设备") { pending = .deleteUnavailable(unavailableCount) }
                             .foregroundStyle(.red)
@@ -835,19 +835,19 @@ private struct RuntimeReclaimView: View {
                 ProgressView("正在读取 Runtime…")
             } else if runtimes.isEmpty {
                 Text("未检测到 Simulator Runtime。")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .textRole(.note)
             } else {
                 Text("共 \(runtimes.count) 个 Runtime，占用约 \(DiskUsageFormatter.humanReadable(bytes: totalBytes))。")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .textRole(.note)
                 ForEach(runtimes, id: \.identifier) { runtime in
                     HStack(alignment: .top, spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(runtime.label)
+                            Text(runtime.label).textRole(.itemTitle)
                             Text(DiskUsageFormatter.humanReadable(bytes: runtime.bytes))
-                                .font(.caption).foregroundStyle(.secondary)
+                                .textRole(.fieldValue)
                             if let used = runtime.lastUsedAt {
                                 Text("最近使用：\(used.formatted(date: .abbreviated, time: .omitted))")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .textRole(.note)
                             }
                         }
                         Spacer()
@@ -860,12 +860,12 @@ private struct RuntimeReclaimView: View {
 
             Text("批量清理").font(.subheadline.weight(.semibold))
             Text("由 simctl 判断哪些镜像符合条件，预览即 simctl 的 --dry-run 输出。")
-                .font(.caption).foregroundStyle(.secondary)
+                .textRole(.note)
             ForEach(SimulatorRuntimeReclaim.allCases) { reclaim in
                 HStack(alignment: .top, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(reclaim.title)
-                        Text(reclaim.note).font(.caption).foregroundStyle(.secondary)
+                        Text(reclaim.title).textRole(.itemTitle)
+                        Text(reclaim.note).textRole(.note)
                     }
                     Spacer()
                     Button("预览") { model.previewRuntimeReclaim(reclaim, for: installation) }
@@ -880,17 +880,16 @@ private struct RuntimeReclaimView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     if preview.isEmpty {
                         Text("没有需要清理的 Runtime。")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .textRole(.note)
                     } else {
                         Text(reclaimPreviewHeadline(preview))
-                            .font(.caption).foregroundStyle(.secondary)
+                            .textRole(.note)
                         // Resolved rows show the version, build and size; a line that
                         // could not be resolved is shown as simctl printed it rather
                         // than dropped, which would understate the removal.
                         ForEach(preview.lines) { line in
                             Text(line.summary)
-                                .font(.caption)
-                                .foregroundStyle(line.isResolved ? Color.secondary : Color.orange)
+                                .textRole(line.isResolved ? .identifier : .warning)
                                 .textSelection(.enabled)
                         }
                     }

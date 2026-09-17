@@ -102,6 +102,7 @@ cli_app_only_sources=(
   XcodeSwitcherApp.swift
   LifecycleServices.swift
   XcodeReleaseInfo.swift
+  SemanticTextStyles.swift
 )
 
 for source_file in "$script_dir"/Sources/*.swift; do

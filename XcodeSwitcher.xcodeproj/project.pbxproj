@@ -96,6 +96,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>D2B8281AEDFCF647E44D4329</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>SemanticTextStyles.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>F9B04B683D66775DC03836DA</key>
 		<dict>
 			<key>isa</key>
@@ -632,6 +643,13 @@
 			<key>fileRef</key>
 			<string>58985634C4A2617A9068A94C</string>
 		</dict>
+		<key>E7B63BD1CCEEED09215CDFEC</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>D2B8281AEDFCF647E44D4329</string>
+		</dict>
 		<key>6B9C3BD5E45D2CDD2CB693BA</key>
 		<dict>
 			<key>isa</key>
@@ -886,6 +904,7 @@
 				<string>46069FD9D3E1E3735821211D</string>
 				<string>40A049D1626288E444890597</string>
 				<string>3F8FF70FDDB7766796E7A5F6</string>
+				<string>E7B63BD1CCEEED09215CDFEC</string>
 				<string>6B9C3BD5E45D2CDD2CB693BA</string>
 				<string>4C6BCEACF6AD7E25378952B7</string>
 				<string>494E32776E5F35E31CD54533</string>
@@ -1467,6 +1486,7 @@
 				<string>3EC6A55EE133894AA53B122E</string>
 				<string>D40CBB72DB62ACC7A5898EFB</string>
 				<string>58985634C4A2617A9068A94C</string>
+				<string>D2B8281AEDFCF647E44D4329</string>
 				<string>F9B04B683D66775DC03836DA</string>
 				<string>0EA8E87FC77BC2A066A54EB2</string>
 				<string>D5B826D7063557F87C97E8E0</string>
