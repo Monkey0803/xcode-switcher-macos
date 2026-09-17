@@ -302,6 +302,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         window.title = "所有 Xcode 版本"
         window.contentViewController = NSHostingController(rootView: content)
+        // Handing AppKit a hosting controller makes it adopt the view's minimum size,
+        // which silently ignores the contentRect above — the window opened at the
+        // 640x420 floor instead of the intended size. Setting it afterwards sticks.
+        window.setContentSize(NSSize(width: 820, height: 620))
         window.center()
         window.isReleasedWhenClosed = false
         allVersionsWindow = window
