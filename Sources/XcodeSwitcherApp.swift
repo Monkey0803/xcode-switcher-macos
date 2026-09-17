@@ -295,7 +295,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let content = AllVersionsView().environmentObject(model)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 820, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 640),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -305,7 +305,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Handing AppKit a hosting controller makes it adopt the view's minimum size,
         // which silently ignores the contentRect above — the window opened at the
         // 640x420 floor instead of the intended size. Setting it afterwards sticks.
-        window.setContentSize(NSSize(width: 820, height: 620))
+        window.setContentSize(NSSize(width: 1000, height: 640))
         window.center()
         window.isReleasedWhenClosed = false
         allVersionsWindow = window

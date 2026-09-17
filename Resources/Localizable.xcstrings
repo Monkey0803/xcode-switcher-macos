@@ -423,6 +423,16 @@
         }
       }
     },
+    "bundle 声明的最低 macOS": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minimum macOS declared by the bundle"
+          }
+        }
+      }
+    },
     "iOS Simulator Runtime 下载命令已完成。": {
       "localizations": {
         "en": {
@@ -618,16 +628,16 @@
     },
     "共 %lld / %lld 个版本": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "共 %1$lld / %2$lld 个版本"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld of %lld versions"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "共 %1$lld / %2$lld 个版本"
           }
         }
       }
@@ -1086,6 +1096,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add the line below to zsh and entering a project directory bound to an Xcode sets DEVELOPER_DIR automatically. It affects only the current shell and never runs xcode-select --switch, so it needs no authorization and does not change machine-wide settings."
+          }
+        }
+      }
+    },
+    "在主窗口中显示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in the main window"
           }
         }
       }
@@ -2744,6 +2764,16 @@
         }
       }
     },
+    "本机安装": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installed here"
+          }
+        }
+      }
+    },
     "本机没有可用的 Xcode。": {
       "localizations": {
         "en": {
@@ -2780,6 +2810,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Build products, regenerated after cleaning."
+          }
+        }
+      }
+    },
+    "架构": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Architectures"
           }
         }
       }
@@ -3892,6 +3932,16 @@
         }
       }
     },
+    "路径": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Path"
+          }
+        }
+      }
+    },
     "路径：%@": {
       "localizations": {
         "en": {
@@ -3978,6 +4028,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Select an Xcode"
+          }
+        }
+      }
+    },
+    "选择一个版本查看详情。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a version to see its details."
           }
         }
       }

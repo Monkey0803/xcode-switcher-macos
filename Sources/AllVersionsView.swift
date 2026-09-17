@@ -2,17 +2,25 @@ import SwiftUI
 
 /// Every Xcode release in the community index, with the ones installed here marked.
 ///
-/// The list is the whole index — 453 entries, 387 distinct builds — so it is
-/// narrowed by a query rather than shown raw: filters for channel and installation
-/// state, a search over version and build, and an order by version or release date.
-/// It lives in its own window so the installed-Xcode detail pane stays usable next
-/// to it.
+/// The list is the whole index — 453 entries, 387 distinct builds — so it is narrowed
+/// by a query rather than shown raw: filters for channel and installation state, a
+/// search over version and build, and an order by version or release date. Selecting a
+/// row fills the sidebar with that release's version and compatibility facts. It lives
+/// in its own window so the installed-Xcode detail pane stays usable next to it.
 struct AllVersionsView: View {
     @EnvironmentObject private var model: XcodeViewModel
     @State private var query = XcodeReleaseQuery()
+    @State private var selectedBuild: String?
 
     private var releases: [XcodeReleaseInfo] {
         query.apply(to: model.allReleases, installedBuilds: model.installedBuilds)
+    }
+
+    /// Looked up in the whole catalogue rather than the filtered list, so narrowing the
+    /// filters does not blank a sidebar the user is reading.
+    private var selectedRelease: XcodeReleaseInfo? {
+        guard let selectedBuild else { return nil }
+        return model.allReleases.first { $0.build == selectedBuild }
     }
 
     var body: some View {
@@ -21,7 +29,7 @@ struct AllVersionsView: View {
             Divider()
             content
         }
-        .frame(minWidth: 640, minHeight: 420)
+        .frame(minWidth: 900, minHeight: 460)
         .onAppear { model.loadReleaseCatalog() }
     }
 
@@ -32,19 +40,22 @@ struct AllVersionsView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 240)
 
+                // Deliberately no fixed widths: a menu picker lays out its title and its
+                // selected value side by side, so a width chosen in advance truncates the
+                // value — 「已安装」 and 「未安装」 were both being elided to an ellipsis.
                 Picker("渠道", selection: $query.channelScope) {
                     ForEach(XcodeReleaseQuery.ChannelScope.allCases) { scope in
                         Text(scope.title).tag(scope)
                     }
                 }
-                .frame(width: 150)
+                .fixedSize()
 
                 Picker("安装状态", selection: $query.installationScope) {
                     ForEach(XcodeReleaseQuery.InstallationScope.allCases) { scope in
                         Text(scope.title).tag(scope)
                     }
                 }
-                .frame(width: 130)
+                .fixedSize()
 
                 Spacer()
             }
@@ -55,7 +66,7 @@ struct AllVersionsView: View {
                         Text(sort.title).tag(sort)
                     }
                 }
-                .frame(width: 150)
+                .fixedSize()
 
                 Button {
                     query.direction = query.direction == .descending ? .ascending : .descending
@@ -94,26 +105,42 @@ struct AllVersionsView: View {
             }
 
         case .loaded(let cachedAt, let refreshFailed):
-            VStack(alignment: .leading, spacing: 0) {
-                if refreshFailed, let cachedAt {
-                    Label(
-                        "无法刷新，显示的是 \(cachedAt.formatted(date: .abbreviated, time: .shortened)) 的缓存副本。",
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .textRole(.warning)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+            HStack(alignment: .top, spacing: 0) {
+                list(cachedAt: cachedAt, refreshFailed: refreshFailed)
+                    .frame(maxWidth: .infinity)
+
+                Divider()
+
+                ReleaseInfoSidebar(release: selectedRelease)
+                    .frame(width: 300)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func list(cachedAt: Date?, refreshFailed: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if refreshFailed, let cachedAt {
+                Label(
+                    "无法刷新，显示的是 \(cachedAt.formatted(date: .abbreviated, time: .shortened)) 的缓存副本。",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .textRole(.warning)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
+
+            if releases.isEmpty {
+                centered {
+                    Text("没有符合条件的版本。").textRole(.note)
                 }
-                if releases.isEmpty {
-                    centered {
-                        Text("没有符合条件的版本。").textRole(.note)
+            } else {
+                List(selection: $selectedBuild) {
+                    ForEach(releases, id: \.build) { release in
+                        row(for: release).tag(release.build)
                     }
-                } else {
-                    List(releases, id: \.build) { release in
-                        row(for: release)
-                    }
-                    .listStyle(.inset)
                 }
+                .listStyle(.inset)
             }
         }
     }
@@ -175,5 +202,135 @@ struct AllVersionsView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Version and compatibility facts for the release selected in the list.
+///
+/// Everything comes from the index; when the selected release is also installed here,
+/// the bundle's own numbers are shown alongside so the two can be compared, and the
+/// main window can be pointed at that installation.
+private struct ReleaseInfoSidebar: View {
+    @EnvironmentObject private var model: XcodeViewModel
+    let release: XcodeReleaseInfo?
+
+    private var installation: XcodeInstallation? {
+        guard let release else { return nil }
+        return model.installation(matching: release)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if let release {
+                    summary(release)
+                    facts(release)
+                    if let installation {
+                        localFacts(installation)
+                        Button("在主窗口中显示") { model.select(installation) }
+                    }
+                    links(release)
+                } else {
+                    Text("选择一个版本查看详情。")
+                        .textRole(.note)
+                        .padding(.top, 4)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+        }
+    }
+
+    @ViewBuilder
+    private func summary(_ release: XcodeReleaseInfo) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(release.version).font(.title2.bold())
+            HStack(spacing: 8) {
+                Text(release.channel.label).textRole(.note)
+                if installation != nil {
+                    Label("已安装", systemImage: "checkmark.circle.fill")
+                        .textRole(.success)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func facts(_ release: XcodeReleaseInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            field("构建", release.build, role: .identifier)
+            if let date = release.releaseDateText() {
+                field("发布日期", date)
+            }
+            if let minimum = release.minimumMacOS {
+                field("最低 macOS", minimum)
+            }
+            if !release.downloadArchitectures.isEmpty {
+                field("架构", release.downloadArchitectures.joined(separator: " / "), role: .identifier)
+            }
+            if !release.sdks.isEmpty {
+                list("随附 SDK", values: release.sdks.map(\.label))
+            }
+            if !toolchainLabels(release).isEmpty {
+                list("编译器", values: toolchainLabels(release))
+            }
+        }
+    }
+
+    /// Read from the bundle, next to the index's own numbers, so a mismatch is visible.
+    @ViewBuilder
+    private func localFacts(_ installation: XcodeInstallation) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("本机安装").textRole(.sectionTitle)
+            if let details = model.installDetails(for: installation) {
+                if let platform = details.platformVersion {
+                    field("平台版本", platform, role: .identifier)
+                }
+                if let sdk = details.sdkBuild {
+                    field("iPhoneOS SDK 构建", sdk, role: .identifier)
+                }
+                if let minimum = details.minimumMacOS {
+                    field("bundle 声明的最低 macOS", minimum)
+                }
+            }
+            field("路径", installation.appURL.path, role: .identifier)
+        }
+    }
+
+    @ViewBuilder
+    private func links(_ release: XcodeReleaseInfo) -> some View {
+        if release.notesURL != nil || release.downloadURL != nil {
+            VStack(alignment: .leading, spacing: 6) {
+                if let notes = release.notesURL {
+                    Link("发行说明", destination: notes).font(.subheadline)
+                }
+                if let download = release.downloadURL {
+                    Link("下载", destination: download).font(.subheadline)
+                }
+            }
+        }
+    }
+
+    private func toolchainLabels(_ release: XcodeReleaseInfo) -> [String] {
+        var values: [String] = []
+        if let swift = release.swift { values.append("Swift \(swift.label)") }
+        if let clang = release.clang { values.append("Clang \(clang.label)") }
+        return values
+    }
+
+    private func field(_ title: LocalizedStringKey, _ value: String, role: TextRole = .fieldValue) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).textRole(.fieldLabel)
+            Text(value).textRole(role).textSelection(.enabled)
+        }
+    }
+
+    private func list(_ title: LocalizedStringKey, values: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).textRole(.fieldLabel)
+            ForEach(values, id: \.self) { value in
+                Text(value).textRole(.identifier).textSelection(.enabled)
+            }
+        }
     }
 }
