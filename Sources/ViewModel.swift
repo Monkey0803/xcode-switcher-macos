@@ -596,8 +596,19 @@ final class XcodeViewModel: ObservableObject {
         Set(installations.map { $0.build.lowercased() })
     }
 
-    func isInstalled(_ release: XcodeReleaseInfo) -> Bool {
-        installedBuilds.contains(release.build.lowercased())
+    /// The installation a catalogue entry corresponds to, when it is installed here.
+    func installation(matching release: XcodeReleaseInfo) -> XcodeInstallation? {
+        installations.first { $0.build.lowercased() == release.build.lowercased() }
+    }
+
+    /// The Xcode app icon, taken from a locally installed copy.
+    ///
+    /// Deliberately read from the user's own installation rather than shipped in the
+    /// bundle: the icon is Apple's artwork, and this app has always shown it by asking
+    /// the local bundle (the installed list and the detail header both do). Nil when no
+    /// Xcode is installed at all, where the version list falls back to a symbol.
+    var xcodeIcon: NSImage? {
+        installations.first.map { icon(for: $0) }
     }
 
     /// Fetches the release index, served from a cached copy for a day.

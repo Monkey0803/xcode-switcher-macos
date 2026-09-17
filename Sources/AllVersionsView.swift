@@ -119,8 +119,21 @@ struct AllVersionsView: View {
     }
 
     private func row(for release: XcodeReleaseInfo) -> some View {
-        let installed = model.isInstalled(release)
+        let installation = model.installation(matching: release)
+        // An installed release shows its own bundle's icon; one that is not installed
+        // here shows the same artwork taken from a locally installed Xcode.
+        let icon = installation.map { model.icon(for: $0) } ?? model.xcodeIcon
+        let installed = installation != nil
         return HStack(alignment: .top, spacing: 10) {
+            Group {
+                if let icon {
+                    Image(nsImage: icon).resizable()
+                } else {
+                    Image(systemName: "hammer").foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 24, height: 24)
+
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
                     Text(release.version).textRole(.fieldValueStrong)
