@@ -880,6 +880,16 @@
         }
       }
     },
+    "刷新版本列表": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh the version list"
+          }
+        }
+      }
+    },
     "发布信息服务器返回了错误响应。": {
       "localizations": {
         "en": {

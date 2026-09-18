@@ -30,6 +30,13 @@ struct AllVersionsView: View {
         return model.allReleases.first { $0.build == selectedBuild }
     }
 
+    /// The index is served from a copy cached for a day, so this only has to respect
+    /// the in-flight state — pressing it while it loads would just restart the fetch.
+    private var isRefreshingCatalog: Bool {
+        if case .loading = model.releaseCatalogState { return true }
+        return false
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             controls
@@ -74,6 +81,15 @@ struct AllVersionsView: View {
                     .frame(maxWidth: 240)
                     .accessibilityIdentifier("all-versions-search-field")
                     .focused($isSearchFieldFocused)
+
+                // Next to the search field, as in the main window. The window opens
+                // with whatever the day-long cache holds, so this is the only way to
+                // ask for a fresh index without reopening it.
+                Button { model.loadReleaseCatalog(force: true) } label: { Image(systemName: "arrow.clockwise") }
+                    .disabled(isRefreshingCatalog)
+                    .help("刷新版本列表")
+                    .accessibilityLabel("刷新版本列表")
+                    .accessibilityIdentifier("refresh-release-catalog-button")
 
                 // Deliberately no fixed widths: a menu picker lays out its title and its
                 // selected value side by side, so a width chosen in advance truncates the
