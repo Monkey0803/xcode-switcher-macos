@@ -140,6 +140,7 @@
       }
     },
     "Beta %lld": {},
+    "CocoaPods": {},
     "Command Line Tools": {},
     "Configuration": {},
     "CoreSimulator 可正常响应。": {
@@ -566,6 +567,16 @@
         }
       }
     },
+    "从 ~/.zshrc 等 shell 配置里移除该设置，或改回可用的 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove it from ~/.zshrc or another shell configuration, or point it back at a working Xcode."
+          }
+        }
+      }
+    },
     "从新到旧": {
       "localizations": {
         "en": {
@@ -582,6 +593,32 @@
           "stringUnit": {
             "state": "translated",
             "value": "Oldest first"
+          }
+        }
+      }
+    },
+    "使用的 Xcode 与体检的一致（%@）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It uses the same Xcode this check is inspecting (%@)."
+          }
+        }
+      }
+    },
+    "使用的是 %@，正在体检的是 %@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "使用的是 %1$@，正在体检的是 %2$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It uses %@; this check is inspecting %@."
           }
         }
       }
@@ -1190,6 +1227,16 @@
         }
       }
     },
+    "在终端里手动运行该工具，确认它使用的开发者目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run the tool in a terminal to see which developer directory it uses."
+          }
+        }
+      }
+    },
     "复制": {
       "localizations": {
         "en": {
@@ -1256,6 +1303,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy Link Command"
+          }
+        }
+      }
+    },
+    "它跟随终端与 xcode-select；先激活需要的版本，或在终端里确认 DEVELOPER_DIR。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It follows the terminal and xcode-select. Activate the version you need, or check DEVELOPER_DIR in the terminal."
           }
         }
       }
@@ -1594,6 +1651,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Installed"
+          }
+        }
+      }
+    },
+    "已安装，但读不出它使用的 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installed, but the Xcode it uses could not be read."
           }
         }
       }
@@ -2550,6 +2617,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Could not refresh; showing the cached copy from %@."
+          }
+        }
+      }
+    },
+    "无法在登录 shell 中运行 xcodebuild。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not run xcodebuild in a login shell."
           }
         }
       }
@@ -3842,6 +3919,16 @@
         }
       }
     },
+    "确认 /bin/zsh 可用，且 shell 配置没有破坏 PATH。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check that /bin/zsh works and that the shell configuration does not break PATH."
+          }
+        }
+      }
+    },
     "确认 Xcode.app 完整，并重新选择 Developer 目录。": {
       "localizations": {
         "en": {
@@ -3888,6 +3975,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Disk space"
+          }
+        }
+      }
+    },
+    "第三方工具继承终端的环境；在终端里执行「激活此版本」，或检查 shell 配置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Third-party tools inherit the terminal's environment. Activate this version from a terminal, or check the shell configuration."
           }
         }
       }
@@ -3942,6 +4039,62 @@
         }
       }
     },
+    "终端里 xcodebuild 用的就是它（%@）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The terminal's xcodebuild uses this one (%@)."
+          }
+        }
+      }
+    },
+    "终端里 xcodebuild 用的是 %@，正在体检的是 %@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "终端里 xcodebuild 用的是 %1$@，正在体检的是 %2$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The terminal's xcodebuild uses %@; this check is inspecting %@."
+          }
+        }
+      }
+    },
+    "终端里的 DEVELOPER_DIR 指向另一个 Xcode：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DEVELOPER_DIR in the terminal points at another Xcode: %@"
+          }
+        }
+      }
+    },
+    "终端里的 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode in the terminal"
+          }
+        }
+      }
+    },
+    "终端里设置了 DEVELOPER_DIR，指向不存在的路径：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DEVELOPER_DIR is set in the terminal to a path that does not exist: %@"
+          }
+        }
+      }
+    },
     "绑定版本已丢失": {
       "localizations": {
         "en": {
@@ -3988,6 +4141,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Missing project path."
+          }
+        }
+      }
+    },
+    "脚本与第三方工具会跟着终端走；需要按目录注入时，请用应用提供的 shell 集成，而不是全局设置。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scripts and third-party tools follow the terminal. Use the app's shell integration for per-directory pinning instead of a global setting."
           }
         }
       }

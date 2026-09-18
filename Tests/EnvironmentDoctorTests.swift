@@ -100,4 +100,120 @@ final class EnvironmentDoctorTests: XCTestCase {
         XCTAssertTrue(output.contains("~/Applications/Xcode.app"))
         XCTAssertTrue(output.contains("~/Library"))
     }
+
+    // MARK: - 终端与第三方工具链
+
+    func testParsesXcodebuildVersionOutput() {
+        XCTAssertEqual(EnvironmentDoctor.parseXcodeVersion("Xcode 26.3\nBuild version 17C529\n"), "26.3 (17C529)")
+        XCTAssertEqual(EnvironmentDoctor.parseXcodeVersion("Xcode 16.0"), "16.0", "没有构建号时只报版本")
+        XCTAssertNil(EnvironmentDoctor.parseXcodeVersion("command not found"))
+    }
+
+    func testParsesCocoaPodsToolchainFromRealOutput() {
+        // 真实 `pod env` 输出的节选，字段前的空白是对齐用的。
+        let output = """
+        ### Stack
+
+        ```
+           CocoaPods : 1.17.0
+                Ruby : ruby 4.0.6 (2026-07-14 revision 03b6d3f889) +PRISM [arm64-darwin25]
+                Host : macOS 27.0 (26A428)
+               Xcode : 26.3 (17C529)
+                 Git : git version 2.50.1 (Apple Git-155)
+        ```
+        """
+
+        XCTAssertEqual(EnvironmentDoctor.parseCocoaPodsToolchain(output), "26.3 (17C529)")
+        XCTAssertNil(EnvironmentDoctor.parseCocoaPodsToolchain("### Stack\n\n```\n```"), "没有 Xcode 行时不猜")
+        // CLT 环境下 CocoaPods 会打出空的括号：那等于「没找到 Xcode」，不是一个可比的版本。
+        XCTAssertNil(EnvironmentDoctor.parseCocoaPodsToolchain("### Stack\n\n```\n       Xcode :  ()\n```"))
+    }
+
+    func testTerminalCheckIsHealthyWhenTheShellAgrees() {
+        let check = EnvironmentDoctor.terminalToolchainCheck(
+            resolved: "26.3 (17C529)",
+            persistentDeveloperDir: "",
+            installation: makeInstallation()
+        )
+
+        XCTAssertEqual(check.severity, .healthy)
+        XCTAssertNil(check.remediation)
+    }
+
+    func testTerminalCheckWarnsWhenTheShellUsesAnotherXcode() {
+        let check = EnvironmentDoctor.terminalToolchainCheck(
+            resolved: "26.2 (17C520)",
+            persistentDeveloperDir: "",
+            installation: makeInstallation()
+        )
+
+        XCTAssertEqual(check.severity, .warning, "终端用的不是体检这台时必须说出来")
+        XCTAssertTrue(check.detail.contains("26.2"))
+        XCTAssertNotNil(check.remediation)
+    }
+
+    func testTerminalCheckFlagsAPersistentDeveloperDir() {
+        let stale = EnvironmentDoctor.terminalToolchainCheck(
+            resolved: nil,
+            persistentDeveloperDir: "/Applications/Xcode_gone.app/Contents/Developer",
+            installation: makeInstallation()
+        )
+        XCTAssertEqual(stale.severity, .error, "指向不存在的路径比版本不一致更严重")
+        XCTAssertEqual(stale.id, "terminal-toolchain")
+
+        // 需要一个「存在但不是体检这台」的路径：临时目录最稳妥。
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("xcode-switcher-developer-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let elsewhere = EnvironmentDoctor.terminalToolchainCheck(
+            resolved: "26.3 (17C529)",
+            persistentDeveloperDir: root.path,
+            installation: makeInstallation()
+        )
+        XCTAssertEqual(elsewhere.severity, .warning, "全局 DEVELOPER_DIR 指向另一台时即便本次一致也要提醒")
+        XCTAssertTrue(elsewhere.detail.contains("另一个"), "要说清是「指向另一个」而不是「路径不存在」")
+    }
+
+    func testThirdPartyCheckComparesWithTheInspectedXcode() {
+        let probe = EnvironmentDoctor.ToolchainProbe(
+            id: "cocoa",
+            title: "CocoaPods",
+            executableNames: ["pod"],
+            arguments: ["env"],
+            parse: { _ in nil }
+        )
+
+        XCTAssertEqual(
+            EnvironmentDoctor.thirdPartyToolchainCheck(
+                probe: probe, reported: "26.3 (17C529)", installation: makeInstallation()
+            ).severity,
+            .healthy
+        )
+        XCTAssertEqual(
+            EnvironmentDoctor.thirdPartyToolchainCheck(
+                probe: probe, reported: "26.2 (17C520)", installation: makeInstallation()
+            ).severity,
+            .warning
+        )
+        let unreadable = EnvironmentDoctor.thirdPartyToolchainCheck(
+            probe: probe, reported: nil, installation: makeInstallation()
+        )
+        XCTAssertEqual(unreadable.severity, .informational, "读不出工具链不等于出错")
+        XCTAssertEqual(unreadable.id, "toolchain-cocoa")
+    }
+
+    func testToolProbesOnlyCoverToolsThatReportAToolchain() {
+        // 只有会报出自己 Xcode 的工具才在表里：其余工具的版本号说明不了工具链。
+        XCTAssertEqual(EnvironmentDoctor.toolchainProbes.map(\.id), ["cocoapods"])
+    }
+
+    private func makeInstallation() -> XcodeInstallation {
+        XcodeInstallation(
+            appURL: URL(fileURLWithPath: "/Applications/Xcode.app"),
+            version: "26.3",
+            build: "17C529"
+        )
+    }
 }
