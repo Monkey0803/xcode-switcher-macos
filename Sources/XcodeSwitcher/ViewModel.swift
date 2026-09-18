@@ -38,7 +38,7 @@ final class RuntimeDownloadState: ObservableObject {
 }
 
 @MainActor
-final class XcodeViewModel: ObservableObject {
+final class XcodeViewModel: ObservableObject, StatusReporting {
     @Published private(set) var installations: [XcodeInstallation] = []
     @Published var selectedID: String?
     @Published private(set) var activeDeveloperPath: String?
@@ -56,19 +56,11 @@ final class XcodeViewModel: ObservableObject {
 
     @Published private(set) var isCheckingRelease = false
     @Published private(set) var releaseCheckMessage = ""
-    @Published private(set) var cleanupEntriesByID: [String: [XcodeCleanupEntry]] = [:]
-    @Published private(set) var cleanupLoadingIDs: Set<String> = []
-    @Published private(set) var cleanupRemovingPaths: Set<String> = []
-    @Published private(set) var runtimeSizesByID: [String: [DiskUsageReporter.SimulatorRuntime]] = [:]
-    @Published private(set) var runtimeSizesLoadingIDs: Set<String> = []
-    @Published private(set) var runtimeReclaimPreview: SimulatorRuntimeReclaimPreview?
     /// Which option the preview above belongs to, so 清理 deletes exactly that set.
-    private var runtimeReclaimPreviewOption: SimulatorRuntimeReclaim?
     @Published private(set) var releaseCatalog: [XcodeReleaseInfo] = []
     @Published private(set) var releaseCatalogState: ReleaseCatalogState = .idle
     @Published private(set) var installDetailsByID: [String: XcodeInstallDetails] = [:]
 
-    @Published private(set) var isReclaimingRuntimes = false
     @Published var configuration: AppConfiguration
     @Published var pendingProjectOpen: ProjectOpenRequest?
     @Published var statusMessage = String(localized: "正在扫描本机安装的 Xcode…")
@@ -85,6 +77,10 @@ final class XcodeViewModel: ObservableObject {
     /// below, so the views keep observing this one object.
     let signing = SigningStore()
 
+    /// Disk cleanup and simulator-runtime reclamation, in its own store. Its state
+    /// is re-published below, so the views keep observing this one object.
+    let cleanup = DiskCleanupStore()
+
     private let store: AppConfigurationStore
     private let releaseCatalogStore: XcodeReleaseCatalogStore
     private var cancellables = Set<AnyCancellable>()
@@ -92,11 +88,6 @@ final class XcodeViewModel: ObservableObject {
     private var detailTasks: [String: Task<Void, Never>] = [:]
     private var runtimeDownloadTask: Task<Void, Never>?
     private var environmentDoctorTasks: [String: Task<Void, Never>] = [:]
-    private var cleanupScanGeneration: [String: Int] = [:]
-    private var cleanupScanTasks: [String: Task<Void, Never>] = [:]
-    private var cleanupCancellations: [String: XcodeCleanupCancellation] = [:]
-    private var cleanupSharedEntries: [XcodeCleanupEntry]?
-    private var runtimeSizesTasks: [String: Task<Void, Never>] = [:]
     private var releaseCatalogTask: Task<Void, Never>?
 
     /// How the release-index fetch is going, so the panel can tell "not fetched yet"
@@ -146,11 +137,13 @@ final class XcodeViewModel: ObservableObject {
         // re-publish that keeps the views' single `@EnvironmentObject` working.
         signing.resolveInstallation = { [weak self] profile in self?.installation(for: profile) }
         signing.projectIssue = { [weak self] profile in self?.projectIssue(for: profile) }
-        signing.reportStatus = { [weak self] message, isError in
-            self?.statusMessage = message
-            self?.isError = isError
-        }
+        signing.status = self
         signing.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        cleanup.status = self
+        cleanup.isAnyXcodeRunning = { [weak self] in self?.isAnyXcodeRunning ?? false }
+        cleanup.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
         // Tests construct the model to exercise caching and persistence without
@@ -191,6 +184,82 @@ final class XcodeViewModel: ObservableObject {
     func exportCertificate(_ certificate: SigningCertificate) { signing.exportCertificate(certificate) }
     func openKeychainAccess() { signing.openKeychainAccess() }
     func revealProfilesFolder() { signing.revealProfilesFolder() }
+
+    // MARK: - 磁盘清理与模拟器运行时
+
+    /// Same forwarding contract as the signing store above: the store owns the
+    /// state and the commands, and these keep the call sites unchanged.
+    var runtimeReclaimPreview: SimulatorRuntimeReclaimPreview? { cleanup.runtimeReclaimPreview }
+    var isReclaimingRuntimes: Bool { cleanup.isReclaimingRuntimes }
+
+    func cleanupEntries(for installation: XcodeInstallation) -> [XcodeCleanupEntry] {
+        cleanup.cleanupEntries(for: installation)
+    }
+    func isCleanupLoading(for installation: XcodeInstallation) -> Bool {
+        cleanup.isCleanupLoading(for: installation)
+    }
+    func isRemovingCleanupEntry(_ entry: XcodeCleanupEntry) -> Bool {
+        cleanup.isRemovingCleanupEntry(entry)
+    }
+    func loadCleanupEntries(for installation: XcodeInstallation, force: Bool = false) {
+        cleanup.loadCleanupEntries(for: installation, force: force)
+    }
+    func removeCleanupEntry(_ entry: XcodeCleanupEntry) { cleanup.removeCleanupEntry(entry) }
+    func runtimeSizes(for installation: XcodeInstallation) -> [DiskUsageReporter.SimulatorRuntime] {
+        cleanup.runtimeSizes(for: installation)
+    }
+    func isLoadingRuntimeSizes(for installation: XcodeInstallation) -> Bool {
+        cleanup.isLoadingRuntimeSizes(for: installation)
+    }
+    func loadRuntimeSizes(for installation: XcodeInstallation, force: Bool = false) {
+        cleanup.loadRuntimeSizes(for: installation, force: force)
+    }
+    func deleteRuntime(_ runtime: DiskUsageReporter.SimulatorRuntime, for installation: XcodeInstallation) {
+        cleanup.deleteRuntime(runtime, for: installation)
+    }
+    func previewRuntimeReclaim(_ reclaim: SimulatorRuntimeReclaim, for installation: XcodeInstallation) {
+        cleanup.previewRuntimeReclaim(reclaim, for: installation)
+    }
+    func reclaimRuntimes(_ reclaim: SimulatorRuntimeReclaim, for installation: XcodeInstallation) {
+        cleanup.reclaimRuntimes(reclaim, for: installation)
+    }
+    /// Deletes every device the current Xcode SDK no longer supports. Those rows are
+    /// disabled in the UI (they cannot boot or be erased), so without this they can
+    /// only accumulate.
+    func deleteUnavailableDevices(for installation: XcodeInstallation) {
+        let unavailable = simulatorDevices(for: installation).filter { !$0.isAvailable }.count
+        guard unavailable > 0 else { return }
+        isError = false
+        statusMessage = String(localized: "正在删除 \(unavailable) 个不可用 Simulator 设备…")
+        Task { [weak self] in
+            let result = await Task.detached(priority: .utility) {
+                let actionResult = XcodeTooling.deleteUnavailableDevices(for: installation)
+                let devices = actionResult.succeeded ? XcodeTooling.simulatorDevices(for: installation) : nil
+                return (actionResult, devices)
+            }.value
+            guard let self else { return }
+            if result.0.succeeded {
+                if let devices = result.1 { devicesByID[installation.id] = devices }
+                isError = false
+                statusMessage = String(localized: "已删除 \(unavailable) 个不可用 Simulator 设备。")
+            } else {
+                isError = true
+                statusMessage = String(localized: "Simulator 操作失败：\(result.0.failureDescription)")
+            }
+        }
+    }
+
+    /// Reloads the installed simulator runtimes the detail pane lists. The cleanup
+    /// store calls this after it changes what is installed, because that list
+    /// belongs to the installations rather than to the store.
+    func reloadInstalledRuntimes(for installation: XcodeInstallation) {
+        Task { [weak self] in
+            let runtimes = await Task.detached(priority: .utility) {
+                XcodeTooling.simulatorRuntimes(for: installation)
+            }.value
+            self?.runtimesByID[installation.id] = runtimes
+        }
+    }
 
     var selectedInstallation: XcodeInstallation? {
         installations.first { $0.id == selectedID }
@@ -279,321 +348,9 @@ final class XcodeViewModel: ObservableObject {
         loadReleaseCatalog()
     }
 
-    func cleanupEntries(for installation: XcodeInstallation) -> [XcodeCleanupEntry] {
-        cleanupEntriesByID[installation.id] ?? []
-    }
-
-    func isCleanupLoading(for installation: XcodeInstallation) -> Bool {
-        cleanupLoadingIDs.contains(installation.id)
-    }
-
-    func isRemovingCleanupEntry(_ entry: XcodeCleanupEntry) -> Bool {
-        cleanupRemovingPaths.contains(entry.path)
-    }
-
     var isAnyXcodeRunning: Bool {
         !XcodeProcessInspector.runningInstallations(among: installations).isEmpty
     }
-
-    func loadCleanupEntries(for installation: XcodeInstallation, force: Bool = false) {
-        let id = installation.id
-
-        // A forced rescan takes over from a scan already in flight instead of
-        // silently doing nothing. The superseded scan is told to stop — it polls the
-        // flag between measurements — and its generation is superseded, so it can
-        // neither publish a stale list nor clear the loading flag that now belongs
-        // to the new scan.
-        if let cancellation = cleanupCancellations[id] {
-            guard force else { return }
-            cancellation.cancel()
-            cleanupCancellations[id] = nil
-            cleanupScanTasks[id]?.cancel()
-            cleanupScanTasks[id] = nil
-            cleanupLoadingIDs.remove(id)
-        }
-
-        guard force || cleanupEntriesByID[id] == nil else { return }
-        if !force, let cleanupSharedEntries {
-            cleanupEntriesByID[id] = cleanupSharedEntries
-            return
-        }
-
-        let generation = (cleanupScanGeneration[id] ?? 0) + 1
-        cleanupScanGeneration[id] = generation
-        let cancellation = XcodeCleanupCancellation()
-        cleanupCancellations[id] = cancellation
-        cleanupLoadingIDs.insert(id)
-        cleanupScanTasks[id] = Task.detached(priority: .utility) { [weak self] in
-            let entries = XcodeCleanupReporter.entries(isCancelled: { cancellation.isCancelled })
-            await self?.completeCleanupLoad(for: id, generation: generation, entries: entries)
-        }
-    }
-
-    /// `installation` is deliberately absent: the scan covers every Xcode, so the
-    /// operation is global even though it is triggered from one installation's view.
-    func removeCleanupEntry(_ entry: XcodeCleanupEntry) {
-        // The button is disabled while Xcode runs, but a disabled button is not a
-        // guard — it is a rendering of state sampled at the last body evaluation.
-        // Removing DerivedData under a live build is the hazard this feature exists
-        // to avoid, so re-check at the moment of action.
-        guard !isAnyXcodeRunning else {
-            isError = true
-            statusMessage = String(localized: "检测到 Xcode 正在运行。请退出所有 Xcode 后再清理。")
-            return
-        }
-        guard !cleanupRemovingPaths.contains(entry.path) else { return }
-        cleanupRemovingPaths.insert(entry.path)
-        Task { [weak self] in
-            let errorMessage = await Task.detached(priority: .utility) { () -> String? in
-                do {
-                    try XcodeCleanupReporter.remove(entry)
-                    return nil
-                } catch {
-                    return error.localizedDescription
-                }
-            }.value
-            guard let self else { return }
-            cleanupRemovingPaths.remove(entry.path)
-            if let errorMessage {
-                isError = true
-                statusMessage = String(localized: "清理失败：\(errorMessage)")
-            } else {
-                cleanupSharedEntries?.removeAll { $0.id == entry.id }
-                for id in Array(cleanupEntriesByID.keys) {
-                    cleanupEntriesByID[id]?.removeAll { $0.id == entry.id }
-                }
-                isError = false
-                switch entry.safety {
-                case .safe:
-                    statusMessage = String(localized: "已清理 \(entry.label)。")
-                case .caution:
-                    statusMessage = String(localized: "已移到废纸篓：\(entry.label)。")
-                }
-            }
-        }
-    }
-
-    private func completeCleanupLoad(for id: String, generation: Int, entries: [XcodeCleanupEntry]) {
-        // A superseded scan returns here without touching `cleanupLoadingIDs`: the
-        // newer scan owns that flag and clears it on its own completion, so the
-        // installation cannot be left spinning forever.
-        guard cleanupScanGeneration[id] == generation else { return }
-        cleanupScanTasks[id] = nil
-        cleanupCancellations[id] = nil
-        cleanupLoadingIDs.remove(id)
-        // `entries()` is shared across every Xcode, so a fresh scan replaces the
-        // cached list for each installation that already holds one. Refreshing
-        // only `id` would leave the others showing directories that are gone.
-        cleanupSharedEntries = entries
-        for key in Array(cleanupEntriesByID.keys) { cleanupEntriesByID[key] = entries }
-        cleanupEntriesByID[id] = entries
-    }
-
-    // MARK: - Simulator runtime reclamation
-
-    func runtimeSizes(for installation: XcodeInstallation) -> [DiskUsageReporter.SimulatorRuntime] {
-        runtimeSizesByID[installation.id] ?? []
-    }
-
-    func isLoadingRuntimeSizes(for installation: XcodeInstallation) -> Bool {
-        runtimeSizesLoadingIDs.contains(installation.id)
-    }
-
-    /// `simctl runtime list -j` reports each image's size, so this is a single fast
-    /// process rather than a traversal.
-    func loadRuntimeSizes(for installation: XcodeInstallation, force: Bool = false) {
-        let id = installation.id
-        if runtimeSizesTasks[id] != nil {
-            guard force else { return }
-            runtimeSizesTasks[id]?.cancel()
-            runtimeSizesTasks[id] = nil
-            runtimeSizesLoadingIDs.remove(id)
-        }
-        guard force || runtimeSizesByID[id] == nil else { return }
-        runtimeSizesLoadingIDs.insert(id)
-        runtimeSizesTasks[id] = Task.detached(priority: .utility) { [weak self] in
-            let runtimes = XcodeTooling.simulatorRuntimeSizes(for: installation)
-            await self?.completeRuntimeSizesLoad(for: id, runtimes: runtimes)
-        }
-    }
-
-    private func completeRuntimeSizesLoad(for id: String, runtimes: [DiskUsageReporter.SimulatorRuntime]) {
-        runtimeSizesTasks[id] = nil
-        runtimeSizesLoadingIDs.remove(id)
-        runtimeSizesByID[id] = runtimes
-    }
-
-    func deleteRuntime(_ runtime: DiskUsageReporter.SimulatorRuntime, for installation: XcodeInstallation) {
-        guard runtime.isDeletable, !isReclaimingRuntimes else { return }
-        isReclaimingRuntimes = true
-        isError = false
-        statusMessage = String(localized: "正在删除 Runtime \(runtime.label)…")
-        Task { [weak self] in
-            let report = await Task.detached(priority: .utility) { () -> RuntimeRemovalReport in
-                let outcome = XcodeTooling.deleteSimulatorRuntimes([runtime.identifier], installation: installation)
-                return RuntimeRemovalReport(
-                    removed: outcome.succeeded.isEmpty ? [] : [runtime.label],
-                    failed: outcome.failed.isEmpty ? [] : [runtime.label]
-                )
-            }.value
-            self?.completeRuntimeRemoval(report, installation: installation)
-        }
-    }
-
-    /// Runs simctl's own `--dry-run` and surfaces its output, so the preview is what
-    /// simctl reports rather than a locally derived guess about which seeds qualify.
-    func previewRuntimeReclaim(_ reclaim: SimulatorRuntimeReclaim, for installation: XcodeInstallation) {
-        guard !isReclaimingRuntimes else { return }
-        isReclaimingRuntimes = true
-        isError = false
-        runtimeReclaimPreview = nil
-        statusMessage = String(localized: "正在检查\(reclaim.title)的 Runtime…")
-        Task { [weak self] in
-            let result = await Task.detached(priority: .utility) {
-                // simctl decides which images qualify; the listing is read alongside
-                // it only so its UUIDs can be shown as the versions and sizes the
-                // runtime list already displays.
-                let runtimes = XcodeTooling.simulatorRuntimeSizes(for: installation)
-                let outcome = XcodeTooling.reclaimSimulatorRuntimes(
-                    reclaim,
-                    installation: installation,
-                    dryRun: true
-                )
-                return (outcome, runtimes)
-            }.value
-            guard let self else { return }
-            isReclaimingRuntimes = false
-            if result.0.succeeded {
-                runtimeReclaimPreview = SimulatorRuntimeReclaim.preview(of: result.0.stdout, runtimes: result.1)
-                runtimeReclaimPreviewOption = reclaim
-                statusMessage = String(localized: "检查完成。")
-            } else if SimulatorRuntimeReclaim.matchedNothing(result.0) {
-                // Nothing matches. That is information, not a failure: a machine used
-                // within 30 days legitimately has nothing "30 天未使用", and reporting
-                // that as 检查失败 was wrong.
-                runtimeReclaimPreview = SimulatorRuntimeReclaimPreview(lines: [])
-                runtimeReclaimPreviewOption = reclaim
-                isError = false
-                statusMessage = String(localized: "没有需要清理的 Runtime。")
-            } else {
-                isError = true
-                statusMessage = String(localized: "检查失败：\(result.0.failureDescription)")
-            }
-        }
-    }
-
-    func reclaimRuntimes(_ reclaim: SimulatorRuntimeReclaim, for installation: XcodeInstallation) {
-        guard !isReclaimingRuntimes else { return }
-        isReclaimingRuntimes = true
-        isError = false
-        // Resolved on the main actor before the work starts, so the deletion set is
-        // exactly what the preview showed.
-        let previewed = previewedTargets(for: reclaim)
-        statusMessage = String(localized: "正在清理\(reclaim.title)的 Runtime…")
-        Task { [weak self] in
-            let report = await Task.detached(priority: .utility) { () -> RuntimeRemovalReport in
-                var targets = previewed
-                if targets.isEmpty {
-                    // 清理 without a preview first: resolve the set now, so the action
-                    // still deletes precisely what a preview would have listed.
-                    let runtimes = XcodeTooling.simulatorRuntimeSizes(for: installation)
-                    let dryRun = XcodeTooling.reclaimSimulatorRuntimes(
-                        reclaim,
-                        installation: installation,
-                        dryRun: true
-                    )
-                    guard dryRun.succeeded || SimulatorRuntimeReclaim.matchedNothing(dryRun) else {
-                        return RuntimeRemovalReport(removed: [], failed: [dryRun.failureDescription])
-                    }
-                    targets = SimulatorRuntimeReclaim.preview(of: dryRun.stdout, runtimes: runtimes).targets
-                }
-                guard !targets.isEmpty else { return RuntimeRemovalReport(removed: [], failed: []) }
-
-                // One `simctl` call per identifier: it accepts exactly one, and a
-                // selector deleted only a single image per click.
-                let outcome = XcodeTooling.deleteSimulatorRuntimes(
-                    targets.map(\.identifier),
-                    installation: installation
-                )
-                let labels = Dictionary(
-                    targets.map { ($0.identifier, $0.label) },
-                    uniquingKeysWith: { first, _ in first }
-                )
-                return RuntimeRemovalReport(
-                    removed: outcome.succeeded.compactMap { labels[$0] },
-                    failed: outcome.failed.map { labels[$0] ?? $0 }
-                )
-            }.value
-            self?.completeRuntimeRemoval(report, installation: installation)
-        }
-    }
-
-    /// What the current preview would delete, when it belongs to this option.
-    private func previewedTargets(for reclaim: SimulatorRuntimeReclaim) -> [SimulatorRuntimeReclaimPreview.Target] {
-        guard runtimeReclaimPreviewOption == reclaim, let runtimeReclaimPreview else { return [] }
-        return runtimeReclaimPreview.targets
-    }
-
-    /// What a bulk removal actually did, by label, so the result can name the
-    /// runtimes instead of reporting the selector that was clicked.
-    private struct RuntimeRemovalReport: Sendable {
-        let removed: [String]
-        let failed: [String]
-    }
-
-    private func completeRuntimeRemoval(_ report: RuntimeRemovalReport, installation: XcodeInstallation) {
-        isReclaimingRuntimes = false
-        runtimeReclaimPreview = nil
-        runtimeReclaimPreviewOption = nil
-        if !report.failed.isEmpty {
-            isError = true
-            statusMessage = String(localized: "清理失败：\(report.failed.joined(separator: "、"))")
-        } else if report.removed.isEmpty {
-            isError = false
-            statusMessage = String(localized: "没有需要清理的 Runtime。")
-        } else {
-            isError = false
-            statusMessage = String(
-                localized: "已清理 \(report.removed.count) 个 Runtime：\(report.removed.joined(separator: "、"))。"
-            )
-        }
-        // Both the measured sizes and the installed-runtime list have changed.
-        loadRuntimeSizes(for: installation, force: true)
-        Task { [weak self] in
-            let runtimes = await Task.detached(priority: .utility) {
-                XcodeTooling.simulatorRuntimes(for: installation)
-            }.value
-            self?.runtimesByID[installation.id] = runtimes
-        }
-    }
-
-    /// Deletes every device the current Xcode SDK no longer supports. Those rows are
-    /// disabled in the UI (they cannot boot or be erased), so without this they can
-    /// only accumulate.
-    func deleteUnavailableDevices(for installation: XcodeInstallation) {
-        let unavailable = simulatorDevices(for: installation).filter { !$0.isAvailable }.count
-        guard unavailable > 0 else { return }
-        isError = false
-        statusMessage = String(localized: "正在删除 \(unavailable) 个不可用 Simulator 设备…")
-        Task { [weak self] in
-            let result = await Task.detached(priority: .utility) {
-                let actionResult = XcodeTooling.deleteUnavailableDevices(for: installation)
-                let devices = actionResult.succeeded ? XcodeTooling.simulatorDevices(for: installation) : nil
-                return (actionResult, devices)
-            }.value
-            guard let self else { return }
-            if result.0.succeeded {
-                if let devices = result.1 { devicesByID[installation.id] = devices }
-                isError = false
-                statusMessage = String(localized: "已删除 \(unavailable) 个不可用 Simulator 设备。")
-            } else {
-                isError = true
-                statusMessage = String(localized: "Simulator 操作失败：\(result.0.failureDescription)")
-            }
-        }
-    }
-
-    // MARK: - 版本详细信息
 
     /// What the installed bundle says about itself.
     ///

@@ -22,7 +22,7 @@ final class SigningStore: ObservableObject {
     /// Set by `XcodeViewModel` at construction.
     var resolveInstallation: (ProjectProfile) -> XcodeInstallation? = { _ in nil }
     var projectIssue: (ProjectProfile) -> String? = { _ in nil }
-    var reportStatus: (String, Bool) -> Void = { _, _ in }
+    weak var status: (any StatusReporting)?
 
     private var reportTask: Task<Void, Never>?
 
@@ -93,17 +93,21 @@ final class SigningStore: ObservableObject {
         do {
             try SigningService.exportCertificate(certificate, to: url)
             NSWorkspace.shared.activateFileViewerSelecting([url])
-            reportStatus(String(localized: "公钥证书已导出并在 Finder 中显示。"), false)
+            status?.isError = false
+            status?.statusMessage = String(localized: "公钥证书已导出并在 Finder 中显示。")
         } catch {
-            reportStatus(String(localized: "证书导出失败：\(error.localizedDescription)"), true)
+            status?.isError = true
+            status?.statusMessage = String(localized: "证书导出失败：\(error.localizedDescription)")
         }
     }
 
     func openKeychainAccess() {
         if SigningService.openKeychainAccess() {
-            reportStatus(String(localized: "已打开钥匙串访问。"), false)
+            status?.isError = false
+            status?.statusMessage = String(localized: "已打开钥匙串访问。")
         } else {
-            reportStatus(String(localized: "无法打开钥匙串访问。"), true)
+            status?.isError = true
+            status?.statusMessage = String(localized: "无法打开钥匙串访问。")
         }
     }
 
