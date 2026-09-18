@@ -27,6 +27,7 @@ while IFS= read -r file; do
   stringsdata+=("$file")
 done < <(/usr/bin/find "$derived_data" \
   \( -path "*/XcodeSwitcher.build/*/XcodeSwitcher.build/Objects-normal/*" \
+  -o -path "*/XcodeSwitcher.build/*/XcodeSwitcherKit.build/Objects-normal/*" \
   -o -path "*/XcodeSwitcher.build/*/xcodeswitcher-cli.build/Objects-normal/*" \) \
   -name "*.stringsdata" -type f 2>/dev/null | sort | while IFS= read -r candidate; do
     # A .stringsdata left by an earlier build of a file that has since changed would

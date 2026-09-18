@@ -1,6 +1,7 @@
 import AppKit
 import Darwin
 import Foundation
+import XcodeSwitcherKit
 
 private enum CLIError: Error, CustomStringConvertible {
     case usage(String)

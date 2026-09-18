@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 /// Covers the caching and persistence behaviour added for view-render cost.
 /// The view model takes an injected store and skips system services so it can be

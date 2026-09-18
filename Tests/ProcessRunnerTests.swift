@@ -1,5 +1,6 @@
 import XCTest
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 final class ProcessRunnerTests: XCTestCase {
     func testCapturesOutputAndStreamsProgress() {

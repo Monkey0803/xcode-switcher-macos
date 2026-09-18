@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 import UniformTypeIdentifiers
+import XcodeSwitcherKit
 
 /// Prominent actions adopt Liquid Glass on macOS 26 and later; older systems keep
 /// the previous bordered style. SwiftUI ships glass only as button styles on this
@@ -497,6 +498,42 @@ struct XcodeDetailView: View {
     }
 }
 
+/// One cleanup candidate — a row of `CleanupSectionView`.
+///
+/// Split out of that view's `body`: once the shared code moved into a separate
+/// module, the single composite body exceeded the type-checker's budget and the
+/// compiler asked for it to be broken up. This is the part carrying the most
+/// expression, so it is the one that moved.
+private struct CleanupEntryRow: View {
+    @EnvironmentObject private var model: XcodeViewModel
+    let entry: XcodeCleanupEntry
+    let safety: XcodeCleanupSafety
+    let xcodeRunning: Bool
+    @Binding var entryToRemove: XcodeCleanupEntry?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: safety == .safe ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(safety == .safe ? .green : .orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.label).textRole(.itemTitle)
+                Text(entry.displaySize).textRole(.fieldValue)
+                Text(entry.note).textRole(.note)
+                Text(entry.path).textRole(.identifier).textSelection(.enabled)
+            }
+            Spacer()
+            Button("在 Finder 中显示") {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: entry.path)])
+            }
+            .buttonStyle(.borderless)
+            Button("清理") { entryToRemove = entry }
+                .buttonStyle(.bordered)
+                .disabled(xcodeRunning || model.isRemovingCleanupEntry(entry))
+        }
+        .padding(.vertical, 3)
+    }
+}
+
 private struct CleanupSectionView: View {
     @EnvironmentObject private var model: XcodeViewModel
     let installation: XcodeInstallation
@@ -535,25 +572,12 @@ private struct CleanupSectionView: View {
                         if !group.isEmpty {
                             Text(safety.title).font(.subheadline.weight(.semibold))
                             ForEach(group) { entry in
-                                HStack(alignment: .top, spacing: 8) {
-                                    Image(systemName: safety == .safe ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                        .foregroundStyle(safety == .safe ? .green : .orange)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(entry.label).textRole(.itemTitle)
-                                        Text(entry.displaySize).textRole(.fieldValue)
-                                        Text(entry.note).textRole(.note)
-                                        Text(entry.path).textRole(.identifier).textSelection(.enabled)
-                                    }
-                                    Spacer()
-                                    Button("在 Finder 中显示") {
-                                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: entry.path)])
-                                    }
-                                    .buttonStyle(.borderless)
-                                    Button("清理") { entryToRemove = entry }
-                                        .buttonStyle(.bordered)
-                                        .disabled(xcodeRunning || model.isRemovingCleanupEntry(entry))
-                                }
-                                .padding(.vertical, 3)
+                                CleanupEntryRow(
+                                    entry: entry,
+                                    safety: safety,
+                                    xcodeRunning: xcodeRunning,
+                                    entryToRemove: $entryToRemove
+                                )
                             }
                         }
                     }

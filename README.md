@@ -90,7 +90,7 @@ open "build/DerivedData/Build/Products/Debug/Xcode Switcher.app"
 open "build/Xcode Switcher.app"
 ```
 
-脚本会解析固定版本的 Sparkle 依赖，编译 `Sources/` 下的全部 Swift 文件，并按 Sparkle 官方要求的嵌套顺序执行 ad-hoc 签名。开发签名仅为本地运行启用 Library Validation 调试例外；正式 Developer ID 构建不会携带该例外。未提供正式更新地址和公钥的开发构建会明确禁用“检查更新”。两条路径产出的 app bundle 结构一致（`XcodeSwitcherApp`、内嵌 `xcodeswitcher`、嵌入并签名的 Sparkle、图标）。
+脚本会解析固定版本的 Sparkle 依赖，先把 `Sources/XcodeSwitcherKit` 编译成模块，再让 `Sources/XcodeSwitcher` 与 `SourcesCLI` 链接它（与 `Package.swift`、生成的 Xcode 工程三处目标定义一致），并按 Sparkle 官方要求的嵌套顺序执行 ad-hoc 签名。开发签名仅为本地运行启用 Library Validation 调试例外；正式 Developer ID 构建不会携带该例外。未提供正式更新地址和公钥的开发构建会明确禁用“检查更新”。两条路径产出的 app bundle 结构一致（`XcodeSwitcherApp`、内嵌 `xcodeswitcher`、嵌入并签名的 Sparkle、图标）。
 
 ### Homebrew
 

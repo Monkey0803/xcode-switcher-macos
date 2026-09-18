@@ -1,5 +1,6 @@
 import XCTest
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 final class XcodeProcessInspectorTests: XCTestCase {
     private func installation(name: String, version: String) throws -> XcodeInstallation {

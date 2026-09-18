@@ -1,5 +1,6 @@
 import XCTest
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 final class ProjectLocalConfigurationStoreTests: XCTestCase {
     private var root: URL!

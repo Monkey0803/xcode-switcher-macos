@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import XCTest
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 final class DiskUsageTests: XCTestCase {
     func testFormatsEveryUnit() {

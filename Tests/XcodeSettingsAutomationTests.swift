@@ -1,6 +1,7 @@
 import AppKit
 import Testing
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 /// The Settings-window automation is an AppleScript string that is otherwise only
 /// exercised on a user's machine, where a syntax error looks like "nothing

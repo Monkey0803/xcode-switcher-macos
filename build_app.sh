@@ -64,11 +64,32 @@ menu_icon_source="$script_dir/build/MenuBarIcon-source.png"
 /usr/bin/sips -s format png "$script_dir/Resources/MenuBarIcon.svg" --out "$menu_icon_source" >/dev/null
 /usr/bin/sips -z 36 36 "$menu_icon_source" --out "$resources_dir/MenuBarIcon.png" >/dev/null
 
+# One module for the code the app and the CLI share. Both binaries link this same
+# archive instead of each compiling its own copy of those files; the hand-written
+# per-file lists that used to guard that sharing are gone, because the directory
+# is now the list.
+kit_dir="$script_dir/build/kit"
+/bin/rm -rf "$kit_dir"
+/bin/mkdir -p "$kit_dir"
+/usr/bin/xcrun swiftc -O \
+  -emit-library -static -emit-module \
+  -module-name XcodeSwitcherKit \
+  -emit-module-path "$kit_dir/XcodeSwitcherKit.swiftmodule" \
+  -parse-as-library \
+  -target arm64-apple-macosx15.0 \
+  -strict-concurrency=complete \
+  -warnings-as-errors \
+  -framework AppKit \
+  -framework Security \
+  "$script_dir"/Sources/XcodeSwitcherKit/*.swift \
+  -o "$kit_dir/libXcodeSwitcherKit.a"
+
 /usr/bin/xcrun swiftc -O \
   -parse-as-library \
   -target arm64-apple-macosx15.0 \
   -strict-concurrency=complete \
   -warnings-as-errors \
+  -I "$kit_dir" \
   -framework SwiftUI \
   -framework AppKit \
   -framework Security \
@@ -78,59 +99,20 @@ menu_icon_source="$script_dir/build/MenuBarIcon-source.png"
   -Xlinker Sparkle \
   -Xlinker -rpath \
   -Xlinker @executable_path/../Frameworks \
-  "$script_dir"/Sources/*.swift \
+  "$script_dir"/Sources/XcodeSwitcher/*.swift \
+  "$kit_dir/libXcodeSwitcherKit.a" \
   -o "$app_arm64"
-
-# Sources the CLI shares with the app, and the files that are genuinely app-only
-# (SwiftUI views, AppKit lifecycle, Sparkle, Keychain UI). Every file in Sources/
-# must appear in exactly one of these lists: a new shared file that is not added
-# to the CLI build would otherwise only fail once someone runs the CLI.
-cli_shared_sources=(
-  Models.swift
-  DiskUsage.swift
-  ProjectMatching.swift
-  Services.swift
-  EnvironmentDoctor.swift
-  ProjectEnvironment.swift
-  CLIModels.swift
-)
-cli_app_only_sources=(
-  AppearanceDecisions.swift
-  SigningServices.swift
-  ViewModel.swift
-  Views.swift
-  XcodeSwitcherApp.swift
-  LifecycleServices.swift
-  XcodeReleaseInfo.swift
-  SemanticTextStyles.swift
-  AllVersionsView.swift
-)
-
-for source_file in "$script_dir"/Sources/*.swift; do
-  source_name="$(basename "$source_file")"
-  if [[ " ${cli_app_only_sources[*]} " == *" $source_name "* ]]; then
-    continue
-  fi
-  if [[ " ${cli_shared_sources[*]} " != *" $source_name "* ]]; then
-    printf '错误：%s 未登记为 CLI 共享源文件或应用专属文件。请更新 build_app.sh。\n' "$source_name" >&2
-    exit 1
-  fi
-done
-
-cli_source_arguments=()
-for source_name in "${cli_shared_sources[@]}"; do
-  cli_source_arguments+=("$script_dir/Sources/$source_name")
-done
 
 /usr/bin/xcrun swiftc -O \
   -parse-as-library \
   -target arm64-apple-macosx15.0 \
   -strict-concurrency=complete \
   -warnings-as-errors \
+  -I "$kit_dir" \
   -framework AppKit \
   -framework Security \
-  "${cli_source_arguments[@]}" \
   "$script_dir/SourcesCLI/CLIEntryPoint.swift" \
+  "$kit_dir/libXcodeSwitcherKit.a" \
   -o "$cli_arm64"
 
 cp "$app_arm64" "$macos_dir/XcodeSwitcherApp"

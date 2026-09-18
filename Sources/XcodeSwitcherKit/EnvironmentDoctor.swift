@@ -1,7 +1,7 @@
 import Foundation
 
-enum EnvironmentDoctor {
-    static func inspect(
+public enum EnvironmentDoctor {
+    public static func inspect(
         installation: XcodeInstallation,
         activeDeveloperPath: String?
     ) -> EnvironmentReport {
@@ -105,7 +105,7 @@ enum EnvironmentDoctor {
         )
     }
 
-    static func render(_ report: EnvironmentReport, redacted: Bool = false) -> String {
+    public static func render(_ report: EnvironmentReport, redacted: Bool = false) -> String {
         let formatter = ISO8601DateFormatter()
         let redact: (String) -> String = { value in
             guard redacted else { return value }

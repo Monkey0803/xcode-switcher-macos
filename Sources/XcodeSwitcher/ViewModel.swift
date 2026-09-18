@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
+import XcodeSwitcherKit
 
 struct ProjectOpenRequest: Identifiable {
     let profile: ProjectProfile

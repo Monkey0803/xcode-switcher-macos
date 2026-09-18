@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 /// New tests use Swift Testing. XCTest stays in place for the existing suite,
 /// which the migration guidance explicitly allows to coexist.

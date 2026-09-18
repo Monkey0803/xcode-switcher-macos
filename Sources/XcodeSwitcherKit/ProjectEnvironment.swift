@@ -1,13 +1,13 @@
 import Foundation
 
-enum ProjectDirectoryResolution: Equatable, Sendable {
+public enum ProjectDirectoryResolution: Equatable, Sendable {
     case project(URL)
     case none
     case ambiguous(directory: String)
 }
 
-enum ProjectDirectoryLocator {
-    static func resolve(
+public enum ProjectDirectoryLocator {
+    public static func resolve(
         startingAt url: URL,
         fileManager: FileManager = .default
     ) -> ProjectDirectoryResolution {
@@ -57,11 +57,11 @@ enum ProjectDirectoryLocator {
     }
 }
 
-enum ProjectEnvironmentOutput: Equatable, Sendable {
+public enum ProjectEnvironmentOutput: Equatable, Sendable {
     case exportDeveloperDirectory(String)
     case restoreOriginal
 
-    var shellSource: String {
+    public var shellSource: String {
         switch self {
         case let .exportDeveloperDirectory(path):
             let escaped = path.replacingOccurrences(of: "'", with: "'\"'\"'")
@@ -72,13 +72,13 @@ enum ProjectEnvironmentOutput: Equatable, Sendable {
     }
 }
 
-enum ProjectEnvironmentResolution: Equatable, Sendable {
+public enum ProjectEnvironmentResolution: Equatable, Sendable {
     case output(ProjectEnvironmentOutput)
     case issue(String)
 }
 
-enum ProjectEnvironmentResolver {
-    static func resolve(
+public enum ProjectEnvironmentResolver {
+    public static func resolve(
         for profile: ProjectProfile,
         installations: [XcodeInstallation],
         aliases: [String: String] = [:],
@@ -111,8 +111,8 @@ enum ProjectEnvironmentResolver {
     }
 }
 
-enum ZshProjectEnvironmentHook {
-    static let source = #"""
+public enum ZshProjectEnvironmentHook {
+    public static let source = #"""
 if [[ -z "${__xcodeswitcher_original_developer_dir_captured:-}" ]]; then
   __xcodeswitcher_original_developer_dir_captured=1
   if [[ -v DEVELOPER_DIR ]]; then

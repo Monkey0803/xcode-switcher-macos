@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import XcodeSwitcherKit
 
 @main
 struct XcodeSwitcherApp: App {

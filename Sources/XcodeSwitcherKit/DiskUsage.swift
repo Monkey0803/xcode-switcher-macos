@@ -2,7 +2,7 @@ import Foundation
 
 /// Human-readable byte sizes. Pure, so the formatting is covered on every machine
 /// even though the numbers it prints come from the filesystem.
-enum DiskUsageFormatter {
+public enum DiskUsageFormatter {
     /// `du -k` reports kibibytes; the rest of the app talks in bytes.
     static func bytes(fromDuKilobytes kilobytes: Int64) -> Int64 {
         kilobytes * 1024
@@ -10,7 +10,7 @@ enum DiskUsageFormatter {
 
     /// One decimal for gigabytes and up, none below, so the CLI columns stay
     /// readable without pulling in a locale-dependent formatter.
-    static func humanReadable(bytes: Int64) -> String {
+    public static func humanReadable(bytes: Int64) -> String {
         let value = Double(max(bytes, 0))
         let units: [(threshold: Double, divisor: Double, suffix: String, decimals: Int)] = [
             (1_000_000_000_000, 1_000_000_000_000, "TB", 1),
@@ -31,11 +31,17 @@ enum DiskUsageFormatter {
 /// thousands of files, and enumeration there takes far longer than a single
 /// process. Its output is parsed by a pure function, so the parsing is tested
 /// without touching the filesystem.
-enum DiskUsageReporter {
-    struct Entry: Equatable, Sendable {
-        let label: String
-        let path: String
-        let bytes: Int64
+public enum DiskUsageReporter {
+    public struct Entry: Equatable, Sendable {
+        public let label: String
+        public let path: String
+        public let bytes: Int64
+
+        public init(label: String, path: String, bytes: Int64) {
+            self.label = label
+            self.path = path
+            self.bytes = bytes
+        }
     }
 
     /// `du -sk <path>` prints one line: "<kibibytes>\t<path>".
@@ -46,7 +52,7 @@ enum DiskUsageReporter {
         return DiskUsageFormatter.bytes(fromDuKilobytes: kilobytes)
     }
 
-    static func allocatedBytes(ofPath path: String) -> Int64? {
+    public static func allocatedBytes(ofPath path: String) -> Int64? {
         guard let output = ProcessRunner.output(executable: "/usr/bin/du", arguments: ["-sk", path]) else {
             return nil
         }
@@ -54,11 +60,11 @@ enum DiskUsageReporter {
     }
 
     /// A simulator runtime as `simctl` reports it.
-    struct SimulatorRuntime: Equatable, Sendable {
+    public struct SimulatorRuntime: Equatable, Sendable {
         /// The UUID `simctl runtime delete` takes. The dictionary key and the
         /// `identifier` field agree, but only the field is guaranteed to be a string
         /// so the key is the fallback.
-        let identifier: String
+        public let identifier: String
         let name: String
         /// Several seeds of the same version can be installed side by side, so the
         /// version alone does not identify an image — the build does.
@@ -66,16 +72,16 @@ enum DiskUsageReporter {
         let version: String
         /// Groups seeds of the same platform+version, e.g. `…SimRuntime.iOS-27-0`.
         let runtimeIdentifier: String
-        let path: String
-        let bytes: Int64
+        public let path: String
+        public let bytes: Int64
         /// Defaults to `false`: when simctl does not say a runtime is deletable, the
         /// safe reading is that it is not.
-        let isDeletable: Bool
+        public let isDeletable: Bool
         let state: String
         /// Absent for some seeds, which is not the same as "never used".
-        let lastUsedAt: Date?
+        public let lastUsedAt: Date?
 
-        var label: String { build.isEmpty ? name : "\(name) (\(build))" }
+        public var label: String { build.isEmpty ? name : "\(name) (\(build))" }
     }
 
     /// `xcrun simctl runtime list -j` is a dictionary keyed by runtime identifier.
@@ -120,7 +126,7 @@ enum DiskUsageReporter {
         .sorted { $0.label < $1.label }
     }
 
-    static func simulatorRuntimes() -> [SimulatorRuntime] {
+    public static func simulatorRuntimes() -> [SimulatorRuntime] {
         guard let output = ProcessRunner.output(
             executable: "/usr/bin/xcrun",
             arguments: ["simctl", "runtime", "list", "-j"]
@@ -138,17 +144,17 @@ enum DiskUsageReporter {
 /// outdated, keeping `24A5380i`. Deriving that here would be a second, worse
 /// implementation of Apple's build ordering, so the preview runs simctl's own
 /// `--dry-run` and shows its output verbatim.
-enum SimulatorRuntimeReclaim: String, CaseIterable, Identifiable, Sendable {
+public enum SimulatorRuntimeReclaim: String, CaseIterable, Identifiable, Sendable {
     case outdated
     case unused
     case unusable
 
-    var id: Self { self }
+    public var id: Self { self }
 
     /// Days without use before `simctl` treats a runtime as reclaimable.
     static let unusedDays = 30
 
-    var title: String {
+    public var title: String {
         switch self {
         case .outdated: return String(localized: "已过时")
         case .unused: return String(localized: "30 天未使用")
@@ -156,7 +162,7 @@ enum SimulatorRuntimeReclaim: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var note: String {
+    public var note: String {
         switch self {
         case .outdated: return String(localized: "同一 Runtime 已有更新的构建，只保留最新的一个。")
         case .unused: return String(localized: "最近 30 天没有使用过。")
@@ -181,7 +187,7 @@ enum SimulatorRuntimeReclaim: String, CaseIterable, Identifiable, Sendable {
     static let nothingMatchedMarker = "No matching images found to delete"
 
     /// True when the command failed *only* because nothing matched.
-    static func matchedNothing(_ result: ProcessResult) -> Bool {
+    public static func matchedNothing(_ result: ProcessResult) -> Bool {
         guard !result.succeeded else { return false }
         return (result.stdout + "\n" + result.stderr).contains(nothingMatchedMarker)
     }
@@ -200,7 +206,7 @@ enum SimulatorRuntimeReclaim: String, CaseIterable, Identifiable, Sendable {
     /// A line whose identifier cannot be resolved is kept verbatim rather than
     /// dropped: raw text is worse than a tidy row, but silently hiding a line would
     /// understate what is about to be removed.
-    static func preview(
+    public static func preview(
         of output: String,
         runtimes: [DiskUsageReporter.SimulatorRuntime]
     ) -> SimulatorRuntimeReclaimPreview {
@@ -246,33 +252,33 @@ enum SimulatorRuntimeReclaim: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// A `simctl runtime delete --dry-run` result, resolved for display.
-struct SimulatorRuntimeReclaimPreview: Equatable, Sendable {
-    struct Line: Identifiable, Equatable, Sendable {
-        let id: String
+public struct SimulatorRuntimeReclaimPreview: Equatable, Sendable {
+    public struct Line: Identifiable, Equatable, Sendable {
+        public let id: String
         /// `iOS 27.0 (24A5380i)` once resolved; otherwise the line simctl printed.
         let label: String
         let bytes: Int64?
-        let isResolved: Bool
+        public let isResolved: Bool
 
         var displaySize: String? {
             bytes.map { DiskUsageFormatter.humanReadable(bytes: $0) }
         }
 
         /// Label and size on one line, or the label alone when the size is unknown.
-        var summary: String {
+        public var summary: String {
             guard let displaySize else { return label }
             return "\(label) — \(displaySize)"
         }
     }
 
-    let lines: [Line]
+    public let lines: [Line]
 
     /// One runtime the bulk action will delete.
-    struct Target: Identifiable, Equatable, Sendable {
-        let identifier: String
-        let label: String
+    public struct Target: Identifiable, Equatable, Sendable {
+        public let identifier: String
+        public let label: String
 
-        var id: String { identifier }
+        public var id: String { identifier }
     }
 
     /// The identifiers to delete, with the labels to name them by.
@@ -281,24 +287,28 @@ struct SimulatorRuntimeReclaimPreview: Equatable, Sendable {
     /// because `simctl runtime delete` takes exactly **one** identifier per
     /// invocation — passing two silently ignores the second — so a selector-based
     /// delete removed a single image per click and the user could not tell which.
-    var targets: [Target] {
+    public var targets: [Target] {
         lines.filter(\.isResolved).map { Target(identifier: $0.id, label: $0.label) }
     }
 
-    var isEmpty: Bool { lines.isEmpty }
-    var resolvedCount: Int { lines.filter(\.isResolved).count }
-    var totalBytes: Int64 { lines.compactMap(\.bytes).reduce(0, +) }
+    public var isEmpty: Bool { lines.isEmpty }
+    public var resolvedCount: Int { lines.filter(\.isResolved).count }
+    public var totalBytes: Int64 { lines.compactMap(\.bytes).reduce(0, +) }
+
+    public init(lines: [Line]) {
+        self.lines = lines
+    }
 }
 
-enum XcodeCleanupSafety: Int, CaseIterable, Identifiable, Sendable {
+public enum XcodeCleanupSafety: Int, CaseIterable, Identifiable, Sendable {
     case safe
     case caution
 
-    var id: Self { self }
+    public var id: Self { self }
 
     /// Names the risk rather than the flow: every entry is confirmed before it is
     /// removed, so neither label may read as "this one is not confirmed".
-    var title: String {
+    public var title: String {
         switch self {
         case .safe: return String(localized: "可安全清理")
         case .caution: return String(localized: "需谨慎清理")
@@ -306,25 +316,25 @@ enum XcodeCleanupSafety: Int, CaseIterable, Identifiable, Sendable {
     }
 }
 
-struct XcodeCleanupEntry: Identifiable, Equatable, Sendable {
-    let path: String
-    let label: String
-    let bytes: Int64
-    let safety: XcodeCleanupSafety
-    let note: String
+public struct XcodeCleanupEntry: Identifiable, Equatable, Sendable {
+    public let path: String
+    public let label: String
+    public let bytes: Int64
+    public let safety: XcodeCleanupSafety
+    public let note: String
 
-    var id: String { path }
-    var displaySize: String { DiskUsageFormatter.humanReadable(bytes: bytes) }
+    public var id: String { path }
+    public var displaySize: String { DiskUsageFormatter.humanReadable(bytes: bytes) }
 }
 
 /// Raised when removal is asked for a path outside the home directory, outside
 /// the allowlist, or behind a symlinked component. Kept distinct from a real
 /// filesystem permission failure so the UI can name the rule that refused it
 /// instead of claiming the user lacks permission.
-struct XcodeCleanupRefusedError: LocalizedError {
+public struct XcodeCleanupRefusedError: LocalizedError {
     let path: String
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         String(localized: "拒绝清理不在允许列表中的路径：\(path)")
     }
 }
@@ -334,17 +344,19 @@ struct XcodeCleanupRefusedError: LocalizedError {
 /// The scan measures on `DispatchQueue.concurrentPerform`, where `Task.isCancelled`
 /// cannot be observed, so cancellation is an explicit flag the scan polls between
 /// measurements. One-shot by design: a scan is never un-cancelled.
-final class XcodeCleanupCancellation: @unchecked Sendable {
+public final class XcodeCleanupCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
 
-    func cancel() {
+    public init() {}
+
+    public func cancel() {
         lock.lock()
         cancelled = true
         lock.unlock()
     }
 
-    var isCancelled: Bool {
+    public var isCancelled: Bool {
         lock.lock()
         defer { lock.unlock() }
         return cancelled
@@ -372,7 +384,7 @@ private final class XcodeCleanupCollector: @unchecked Sendable {
 
 /// Finds only known, user-level Xcode data directories. Xcode application
 /// bundles and signing data are deliberately excluded from this list.
-enum XcodeCleanupReporter {
+public enum XcodeCleanupReporter {
     /// One directory the cleanup feature knows how to remove.
     ///
     /// `roots` below is the single source of truth: `entries()` offers exactly
@@ -457,7 +469,7 @@ enum XcodeCleanupReporter {
     /// rather than `Task.isCancelled` because this runs on
     /// `DispatchQueue.concurrentPerform`, where the current task is not observable —
     /// and because it keeps the scan callable from the synchronous CLI.
-    static func entries(isCancelled: @Sendable () -> Bool = { false }) -> [XcodeCleanupEntry] {
+    public static func entries(isCancelled: @Sendable () -> Bool = { false }) -> [XcodeCleanupEntry] {
         // A box class rather than a captured local: a `@Sendable` closure may not
         // mutate captured state, which is the same reason the CLI's `sizes` command
         // collects its concurrent `du` results this way.
@@ -545,7 +557,7 @@ enum XcodeCleanupReporter {
     /// takes its allowlist and home as state so they can be covered by tests; this
     /// is the standard-policy entry point the app and CLI use.
     @discardableResult
-    static func remove(_ entry: XcodeCleanupEntry) throws -> URL? {
+    public static func remove(_ entry: XcodeCleanupEntry) throws -> URL? {
         try XcodeCleanupRemover.standard.remove(entry)
     }
 
@@ -572,7 +584,7 @@ enum XcodeCleanupReporter {
 /// move to the Trash — had no test coverage at all, and this is the part of the
 /// feature that can destroy data. Injecting the scope lets a test drive all three
 /// against a temporary directory.
-struct XcodeCleanupRemover: Sendable {
+public struct XcodeCleanupRemover: Sendable {
     /// Allowed roots, as templates. A leading `~/` expands against `home`.
     let allowedRootTemplates: [String]
     /// The directory `~` expands to. A target outside it is refused.

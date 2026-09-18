@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import XcodeSwitcherKit
 
 enum SigningService {
     static func certificates() -> [SigningCertificate] {
@@ -35,8 +36,15 @@ enum SigningService {
                 options: [.skipsHiddenFiles]
             )) ?? []
         }
-        return Array(Set(urls)).filter { $0.pathExtension == "mobileprovision" }.compactMap(profile(at:)).sorted {
-            ($0.expirationDate ?? .distantPast) > ($1.expirationDate ?? .distantPast)
+        // 拆成三步：抬到 macOS 15 后这条链式表达式超出了类型检查预算，
+        // 编译器只报「unable to type-check this expression in reasonable time」。
+        let profiles = Array(Set(urls))
+            .filter { $0.pathExtension == "mobileprovision" }
+            .compactMap(profile(at:))
+        return profiles.sorted { lhs, rhs in
+            let left = lhs.expirationDate ?? Date.distantPast
+            let right = rhs.expirationDate ?? Date.distantPast
+            return left > right
         }
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import XcodeSwitcherKit
 
 /// One Xcode release as the community index at `xcodereleases.com` publishes it.
 ///

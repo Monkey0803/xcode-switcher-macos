@@ -2,8 +2,14 @@
 
 ## Layout
 
-- `Sources/` — the app; `SourcesCLI/` — the `xcodeswitcher` command line tool.
-- `Tests/` — XCTest + Swift Testing suites.
+- `Sources/XcodeSwitcherKit/` — the module the app and the CLI share;
+  `Sources/XcodeSwitcher/` — the app (SwiftUI views, AppKit lifecycle, Sparkle);
+  `SourcesCLI/` — the `xcodeswitcher` command line tool. The **directory is the
+  target**: `Package.swift`, `Scripts/generate_xcode_project.py` and
+  `build_app.sh` all read these three, so a new file belongs to whichever module
+  its directory names — there is no list to update.
+- `Tests/` — XCTest + Swift Testing suites. Test files that touch shared types
+  need both `@testable import XcodeSwitcher` and `@testable import XcodeSwitcherKit`.
 - `XcodeSwitcher.xcodeproj` — **generated**. Run
   `python3 Scripts/generate_xcode_project.py` after changing targets, build
   settings or adding source files instead of editing the project file.
@@ -131,7 +137,7 @@ and its old `.stringsdata` stays older than the source.
 What follows is a false alarm that fails the catalog gate: every string that file
 contributes is marked `"extractionState": "stale"`, and `verify_string_catalog.sh`
 treats any stale entry as a hard error, so CI goes red with the strings themselves
-perfectly fine. Verified 2026-09-17, after restoring `Sources/AllVersionsView.swift`
+perfectly fine. Verified 2026-09-17, after restoring `Sources/XcodeSwitcher/AllVersionsView.swift`
 with `cp` while splitting commits.
 
 Force that one file to recompile, then sync again:
@@ -146,6 +152,20 @@ xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
 Do not truncate the sync output — the warning is one line next to the merge count, and
 `tail -1` hides exactly it. Afterwards `git diff -- Resources/Localizable.xcstrings`
 must be empty.
+
+## The shared module has to stay an Xcode target
+
+`XcodeSwitcherKit` is a target of the generated project, not a product of the local
+package — and it has to be. Taking it from the package builds fine and looks
+simpler, but a SwiftPM package target does not carry `SWIFT_EMIT_LOC_STRINGS`, so
+every `String(localized:)` in the module (about a hundred, most in
+`EnvironmentDoctor`) stops reaching `Resources/Localizable.xcstrings`. Verified
+2026-09-18: with the package product, sync merged 10 `.stringsdata` instead of 17,
+the catalog dropped to 444 keys and about 65 were marked stale.
+
+Because the Kit owns strings, `Scripts/sync_string_catalog.sh` lists the target
+directories it reads by name. A new target that owns localized strings has to be
+added to that `find` expression too, or its keys silently leave the catalog.
 
 ## Translations
 

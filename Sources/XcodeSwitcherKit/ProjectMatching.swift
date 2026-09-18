@@ -1,12 +1,12 @@
 import Foundation
 
-struct ProjectLocalConfiguration: Codable, Equatable, Sendable {
-    let xcode: String?
-    let workspace: String?
+public struct ProjectLocalConfiguration: Codable, Equatable, Sendable {
+    public let xcode: String?
+    public let workspace: String?
 }
 
-enum ProjectLocalConfigurationStore {
-    static func configurationURL(for projectURL: URL, fileManager: FileManager = .default) -> URL? {
+public enum ProjectLocalConfigurationStore {
+    public static func configurationURL(for projectURL: URL, fileManager: FileManager = .default) -> URL? {
         var directory = projectURL.deletingLastPathComponent().standardizedFileURL
         while true {
             let url = directory.appendingPathComponent(".xcode-switcher.json")
@@ -17,13 +17,13 @@ enum ProjectLocalConfigurationStore {
         }
     }
 
-    static func load(in directory: URL, fileManager: FileManager = .default) -> ProjectLocalConfiguration? {
+    public static func load(in directory: URL, fileManager: FileManager = .default) -> ProjectLocalConfiguration? {
         let url = directory.appendingPathComponent(".xcode-switcher.json")
         guard let data = fileManager.contents(atPath: url.path) else { return nil }
         return try? JSONDecoder().decode(ProjectLocalConfiguration.self, from: data)
     }
 
-    static func load(for projectURL: URL, fileManager: FileManager = .default) -> ProjectLocalConfiguration? {
+    public static func load(for projectURL: URL, fileManager: FileManager = .default) -> ProjectLocalConfiguration? {
         guard let url = configurationURL(for: projectURL, fileManager: fileManager),
               let data = fileManager.contents(atPath: url.path) else { return nil }
         return try? JSONDecoder().decode(ProjectLocalConfiguration.self, from: data)
@@ -42,7 +42,7 @@ enum ProjectLocalConfigurationStore {
     /// into. `xcode` is a selector — identifier, path, name, alias or version — the
     /// same shapes `ProjectXcodeMatcher` resolves.
     @discardableResult
-    static func save(xcode: String, for projectURL: URL, fileManager: FileManager = .default) throws -> URL? {
+    public static func save(xcode: String, for projectURL: URL, fileManager: FileManager = .default) throws -> URL? {
         // configurationURL only answers when a configuration already exists further
         // up the tree, which is what we want to honour; a fresh project gets one
         // next to itself.
@@ -55,7 +55,7 @@ enum ProjectLocalConfigurationStore {
     /// Removes the Xcode binding, keeping the file while it still holds a workspace.
     /// Returns true when a binding was actually removed.
     @discardableResult
-    static func clear(for projectURL: URL, fileManager: FileManager = .default) throws -> Bool {
+    public static func clear(for projectURL: URL, fileManager: FileManager = .default) throws -> Bool {
         guard let url = configurationURL(for: projectURL, fileManager: fileManager),
               let existing = load(in: url.deletingLastPathComponent(), fileManager: fileManager),
               existing.xcode != nil else { return false }
@@ -71,7 +71,7 @@ enum ProjectLocalConfigurationStore {
     /// the same file `save(xcode:)` does, and removes it when nothing is left to
     /// remember.
     @discardableResult
-    static func save(workspace: String?, for projectURL: URL, fileManager: FileManager = .default) throws -> URL? {
+    public static func save(workspace: String?, for projectURL: URL, fileManager: FileManager = .default) throws -> URL? {
         let url = configurationURL(for: projectURL, fileManager: fileManager)
             ?? projectURL.deletingLastPathComponent().appendingPathComponent(".xcode-switcher.json")
         let existing = load(in: url.deletingLastPathComponent(), fileManager: fileManager)
@@ -91,7 +91,7 @@ enum ProjectLocalConfigurationStore {
 
 }
 
-enum ProjectXcodeResolution: Equatable, Sendable {
+public enum ProjectXcodeResolution: Equatable, Sendable {
     case resolved(installationID: String, source: ProjectXcodeResolutionSource)
     case missingProject(path: String)
     case missingBoundXcode(path: String)
@@ -99,12 +99,12 @@ enum ProjectXcodeResolution: Equatable, Sendable {
     case invalidProjectConfiguration(path: String)
     case noInstallation
 
-    var installationID: String? {
+    public var installationID: String? {
         guard case let .resolved(installationID, _) = self else { return nil }
         return installationID
     }
 
-    var issueDescription: String? {
+    public var issueDescription: String? {
         switch self {
         case .resolved:
             return nil
@@ -122,14 +122,14 @@ enum ProjectXcodeResolution: Equatable, Sendable {
     }
 }
 
-enum ProjectXcodeResolutionSource: Equatable, Sendable {
+public enum ProjectXcodeResolutionSource: Equatable, Sendable {
     case explicitBinding
     case localConfiguration(String)
     case automaticRequirement(ProjectXcodeRequirement)
     case currentInstallationFallback
     case firstInstallationFallback
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .explicitBinding:
             return String(localized: "项目固定绑定")
@@ -143,13 +143,13 @@ enum ProjectXcodeResolutionSource: Equatable, Sendable {
     }
 }
 
-enum ProjectXcodeOpenDecision: Equatable, Sendable {
+public enum ProjectXcodeOpenDecision: Equatable, Sendable {
     case open(installationID: String)
     case requiresConfirmation(installationID: String, source: ProjectXcodeResolutionSource)
 }
 
-enum ProjectXcodeMatcher {
-    static func openDecision(
+public enum ProjectXcodeMatcher {
+    public static func openDecision(
         for resolution: ProjectXcodeResolution,
         activeInstallationID: String?
     ) -> ProjectXcodeOpenDecision? {
@@ -163,7 +163,7 @@ enum ProjectXcodeMatcher {
         }
     }
 
-    static func requirement(for projectURL: URL, fileManager: FileManager = .default) -> ProjectXcodeRequirement? {
+    public static func requirement(for projectURL: URL, fileManager: FileManager = .default) -> ProjectXcodeRequirement? {
         let startDirectory = projectURL.hasDirectoryPath || ["xcodeproj", "xcworkspace"].contains(projectURL.pathExtension)
             ? projectURL.deletingLastPathComponent()
             : projectURL
@@ -198,7 +198,7 @@ enum ProjectXcodeMatcher {
         return nil
     }
 
-    static func match(
+    public static func match(
         projectURL: URL,
         installations: [XcodeInstallation],
         aliases: [String: String] = [:],
@@ -214,7 +214,7 @@ enum ProjectXcodeMatcher {
         return ProjectXcodeMatch(requirement: requirement, installationID: installation?.id)
     }
 
-    static func resolve(
+    public static func resolve(
         profile: ProjectProfile,
         installations: [XcodeInstallation],
         aliases: [String: String] = [:],
@@ -274,7 +274,7 @@ enum ProjectXcodeMatcher {
         return .resolved(installationID: first.id, source: .firstInstallationFallback)
     }
 
-    static func normalizeVersion(_ rawValue: String) -> String? {
+    public static func normalizeVersion(_ rawValue: String) -> String? {
         let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return nil }
 
@@ -285,7 +285,7 @@ enum ProjectXcodeMatcher {
         return String(value[range])
     }
 
-    static func version(_ installed: String, matches required: String) -> Bool {
+    public static func version(_ installed: String, matches required: String) -> Bool {
         var lhs = installed.split(separator: ".").compactMap { Int($0) }
         var rhs = required.split(separator: ".").compactMap { Int($0) }
         guard !lhs.isEmpty, lhs.count == installed.split(separator: ".").count,

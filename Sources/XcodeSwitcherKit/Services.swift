@@ -4,15 +4,15 @@ import Darwin
 import Foundation
 import Security
 
-struct ProcessResult: Sendable {
+public struct ProcessResult: Sendable {
     let status: Int32
-    let stdout: String
+    public let stdout: String
     let stderr: String
     let timedOut: Bool
-    let cancelled: Bool
-    var succeeded: Bool { status == 0 && !timedOut && !cancelled }
+    public let cancelled: Bool
+    public var succeeded: Bool { status == 0 && !timedOut && !cancelled }
 
-    init(status: Int32, stdout: String, stderr: String, timedOut: Bool = false, cancelled: Bool = false) {
+    public init(status: Int32, stdout: String, stderr: String, timedOut: Bool = false, cancelled: Bool = false) {
         self.status = status
         self.stdout = stdout
         self.stderr = stderr
@@ -20,7 +20,7 @@ struct ProcessResult: Sendable {
         self.cancelled = cancelled
     }
 
-    var failureDescription: String {
+    public var failureDescription: String {
         if cancelled { return String(localized: "操作已取消。") }
         if timedOut { return String(localized: "操作超时。") }
         if !stderr.isEmpty { return stderr }
@@ -88,14 +88,14 @@ private struct ProcessOutputStream {
     }
 }
 
-enum ProcessRunner {
+public enum ProcessRunner {
     /// Time allowed to collect output the child already wrote after it exits.
     private static let outputDrainGrace: TimeInterval = 0.3
     /// Time allowed for a process to exit after `SIGTERM` before `SIGKILL`.
     private static let terminationGrace: TimeInterval = 1.0
     private static let pollIntervalMilliseconds: Int32 = 50
 
-    static func run(
+    public static func run(
         executable: String,
         arguments: [String],
         environment: [String: String] = [:],
@@ -228,10 +228,10 @@ enum ProcessRunner {
     }
 }
 
-enum XcodeLocator {
+public enum XcodeLocator {
     private static let bundleIdentifier = "com.apple.dt.Xcode"
 
-    static func discover(searchPaths: [String]) -> [XcodeInstallation] {
+    public static func discover(searchPaths: [String]) -> [XcodeInstallation] {
         var candidates = Set<URL>()
 
         if let spotlightResults = ProcessRunner.output(
@@ -265,13 +265,13 @@ enum XcodeLocator {
         }
     }
 
-    static func activeDeveloperPath() -> String? {
+    public static func activeDeveloperPath() -> String? {
         let result = ProcessRunner.run(executable: "/usr/bin/xcode-select", arguments: ["-p"])
         guard result.succeeded else { return nil }
         return URL(fileURLWithPath: result.stdout).resolvingSymlinksInPath().path
     }
 
-    static func commandLineToolsPath() -> String {
+    public static func commandLineToolsPath() -> String {
         activeDeveloperPath() ?? "未配置"
     }
 
@@ -326,8 +326,8 @@ enum XcodeLocator {
 /// while the released build is `17C529`. Showing either in the UI would label a
 /// shipped Xcode with a build Apple never published for it, and matching release
 /// notes on it would pick the wrong entry.
-enum XcodeBundleMetadata {
-    static func publicBuild(appURL: URL) -> String? {
+public enum XcodeBundleMetadata {
+    public static func publicBuild(appURL: URL) -> String? {
         let versionURL = appURL.appendingPathComponent("Contents/version.plist")
         guard let version = NSDictionary(contentsOf: versionURL) as? [String: Any],
               let build = version["ProductBuildVersion"] as? String,
@@ -336,8 +336,8 @@ enum XcodeBundleMetadata {
     }
 }
 
-enum XcodeTooling {
-    static func details(for installation: XcodeInstallation) -> XcodeDetails {
+public enum XcodeTooling {
+    public static func details(for installation: XcodeInstallation) -> XcodeDetails {
         let environment = ["DEVELOPER_DIR": installation.developerURL.path]
         let sdkResult = ProcessRunner.run(
             executable: "/usr/bin/xcrun",
@@ -359,7 +359,7 @@ enum XcodeTooling {
         return XcodeDetails(swiftVersion: swift, sdkVersion: sdk, isCommandLineTools: false)
     }
 
-    static func simulatorRuntimes(for installation: XcodeInstallation) -> [SimulatorRuntime] {
+    public static func simulatorRuntimes(for installation: XcodeInstallation) -> [SimulatorRuntime] {
         let environment = ["DEVELOPER_DIR": installation.developerURL.path]
         let result = ProcessRunner.run(
             executable: "/usr/bin/xcrun",
@@ -381,7 +381,7 @@ enum XcodeTooling {
         }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
-    static func simulatorDevices(for installation: XcodeInstallation) -> [SimulatorDevice] {
+    public static func simulatorDevices(for installation: XcodeInstallation) -> [SimulatorDevice] {
         let result = ProcessRunner.run(
             executable: "/usr/bin/xcrun",
             arguments: ["simctl", "list", "devices", "--json"],
@@ -409,7 +409,7 @@ enum XcodeTooling {
     }
 
     @discardableResult
-    static func simulatorAction(
+    public static func simulatorAction(
         _ action: String,
         device: SimulatorDevice,
         installation: XcodeInstallation
@@ -425,7 +425,7 @@ enum XcodeTooling {
     /// Devices not supported by the current Xcode SDK. They cannot be booted or
     /// erased, so nothing in the UI can act on them one by one and they accumulate
     /// until `simctl delete unavailable` removes them.
-    static func deleteUnavailableDevices(for installation: XcodeInstallation) -> ProcessResult {
+    public static func deleteUnavailableDevices(for installation: XcodeInstallation) -> ProcessResult {
         ProcessRunner.run(
             executable: "/usr/bin/xcrun",
             arguments: ["simctl", "delete", "unavailable"],
@@ -436,7 +436,7 @@ enum XcodeTooling {
 
     /// Lists installed runtime images with the given Xcode's own `simctl`, so the
     /// listing and the deletions below resolve against the same developer directory.
-    static func simulatorRuntimeSizes(
+    public static func simulatorRuntimeSizes(
         for installation: XcodeInstallation
     ) -> [DiskUsageReporter.SimulatorRuntime] {
         let result = ProcessRunner.run(
@@ -469,7 +469,7 @@ enum XcodeTooling {
     /// silently ignores the second (verified with `--dry-run`). That is why a
     /// selector-based delete removed a single image per invocation, leaving the user
     /// to click 清理 once per runtime.
-    static func deleteSimulatorRuntimes(
+    public static func deleteSimulatorRuntimes(
         _ identifiers: [String],
         installation: XcodeInstallation
     ) -> (succeeded: [String], failed: [String]) {
@@ -488,7 +488,7 @@ enum XcodeTooling {
 
     /// Bulk reclaim. With `dryRun` this is simctl's own preview, so the user is shown
     /// exactly what simctl would remove rather than a locally derived guess.
-    static func reclaimSimulatorRuntimes(
+    public static func reclaimSimulatorRuntimes(
         _ reclaim: SimulatorRuntimeReclaim,
         installation: XcodeInstallation,
         dryRun: Bool
@@ -503,7 +503,7 @@ enum XcodeTooling {
         )
     }
 
-    static func downloadIOSRuntime(
+    public static func downloadIOSRuntime(
         for installation: XcodeInstallation,
         progress: (@Sendable (String) -> Void)? = nil
     ) -> ProcessResult {
@@ -681,7 +681,7 @@ private func xcodeAuthorizationExecuteWithPrivileges(
 /// identifier `com.apple.dt.Xcode`, so the bundle URL is what tells them apart.
 /// `xcode-select --switch` changes the toolchain underneath a running Xcode, which
 /// can disturb an ongoing build or debug session, so the app and the CLI ask first.
-enum XcodeProcessInspector {
+public enum XcodeProcessInspector {
     static func runningAppURLs(
         applications: [NSRunningApplication] = NSWorkspace.shared.runningApplications
     ) -> [URL] {
@@ -699,15 +699,15 @@ enum XcodeProcessInspector {
         return installations.filter { running.contains($0.appURL.standardizedFileURL.path) }
     }
 
-    static func runningInstallations(among installations: [XcodeInstallation]) -> [XcodeInstallation] {
+    public static func runningInstallations(among installations: [XcodeInstallation]) -> [XcodeInstallation] {
         runningInstallations(among: installations, runningAppURLs: runningAppURLs())
     }
 }
 
-enum XcodeActivator {
+public enum XcodeActivator {
     private static let authorizationSession = XcodeAuthorizationSession()
 
-    static func activate(_ installation: XcodeInstallation) throws {
+    public static func activate(_ installation: XcodeInstallation) throws {
         try authorizationSession.execute(
             toolPath: "/usr/bin/xcode-select",
             arguments: ["--switch", installation.developerURL.path]
@@ -724,8 +724,8 @@ enum XcodeActivator {
     }
 }
 
-enum XcodeActions {
-    static func open(_ project: URL, with installation: XcodeInstallation) {
+public enum XcodeActions {
+    public static func open(_ project: URL, with installation: XcodeInstallation) {
         NSWorkspace.shared.open(
             [project],
             withApplicationAt: installation.appURL,
@@ -734,11 +734,11 @@ enum XcodeActions {
         )
     }
 
-    static func openXcode(_ installation: XcodeInstallation) -> Bool {
+    public static func openXcode(_ installation: XcodeInstallation) -> Bool {
         NSWorkspace.shared.open(installation.appURL)
     }
 
-    static func openTerminal(at directory: URL, developerPath: String) -> Bool {
+    public static func openTerminal(at directory: URL, developerPath: String) -> Bool {
         let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
         guard FileManager.default.fileExists(atPath: terminalURL.path) else { return false }
 
@@ -773,7 +773,7 @@ enum XcodeActions {
         }
     }
 
-    static func openAccessibilitySettings() {
+    public static func openAccessibilitySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
@@ -782,7 +782,7 @@ enum XcodeActions {
     /// Xcode exposes no public URL scheme for its Settings window, so this drives
     /// its menu bar through System Events. That needs Accessibility permission and
     /// depends on the menu layout, so the outcome is reported instead of assumed.
-    static func openXcodeSettings(
+    public static func openXcodeSettings(
         for installation: XcodeInstallation,
         completion: @escaping @Sendable (Result<Void, XcodeSettingsError>) -> Void
     ) {
@@ -863,13 +863,13 @@ enum XcodeActions {
     }
 }
 
-enum XcodeSettingsError: LocalizedError, Sendable {
+public enum XcodeSettingsError: LocalizedError, Sendable {
     case cannotLaunch
     case accessibilityPermissionMissing
     case settingsItemNotFound
     case automationFailed(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .cannotLaunch:
             return String(localized: "无法打开该 Xcode。")
@@ -884,15 +884,15 @@ enum XcodeSettingsError: LocalizedError, Sendable {
 }
 
 @MainActor
-final class GlobalShortcutService {
-    static let shared = GlobalShortcutService()
+public final class GlobalShortcutService {
+    public static let shared = GlobalShortcutService()
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var shortcut = GlobalShortcut.default
-    var onPressed: (() -> Void)?
+    public var onPressed: (() -> Void)?
 
     @discardableResult
-    func start(using shortcut: GlobalShortcut = .default) -> Bool {
+    public func start(using shortcut: GlobalShortcut = .default) -> Bool {
         guard globalMonitor == nil else { return isAccessibilityTrusted }
         self.shortcut = shortcut
         let handler: (NSEvent) -> Void = { [weak self] event in
@@ -908,12 +908,12 @@ final class GlobalShortcutService {
     }
 
     @discardableResult
-    func update(_ shortcut: GlobalShortcut) -> Bool {
+    public func update(_ shortcut: GlobalShortcut) -> Bool {
         stop()
         return start(using: shortcut)
     }
 
-    var isAccessibilityTrusted: Bool {
+    public var isAccessibilityTrusted: Bool {
         AXIsProcessTrusted()
     }
 
@@ -925,7 +925,7 @@ final class GlobalShortcutService {
         return modifiers.rawValue == shortcut.modifierFlags
     }
 
-    func stop() {
+    public func stop() {
         if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
         if let localMonitor { NSEvent.removeMonitor(localMonitor) }
         globalMonitor = nil
@@ -933,11 +933,11 @@ final class GlobalShortcutService {
     }
 }
 
-final class AppConfigurationStore: @unchecked Sendable {
-    static let shared = AppConfigurationStore()
+public final class AppConfigurationStore: @unchecked Sendable {
+    public static let shared = AppConfigurationStore()
     private let fileURL: URL
 
-    init(fileURL: URL? = nil) {
+    public init(fileURL: URL? = nil) {
         if let fileURL {
             self.fileURL = fileURL
         } else {
@@ -946,7 +946,7 @@ final class AppConfigurationStore: @unchecked Sendable {
         }
     }
 
-    func load() -> AppConfiguration {
+    public func load() -> AppConfiguration {
         guard let data = try? Data(contentsOf: fileURL) else {
             return AppConfiguration()
         }
@@ -962,7 +962,7 @@ final class AppConfigurationStore: @unchecked Sendable {
 
     /// Writes the configuration and keeps a bounded history of previous versions.
     /// Throws so callers can surface a failure instead of silently losing edits.
-    func save(_ configuration: AppConfiguration) throws {
+    public func save(_ configuration: AppConfiguration) throws {
         var configuration = configuration
         configuration.migrate()
         let data = try Self.encoder.encode(configuration)
@@ -971,14 +971,14 @@ final class AppConfigurationStore: @unchecked Sendable {
         try data.write(to: fileURL, options: .atomic)
     }
 
-    func export(_ configuration: AppConfiguration, to url: URL) throws {
+    public func export(_ configuration: AppConfiguration, to url: URL) throws {
         var configuration = configuration
         configuration.migrate()
         let data = try Self.encoder.encode(configuration)
         try data.write(to: url, options: .atomic)
     }
 
-    func `import`(from url: URL) throws -> AppConfiguration {
+    public func `import`(from url: URL) throws -> AppConfiguration {
         var configuration = try JSONDecoder().decode(AppConfiguration.self, from: Data(contentsOf: url))
         configuration.migrate()
         return configuration
@@ -992,11 +992,11 @@ final class AppConfigurationStore: @unchecked Sendable {
         fileURL.deletingLastPathComponent().appendingPathComponent("backups", isDirectory: true)
     }
 
-    var hasBackup: Bool {
+    public var hasBackup: Bool {
         FileManager.default.fileExists(atPath: backupURL.path)
     }
 
-    func restoreBackup() throws -> AppConfiguration {
+    public func restoreBackup() throws -> AppConfiguration {
         guard hasBackup else { throw CocoaError(.fileNoSuchFile) }
         let configuration = try `import`(from: backupURL)
         try save(configuration)

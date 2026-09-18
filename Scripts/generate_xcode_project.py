@@ -46,28 +46,27 @@ SPARKLE_REPOSITORY = "https://github.com/sparkle-project/Sparkle"
 
 def swift_sources(directory: str) -> list[str]:
     """Every .swift file in a directory, so the project cannot silently miss a
-    newly added source file. Sources/ is validated against the CLI subset."""
+    newly added source file. The target directory is the source of truth."""
     names = sorted(path.name for path in (ROOT / directory).glob("*.swift"))
     if not names:
         raise SystemExit(f"错误：{directory} 下没有找到任何 .swift 文件")
     return names
 
 
-# Sources compiled into the app target (discovered from Sources/).
-APP_SOURCES = swift_sources("Sources")
+# The module both consumers link, as a target of this project rather than a
+# product of the local package. The reason is localization: extraction into the
+# String Catalog is driven by the Xcode target setting `SWIFT_EMIT_LOC_STRINGS`,
+# and a SwiftPM package target does not carry it — as a package product every
+# `String(localized:)` in here (about a hundred, most in EnvironmentDoctor) would
+# silently never reach Resources/Localizable.xcstrings.
+KIT_TARGET = "XcodeSwitcherKit"
+KIT_PRODUCT = "lib" + KIT_TARGET + ".a"
+KIT_SOURCES = swift_sources("Sources/XcodeSwitcherKit")
 
-# Sources the CLI target shares with the app. Xcode lets one file belong to
-# several targets, so the CLI reuses these files directly instead of needing a
-# separate framework target with its own access-level annotations.
-CLI_SHARED_SOURCES = [
-    "CLIModels.swift",
-    "EnvironmentDoctor.swift",
-    "Models.swift",
-    "ProjectEnvironment.swift",
-    "ProjectMatching.swift",
-    "DiskUsage.swift",
-    "Services.swift",
-]
+# Each consumer compiles only its own directory; the shared code is the module
+# above, so neither target carries a hand-maintained list of shared files any
+# more, and a file that is not inside a target directory is simply not compiled.
+APP_SOURCES = swift_sources("Sources/XcodeSwitcher")
 
 CLI_OWN_SOURCES = ["CLIEntryPoint.swift"]
 
@@ -75,10 +74,6 @@ TEST_TARGET = "XcodeSwitcherTests"
 TEST_PRODUCT = "XcodeSwitcherTests.xctest"
 
 TEST_SOURCES = swift_sources("Tests")
-
-_missing_for_cli = sorted(set(CLI_SHARED_SOURCES) - set(APP_SOURCES))
-if _missing_for_cli:
-    raise SystemExit(f"错误：CLI 共享源文件不在 Sources/ 中：{_missing_for_cli}")
 
 
 def oid(*parts: str) -> str:
@@ -124,6 +119,7 @@ def build_objects() -> tuple[dict, str]:
 
     # ---------------------------------------------------------------- groups
     sources_group = oid("group", "Sources")
+    kit_sources_group = oid("group", "Sources/XcodeSwitcherKit")
     cli_sources_group = oid("group", "SourcesCLI")
     resources_group = oid("group", "Resources")
     scripts_group = oid("group", "Scripts")
@@ -136,6 +132,18 @@ def build_objects() -> tuple[dict, str]:
     for name in APP_SOURCES:
         source_refs[name] = add(
             oid("file", "Sources", name),
+            {
+                "isa": "PBXFileReference",
+                "lastKnownFileType": "sourcecode.swift",
+                "path": name,
+                "sourceTree": "<group>",
+            },
+        )
+
+    kit_source_refs: dict[str, str] = {}
+    for name in KIT_SOURCES:
+        kit_source_refs[name] = add(
+            oid("file", "Sources/XcodeSwitcherKit", name),
             {
                 "isa": "PBXFileReference",
                 "lastKnownFileType": "sourcecode.swift",
@@ -272,6 +280,25 @@ def build_objects() -> tuple[dict, str]:
         },
     )
 
+    # The shared module comes from this repository's own package rather than a
+    # fourth target inside the project. Package.swift then stays the single place
+    # that defines which directory belongs to which module — the same definition
+    # `swift build` and `build_app.sh` use — instead of the project carrying a
+    # second, hand-written copy of that layout.
+    # The shared module's product. It is a project target (see KIT_TARGET at the
+    # top of this file): the String Catalog extraction only happens for Xcode
+    # targets, which is what ruled out taking the module from the local package.
+    kit_product_ref = add(
+        oid("file", "product", KIT_PRODUCT),
+        {
+            "isa": "PBXFileReference",
+            "explicitFileType": "archive.ar",
+            "includeInIndex": "0",
+            "path": KIT_PRODUCT,
+            "sourceTree": "BUILT_PRODUCTS_DIR",
+        },
+    )
+
     # ------------------------------------------- embed the CLI in the bundle
     # The shipped app carries the CLI at Contents/MacOS/xcodeswitcher; the
     # scheme in build_app.sh copies it there, so the Xcode target must too.
@@ -332,8 +359,28 @@ def build_objects() -> tuple[dict, str]:
             "targetProxy": app_container_proxy,
         },
     )
+    kit_container_proxy = add(
+        oid("containerProxy", KIT_TARGET),
+        {
+            "isa": "PBXContainerItemProxy",
+            "containerPortal": oid("project"),
+            "proxyType": "1",
+            "remoteGlobalIDString": oid("target", KIT_TARGET),
+            "remoteInfo": KIT_TARGET,
+        },
+    )
+    kit_dependency = add(
+        oid("targetDependency", KIT_TARGET),
+        {
+            "isa": "PBXTargetDependency",
+            "target": oid("target", KIT_TARGET),
+            "targetProxy": kit_container_proxy,
+        },
+    )
 
     # ---------------------------------------------------------- build phases
+    kit_sources_phase = oid("phase", KIT_TARGET, "sources")
+    kit_frameworks_phase = oid("phase", KIT_TARGET, "frameworks")
     app_sources_phase = oid("phase", APP_TARGET, "sources")
     app_frameworks_phase = oid("phase", APP_TARGET, "frameworks")
     app_resources_phase = oid("phase", APP_TARGET, "resources")
@@ -353,14 +400,23 @@ def build_objects() -> tuple[dict, str]:
             )
         )
 
-    cli_source_build_files = []
-    for name in CLI_SHARED_SOURCES:
-        cli_source_build_files.append(
+    kit_source_build_files = []
+    for name in KIT_SOURCES:
+        kit_source_build_files.append(
             add(
-                oid("buildFile", CLI_TARGET, name),
-                {"isa": "PBXBuildFile", "fileRef": source_refs[name]},
+                oid("buildFile", KIT_TARGET, name),
+                {"isa": "PBXBuildFile", "fileRef": kit_source_refs[name]},
             )
         )
+
+    # One build file per consumer, so each links the same archive.
+    def kit_link_build_file(owner: str) -> str:
+        return add(
+            oid("buildFile", owner, KIT_PRODUCT),
+            {"isa": "PBXBuildFile", "fileRef": kit_product_ref},
+        )
+
+    cli_source_build_files = []
     for name in CLI_OWN_SOURCES:
         cli_source_build_files.append(
             add(
@@ -392,6 +448,24 @@ def build_objects() -> tuple[dict, str]:
     )
 
     add(
+        kit_sources_phase,
+        {
+            "isa": "PBXSourcesBuildPhase",
+            "buildActionMask": MAX_BUILD_ACTION_MASK,
+            "files": kit_source_build_files,
+            "runOnlyForDeploymentPostprocessing": "0",
+        },
+    )
+    add(
+        kit_frameworks_phase,
+        {
+            "isa": "PBXFrameworksBuildPhase",
+            "buildActionMask": MAX_BUILD_ACTION_MASK,
+            "files": [],
+            "runOnlyForDeploymentPostprocessing": "0",
+        },
+    )
+    add(
         app_sources_phase,
         {
             "isa": "PBXSourcesBuildPhase",
@@ -405,7 +479,7 @@ def build_objects() -> tuple[dict, str]:
         {
             "isa": "PBXFrameworksBuildPhase",
             "buildActionMask": MAX_BUILD_ACTION_MASK,
-            "files": [sparkle_build_file],
+            "files": [sparkle_build_file, kit_link_build_file(APP_TARGET)],
             "runOnlyForDeploymentPostprocessing": "0",
         },
     )
@@ -460,7 +534,7 @@ def build_objects() -> tuple[dict, str]:
         {
             "isa": "PBXFrameworksBuildPhase",
             "buildActionMask": MAX_BUILD_ACTION_MASK,
-            "files": [],
+            "files": [kit_link_build_file(CLI_TARGET)],
             "runOnlyForDeploymentPostprocessing": "0",
         },
     )
@@ -479,7 +553,7 @@ def build_objects() -> tuple[dict, str]:
         {
             "isa": "PBXFrameworksBuildPhase",
             "buildActionMask": MAX_BUILD_ACTION_MASK,
-            "files": [],
+            "files": [kit_link_build_file(TEST_TARGET)],
             "runOnlyForDeploymentPostprocessing": "0",
         },
     )
@@ -503,6 +577,16 @@ def build_objects() -> tuple[dict, str]:
                 "name": name,
             },
         )
+
+    def module_dir(target: str) -> str:
+        """Where a target emits its .swiftmodule.
+
+        App and library targets write it into the intermediates rather than
+        BUILT_PRODUCTS_DIR, so consumers need this on their Swift search path to
+        resolve the import. Target names carry no spaces, which is what makes a
+        space-separated list such as SWIFT_INCLUDE_PATHS safe here.
+        """
+        return "$(CONFIGURATION_TEMP_DIR)/" + target + ".build/Objects-normal/$(CURRENT_ARCH)"
 
     shared_settings = {
         "ALWAYS_SEARCH_USER_PATHS": "NO",
@@ -567,6 +651,7 @@ def build_objects() -> tuple[dict, str]:
         "PRODUCT_MODULE_NAME": PROJECT_NAME,
         "PRODUCT_NAME": APP_PRODUCT_NAME,
         "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "SWIFT_INCLUDE_PATHS": module_dir(KIT_TARGET),
     }
     app_debug = configuration("Debug", app_settings)
     app_release = configuration(
@@ -583,8 +668,9 @@ def build_objects() -> tuple[dict, str]:
         "PRODUCT_NAME": TEST_TARGET,
         # An app target emits its .swiftmodule into the intermediates rather than
         # BUILT_PRODUCTS_DIR, so the hosted test target needs that directory on
-        # its Swift search path to resolve `@testable import XcodeSwitcher`.
-        "SWIFT_INCLUDE_PATHS": "$(CONFIGURATION_TEMP_DIR)/" + APP_TARGET + ".build/Objects-normal/$(CURRENT_ARCH)",
+        # its Swift search path to resolve `@testable import XcodeSwitcher`. The
+        # shared module is a static library and lands the same way.
+        "SWIFT_INCLUDE_PATHS": module_dir(APP_TARGET) + " " + module_dir(KIT_TARGET),
         "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/" + APP_PRODUCT + "/Contents/MacOS/XcodeSwitcherApp",
     }
     tests_debug = configuration("Debug", test_settings)
@@ -598,9 +684,23 @@ def build_objects() -> tuple[dict, str]:
         # Bundle.main resolves to the enclosing .app, so String(localized:) finds
         # Contents/Resources/<lang>.lproj. Extraction must be on for its own file.
         "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "SWIFT_INCLUDE_PATHS": module_dir(KIT_TARGET),
     }
     cli_debug = configuration("Debug", cli_settings)
     cli_release = configuration("Release", dict(cli_settings))
+
+    # The shared module. `SWIFT_EMIT_LOC_STRINGS` is why this is a target of the
+    # project rather than a product of the local package: only a target carries
+    # that setting, and without it none of the Kit's String(localized:) calls
+    # would reach the String Catalog.
+    kit_settings = {
+        "DEFINES_MODULE": "YES",
+        "PRODUCT_NAME": KIT_TARGET,
+        "SKIP_INSTALL": "YES",
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
+    }
+    kit_debug = configuration("Debug", dict(kit_settings))
+    kit_release = configuration("Release", dict(kit_settings))
 
     project_config_list = add(
         oid("configList", "project"),
@@ -625,6 +725,15 @@ def build_objects() -> tuple[dict, str]:
         {
             "isa": "XCConfigurationList",
             "buildConfigurations": [cli_debug, cli_release],
+            "defaultConfigurationIsVisible": "0",
+            "defaultConfigurationName": "Release",
+        },
+    )
+    kit_config_list = add(
+        oid("configList", KIT_TARGET),
+        {
+            "isa": "XCConfigurationList",
+            "buildConfigurations": [kit_debug, kit_release],
             "defaultConfigurationIsVisible": "0",
             "defaultConfigurationName": "Release",
         },
@@ -654,7 +763,7 @@ def build_objects() -> tuple[dict, str]:
                 cli_copy_phase,
             ],
             "buildRules": [],
-            "dependencies": [cli_dependency],
+            "dependencies": [cli_dependency, kit_dependency],
             "name": APP_TARGET,
             "packageProductDependencies": [sparkle_product],
             "productName": APP_TARGET,
@@ -669,11 +778,26 @@ def build_objects() -> tuple[dict, str]:
             "buildConfigurationList": cli_config_list,
             "buildPhases": [cli_sources_phase, cli_frameworks_phase],
             "buildRules": [],
-            "dependencies": [],
+            "dependencies": [kit_dependency],
             "name": CLI_TARGET,
             "productName": CLI_PRODUCT,
             "productReference": cli_product_ref,
             "productType": "com.apple.product-type.tool",
+        },
+    )
+
+    kit_target = add(
+        oid("target", KIT_TARGET),
+        {
+            "isa": "PBXNativeTarget",
+            "buildConfigurationList": kit_config_list,
+            "buildPhases": [kit_sources_phase, kit_frameworks_phase],
+            "buildRules": [],
+            "dependencies": [],
+            "name": KIT_TARGET,
+            "productName": KIT_TARGET,
+            "productReference": kit_product_ref,
+            "productType": "com.apple.product-type.library.static",
         },
     )
 
@@ -684,7 +808,7 @@ def build_objects() -> tuple[dict, str]:
             "buildConfigurationList": tests_config_list,
             "buildPhases": [tests_sources_phase, tests_frameworks_phase, tests_resources_phase],
             "buildRules": [],
-            "dependencies": [app_dependency],
+            "dependencies": [app_dependency, kit_dependency],
             "name": TEST_TARGET,
             "productName": TEST_TARGET,
             "productReference": tests_product_ref,
@@ -694,11 +818,20 @@ def build_objects() -> tuple[dict, str]:
 
     # ------------------------------------------------------------------ groups
     add(
+        kit_sources_group,
+        {
+            "isa": "PBXGroup",
+            "children": [kit_source_refs[name] for name in KIT_SOURCES],
+            "path": "Sources/XcodeSwitcherKit",
+            "sourceTree": "<group>",
+        },
+    )
+    add(
         sources_group,
         {
             "isa": "PBXGroup",
             "children": [source_refs[name] for name in APP_SOURCES],
-            "path": "Sources",
+            "path": "Sources/XcodeSwitcher",
             "sourceTree": "<group>",
         },
     )
@@ -752,6 +885,7 @@ def build_objects() -> tuple[dict, str]:
         {
             "isa": "PBXGroup",
             "children": [
+                kit_sources_group,
                 sources_group,
                 cli_sources_group,
                 tests_group,
@@ -782,7 +916,7 @@ def build_objects() -> tuple[dict, str]:
             "productRefGroup": products_group,
             "projectDirPath": "",
             "projectRoot": "",
-            "targets": [app_target, cli_target, tests_target],
+            "targets": [app_target, cli_target, kit_target, tests_target],
         },
     )
 

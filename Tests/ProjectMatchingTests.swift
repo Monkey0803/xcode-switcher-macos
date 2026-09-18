@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 final class ProjectMatchingTests: XCTestCase {
     func testXcodeVersionFileMatchesInstalledVersion() throws {

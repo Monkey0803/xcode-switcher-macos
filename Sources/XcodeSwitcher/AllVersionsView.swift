@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import XcodeSwitcherKit
 
 /// Every Xcode release in the community index, with the ones installed here marked.
 ///

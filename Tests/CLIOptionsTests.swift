@@ -1,5 +1,6 @@
 import XCTest
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 final class CLIOptionsTests: XCTestCase {
     func testParsesOutputAndExecutionFlagsInAnyPosition() throws {

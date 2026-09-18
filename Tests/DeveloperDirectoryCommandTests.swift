@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import XcodeSwitcher
+@testable import XcodeSwitcherKit
 
 /// These strings are copied to the pasteboard and pasted into a shell, so a
 /// quoting mistake would hand the user a broken (or unsafe) command.
