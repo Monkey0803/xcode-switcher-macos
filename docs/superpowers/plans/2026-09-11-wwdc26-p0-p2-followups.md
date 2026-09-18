@@ -9,11 +9,11 @@
 
 | 项 | 改动 | 位置 |
 | --- | --- | --- |
-| 主线程磁盘 I/O | 项目解析结果按 3 秒生命周期缓存，输入变化时失效；`applyAndOpen` 绕过缓存取实时结果 | `Sources/ViewModel.swift` |
-| 进程挂死 | `ProcessRunner` 改用非阻塞 `poll` 读取，直接子进程退出且输出排空后不再等待持有管道的孙进程；超时先 `SIGTERM` 再 `SIGKILL` | `Sources/Services.swift` |
-| 配置静默丢失 | `AppConfigurationStore.save` 改为 `throws`，失败在状态栏与设置页可见 | `Sources/Services.swift`、`Sources/Views.swift` |
-| 备份无限增长 | 历史备份上限 10 份；内容未变化时不新增；滚动 `.bak` 保留 | `Sources/Services.swift` |
-| 逐键落盘 | 项目名/绑定编辑 400ms 防抖，失焦、回车、退出应用时立即落盘 | `Sources/ViewModel.swift`、`Sources/Views.swift` |
+| 主线程磁盘 I/O | 项目解析结果按 3 秒生命周期缓存，输入变化时失效；`applyAndOpen` 绕过缓存取实时结果 | `Sources/XcodeSwitcher/ViewModel.swift` |
+| 进程挂死 | `ProcessRunner` 改用非阻塞 `poll` 读取，直接子进程退出且输出排空后不再等待持有管道的孙进程；超时先 `SIGTERM` 再 `SIGKILL` | `Sources/XcodeSwitcherKit/Services.swift` |
+| 配置静默丢失 | `AppConfigurationStore.save` 改为 `throws`，失败在状态栏与设置页可见 | `Sources/XcodeSwitcherKit/Services.swift`、`Sources/XcodeSwitcher/Views.swift` |
+| 备份无限增长 | 历史备份上限 10 份；内容未变化时不新增；滚动 `.bak` 保留 | `Sources/XcodeSwitcherKit/Services.swift` |
+| 逐键落盘 | 项目名/绑定编辑 400ms 防抖，失焦、回车、退出应用时立即落盘 | `Sources/XcodeSwitcher/ViewModel.swift`、`Sources/XcodeSwitcher/Views.swift` |
 
 ### P1 性能与现代 API
 
@@ -30,16 +30,16 @@
 - 引入 Swift Testing（WWDC26 267 主张增量迁移、与 XCTest 共存），新增 `Tests/ShellEnvironmentTests.swift` 行为测试。
 - Shell hook 只在 `chpwd` 注册并增加同目录短路，不再每条命令都 spawn 一次 CLI。
 - `CFBundleDevelopmentRegion` 由 `en` 改为 `zh-Hans`（此前声明为英文而界面全为中文）。
-- `build_app.sh` 的 CLI 源文件清单改为自检：`Sources/` 下新增文件若未登记会直接构建失败。
+- `build_app.sh` 的 CLI 源文件清单改为自检：`Sources/` 下新增文件若未登记会直接构建失败。（该清单与自检已在 2026-09-18 的模块拆分中删除——目录本身成了目标定义，见文末结项记录。）
 - `XcodeViewModel` 改为接受注入的 `AppConfigurationStore` 并可跳过系统服务初始化，使缓存与持久化行为可测；`Tests/ViewModelCachingTests.swift` 覆盖解析缓存、失效判定、防抖落盘、保存失败提示与备份上限（已验证：去掉缓存后两个缓存用例会失败）。
 - 由上述测试发现并修正一个真实缺陷：历史备份的去重原先只看“最新”文件，而快速连续保存的修改时间会相同，导致相同内容被重复归档；现改为按内容比对全部归档文件，并用时间戳前缀命名使归档顺序确定。
 - `openXcodeSettings` 的菜单自动化不再静默失败：脚本现在会返回是否找到 Settings 项，缺少辅助功能权限、脚本执行报错、菜单项缺失分别给出明确原因与手动替代方式；脚本语法由 `Tests/XcodeSettingsAutomationTests.swift` 编译校验（已验证：删掉一个 `end tell` 会让用例失败）。
 
-## 后续项（本轮未实施，附理由）
+## 后续项（当时未实施，附理由；结项情况见文末）
 
 ### 1. 提权方式：保留 `AuthorizationExecuteWithPrivileges`，不再迁移（已结案）
 
-现状：`Sources/Services.swift` 通过 `@_silgen_name` 调用一个自 10.7 起废弃的符号。该决定与理由已写入代码注释，便于后续维护者看到上下文。
+现状：`Sources/XcodeSwitcherKit/Services.swift` 通过 `@_silgen_name` 调用一个自 10.7 起废弃的符号。该决定与理由已写入代码注释，便于后续维护者看到上下文。
 
 **已确认的前提**（2026-09-11）：
 
@@ -85,8 +85,38 @@
 
 App Intents / Shortcuts（310、240、295）、Liquid Glass 视觉适配（289、269）、Xcode Cloud（261，该会话未讨论纯 SwiftPM 包）以及把最低版本抬到 macOS 14/15 以使用 `@Observable`、`SettingsLink` 等，都需要产品层面的取舍，本轮未动。
 
-其中一条前置约束：`XcodeInstallation.id` 目前是 `appURL.path`（`Sources/Models.swift`），属于 per-device 值；按 310 的要求，暴露为 App Entity 前必须先改为跨设备稳定的标识符。
+其中一条前置约束：`XcodeInstallation.id` 目前是 `appURL.path`（`Sources/XcodeSwitcherKit/Models.swift`），属于 per-device 值；按 310 的要求，暴露为 App Entity 前必须先改为跨设备稳定的标识符。
 
 ### 5. `XcodeViewModel` 的完整拆分
 
 本轮只把高频变化的下载进度拆成 `RuntimeDownloadState`。把模型按安装列表/项目/签名/更新四向拆分仍会触及全部视图，且该文件目前没有测试覆盖，建议先补测试再动结构。
+
+## 结项记录（2026-09-18）
+
+上面标为「未实施」的四项（2、3、4、5）里，三项已经落地、第四项部分完成，而且**做法与当初的建议路径并不相同**——这正是不该只留建议路径的原因，记在这里免得后来者照着重走一遍。
+
+### 2. 模块拆分 —— 已完成（提交 `59fd57c`）
+
+与建议路径的三点不同：
+
+- **用 `public` 而不是 `package`**：`package` 只在 SwiftPM 的包上下文里成立，另外两条构建路径不提供它（已核实 `build_app.sh` 与工程生成器都不传 `-package-name`）。这一点是设计判断，没有做实测对照。
+- **Kit 在 Xcode 工程里必须是工程内的 target（静态库），不能改用「本地 Swift 包引用」**：SwiftPM 包 target 不携带 `SWIFT_EMIT_LOC_STRINGS`，Kit 里上百处 `String(localized:)` 会静默不再进入目录。这是实测结果——走包产物时 sync 只合并到 10 个 `.stringsdata`（应为 17）、目录掉到 444 键并出现约 65 条 stale。
+- **`UpdateService` 里与 Sparkle 无关的版本比较逻辑没有一并移入**：不在本次范围，仍留在 app 侧。
+
+落地时另外撞到两件当初没预料的事：SwiftPM 的 CLI target 名不能与 app target 只差大小写（macOS 卷大小写不敏感，两者的中间目录会是同一个）；以及 `sync_string_catalog.sh` 按 target 目录名取 `.stringsdata`，新增的 Kit 目录必须补进那份清单，否则它贡献的文案会被判成 stale。
+
+### 3. String Catalog —— 已完成（先于本节记录，v1.5.0）
+
+最终做法就是建议路径的第一条：用 `xcstringstool compile` 编进 `Resources`，两条构建路径都产出 `.lproj`，随后迁移到 Xcode 工程、用上完整的提取与合并流程。现状：`Resources/Localizable.xcstrings` 447 键、英文已译 429 条；`Scripts/sync_string_catalog.sh` 与 `Scripts/verify_string_catalog.sh` 都在 CI 里作为门禁（`.github/workflows/ci.yml` 第 32–44 行）。
+
+### 4. 形态较大的新能力 —— 部分完成
+
+- **Liquid Glass 视觉适配**：已完成（macOS 26 上的 glass 按钮样式与 `NSGlassEffectView` 录制控件，`AppearanceDecisions` 有测试覆盖）。
+- **最低版本抬到 macOS 15**：已完成（提交 `b1d921d`）。**但没有做 `@Observable` / `SettingsLink` 迁移**：七个 store 与协调器仍都是 `ObservableObject`（共 8 个），而 `objectWillChange` 再发布的方案工作正常，迁移收益只有少量性能与可读性，不值得为此再动一遍全部视图。地板已是 15，将来有别的理由动视图时可以顺带做。
+- **App Intents / Shortcuts** 与 **Xcode Cloud**：仍未动。前置约束依旧成立——`XcodeInstallation.id` 现在还是 `appURL.path`（`Sources/XcodeSwitcherKit/Models.swift:55`），是 per-device 值，要暴露成 App Entity 必须先换成跨设备稳定的标识符。
+
+### 5. `XcodeViewModel` 完整拆分 —— 已完成（提交 `3df554d` … `3d6b2bf`）
+
+1574 行、41 个 `@Published` 拆成七个 store：`InstallationStore`、`SigningStore`、`DiskCleanupStore`、`ReleaseStore`、`EnvironmentStore`、`ProjectStore`、`SettingsStore`；协调器剩 421 行，只含 store 与接线、同名转发、四个应用命令，以及唯一知道全部 store 的那处刷新扇出。
+
+当初「该文件没有测试覆盖，建议先补测试再动结构」的顾虑，实际上是靠**拆分方式**绕开的而不是靠补测试：全程保持同名转发并订阅各 store 的 `objectWillChange` 再发布，于是视图与测试零改动，既有的 148 个用例恰好成了这次重构的安全网。结构约定与三条防退化规则记在 `AGENTS.md` 的「`XcodeViewModel` is a coordinator over stores」一节。
