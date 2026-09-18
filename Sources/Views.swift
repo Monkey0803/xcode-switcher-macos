@@ -1149,8 +1149,10 @@ struct ProjectProfileRow: View {
             }
         }
         .padding(.vertical, 5)
-        .onChange(of: name) { _ in scheduleSave() }
-        .onChange(of: selectedXcodeID) { _ in scheduleSave() }
+        // macOS 14 起 `onChange(of:perform:)`（单参数闭包）废弃；抬到 15 后它以
+        // 废弃警告的形式被 `-warnings-as-errors` 拦下，改为两参数形式。
+        .onChange(of: name) { _, _ in scheduleSave() }
+        .onChange(of: selectedXcodeID) { _, _ in scheduleSave() }
         .onDisappear { model.flushPendingProjectUpdate() }
     }
 
@@ -1605,7 +1607,7 @@ struct SigningSettingsView: View {
                                     Text(profile.name).tag(Optional(profile.id))
                                 }
                             }
-                            .onChange(of: selectedProjectID) { _ in
+                            .onChange(of: selectedProjectID) { _, _ in
                                 if let selectedProject { model.refreshSigningReport(for: selectedProject) }
                             }
                             if let selectedProject {

@@ -66,7 +66,7 @@ menu_icon_source="$script_dir/build/MenuBarIcon-source.png"
 
 /usr/bin/xcrun swiftc -O \
   -parse-as-library \
-  -target arm64-apple-macosx13.0 \
+  -target arm64-apple-macosx15.0 \
   -strict-concurrency=complete \
   -warnings-as-errors \
   -framework SwiftUI \
@@ -124,7 +124,7 @@ done
 
 /usr/bin/xcrun swiftc -O \
   -parse-as-library \
-  -target arm64-apple-macosx13.0 \
+  -target arm64-apple-macosx15.0 \
   -strict-concurrency=complete \
   -warnings-as-errors \
   -framework AppKit \

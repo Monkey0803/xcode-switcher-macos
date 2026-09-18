@@ -15,7 +15,7 @@ cd "$script_dir"
 /bin/test "$(/usr/bin/lipo "$executable" -archs)" = "arm64"
 /usr/bin/lipo "$app_bundle/Contents/MacOS/xcodeswitcher" -verify_arch arm64
 /bin/test "$(/usr/bin/lipo "$app_bundle/Contents/MacOS/xcodeswitcher" -archs)" = "arm64"
-/usr/bin/xcrun vtool -show-build "$executable" | /usr/bin/grep -q "minos 13.0"
+/usr/bin/xcrun vtool -show-build "$executable" | /usr/bin/grep -q "minos 15.0"
 /usr/bin/otool -L "$executable" | /usr/bin/grep -q "@rpath/Sparkle.framework/Versions/B/Sparkle"
 /bin/test -x "$app_bundle/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate"
 "$app_bundle/Contents/MacOS/xcodeswitcher" list | /usr/bin/grep -q "Xcode"

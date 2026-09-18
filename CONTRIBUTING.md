@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢参与 Xcode Switcher。项目面向 macOS 13.0 及以上，当前采用直接分发方式，不依赖 App Store。
+感谢参与 Xcode Switcher。项目面向 macOS 15.0 及以上，当前采用直接分发方式，不依赖 App Store。
 
 ## 开始开发
 

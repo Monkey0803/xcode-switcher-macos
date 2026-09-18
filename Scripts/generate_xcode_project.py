@@ -36,7 +36,7 @@ CLI_SCHEME = "xcodeswitcher"
 CLI_PRODUCT = "xcodeswitcher"
 
 BUNDLE_IDENTIFIER = "com.yostar.xcodeswitcher"
-DEPLOYMENT_TARGET = "13.0"
+DEPLOYMENT_TARGET = "15.0"
 MARKETING_VERSION = "1.6.0"
 BUILD_NUMBER = "6"
 SWIFT_VERSION = "5.0"

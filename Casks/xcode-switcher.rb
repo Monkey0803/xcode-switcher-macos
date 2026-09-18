@@ -15,7 +15,7 @@ cask "xcode-switcher" do
   homepage "https://github.com/Monkey0803/xcode-switcher-macos"
 
   depends_on arch: :arm64
-  depends_on macos: :ventura
+  depends_on macos: :sequoia
 
   app "Xcode Switcher.app"
   # A command wrapper, not a symlink: Foundation derives Bundle.main from the

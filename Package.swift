@@ -4,7 +4,10 @@ import PackageDescription
 
 let package = Package(
     name: "XcodeSwitcher",
-    platforms: [.macOS(.v13)],
+    // 5.9 的 PackageDescription 里没有 .v15，只有到 .v14 的枚举；
+    // 字符串形式是官方为「枚举还没跟上」准备的写法，不必为此抬高 tools-version
+    // （tools-version 6.0 会让 target 默认切到 Swift 6 语言模式，是另一个改动）。
+    platforms: [.macOS("15.0")],
     products: [
         .executable(name: "XcodeSwitcher", targets: ["XcodeSwitcher"])
     ],

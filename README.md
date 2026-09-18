@@ -2,7 +2,7 @@
 
 一个原生 macOS 应用，用于发现、诊断和切换本机安装的 Xcode，并为不同项目固定对应的开发环境。
 
-当前版本：`1.6.0`（仅支持 Apple Silicon，最低支持 macOS 13.0）。`v1.5.1` 为上一个公开稳定版本。
+当前版本：`1.6.0`（仅支持 Apple Silicon，最低支持 macOS 15.0）。`v1.5.1` 为上一个公开稳定版本。
 
 ## 下载与安装
 
@@ -55,7 +55,7 @@ cd xcode-switcher-macos && ./build_app.sh
 - 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode，一键切换并打开项目。
 - 自动读取项目或上级目录中的 `.xcode-version`、`.tool-versions`，匹配对应 Xcode；绑定版本或项目路径失效时会阻止误开并给出提示。
 - 一键打开指定 Xcode，或打开注入对应 `DEVELOPER_DIR` 的 Terminal。
-- 在 macOS 26 及以上按 Liquid Glass 呈现：自绘的快捷键录制控件改用 `NSGlassEffectView`，主要操作按钮使用 glass 样式；更早系统保持原有外观（最低支持 macOS 13）。macOS 上 Liquid Glass 是 AppKit 能力，SwiftUI 仅提供 glass 按钮样式。
+- 在 macOS 26 及以上按 Liquid Glass 呈现：自绘的快捷键录制控件改用 `NSGlassEffectView`，主要操作按钮使用 glass 样式；更早系统保持原有外观（最低支持 macOS 15）。macOS 上 Liquid Glass 是 AppKit 能力，SwiftUI 仅提供 glass 按钮样式。
 - 明确区分两条路径：**系统级切换**执行 `xcode-select --switch`，需要管理员授权并影响全机的开发者目录；**不改系统设置**的方式（打开注入 `DEVELOPER_DIR` 的终端、一键复制 `export` 命令、zsh 项目 Hook、用指定 Xcode 直接打开工程）不需要授权，只影响当前会话或当前项目。详情页与设置页都会说明这一点。
 - 配置导入导出，保存搜索目录、收藏、别名、项目绑定、快捷键组合、快捷键开关和切换历史；每次保存前自动备份并可一键恢复，历史备份最多保留 10 份且内容未变化时不重复归档；保存失败会在界面上提示。
 - 自动发现 Xcode 的方式是监听 `/Applications`、`~/Applications` 与自定义搜索目录的变化，并在打开菜单或窗口时按需刷新，不再定时全量扫描。
@@ -70,7 +70,7 @@ cd xcode-switcher-macos && ./build_app.sh
 
 ## 构建与运行
 
-> 构建需要 **Xcode 26 或更新**（macOS 26 SDK）：Liquid Glass 适配用到的 `NSGlassEffectView` 是 macOS 26 API，`#available` 无法让旧 SDK 通过编译。「最低支持 macOS 13」指的是运行时。
+> 构建需要 **Xcode 26 或更新**（macOS 26 SDK）：Liquid Glass 适配用到的 `NSGlassEffectView` 是 macOS 26 API，`#available` 无法让旧 SDK 通过编译。「最低支持 macOS 15」指的是运行时。
 
 推荐用 Xcode 工程（`XcodeSwitcher.xcodeproj`），它包含 app、`xcodeswitcher` CLI 和单元测试三个 target：
 
