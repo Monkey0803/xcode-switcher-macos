@@ -20,7 +20,18 @@ struct AllVersionsView: View {
     @State private var isDetailsCollapsed = false
 
     private var releases: [XcodeReleaseInfo] {
-        query.apply(to: model.allReleases, installedBuilds: model.installedBuilds)
+        query.apply(
+            to: model.allReleases,
+            installedBuilds: model.installedBuilds,
+            incompatibleBuilds: incompatibleBuilds
+        )
+    }
+
+    /// Releases this Mac cannot run at all, taken from the whole catalogue so the badges
+    /// and the filter always agree. Only the blocking case counts — an x86_64-only build
+    /// needs Rosetta 2 but does run here.
+    private var incompatibleBuilds: Set<String> {
+        Set(model.allReleases.filter { $0.hostCompatibility().isBlocking }.map(\.build))
     }
 
     /// Looked up in the whole catalogue rather than the filtered list, so narrowing the
@@ -127,6 +138,8 @@ struct AllVersionsView: View {
 
                 Toggle("显示 Xcode Tools", isOn: $query.includesTools)
 
+                Toggle("隐藏本机无法运行的版本", isOn: $query.hidesIncompatible)
+
                 Spacer()
 
                 if case .loaded = model.releaseCatalogState {
@@ -226,6 +239,14 @@ struct AllVersionsView: View {
                     if installed {
                         Label("已安装", systemImage: "checkmark.circle.fill")
                             .textRole(.success)
+                    } else if release.hostCompatibility().isBlocking {
+                        // Only meaningful for something not installed here: an installed
+                        // release is by definition one this Mac already runs.
+                        Label("本机无法运行", systemImage: "exclamationmark.triangle.fill")
+                            .textRole(.warning)
+                    } else if case .needsRosetta = release.hostCompatibility() {
+                        Label("需 Rosetta 2", systemImage: "info.circle")
+                            .textRole(.note)
                     }
                 }
                 Text("构建 \(release.build)").textRole(.identifier)
@@ -322,6 +343,14 @@ private struct ReleaseInfoSidebar: View {
             }
             if let minimum = release.minimumMacOS {
                 field("最低 macOS", minimum)
+            }
+            if case .needsNewerOS(let required) = release.hostCompatibility() {
+                field(
+                    "本机兼容性",
+                    String(localized: "需 macOS \(required)，本机为 \(XcodeReleaseInfo.runningOSDescription)")
+                )
+            } else if case .needsRosetta = release.hostCompatibility() {
+                field("本机兼容性", String(localized: "需 Rosetta 2"))
             }
             if !release.downloadArchitectures.isEmpty {
                 field("架构", release.downloadArchitectures.joined(separator: " / "), role: .identifier)

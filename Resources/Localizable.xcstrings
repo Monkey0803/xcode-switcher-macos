@@ -2814,12 +2814,32 @@
         }
       }
     },
+    "本机兼容性": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compatibility with this Mac"
+          }
+        }
+      }
+    },
     "本机安装": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Installed here"
+          }
+        }
+      }
+    },
+    "本机无法运行": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not runnable on this Mac"
           }
         }
       }
@@ -4262,12 +4282,48 @@
         }
       }
     },
+    "隐藏本机无法运行的版本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide versions this Mac cannot run"
+          }
+        }
+      }
+    },
     "隐藏版本详情": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Hide Version Details"
+          }
+        }
+      }
+    },
+    "需 Rosetta 2": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs Rosetta 2"
+          }
+        }
+      }
+    },
+    "需 macOS %@，本机为 %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "需 macOS %1$@，本机为 %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs macOS %1$@; this Mac runs %2$@"
           }
         }
       }

@@ -458,4 +458,112 @@ final class XcodeReleaseInfoTests: XCTestCase {
         XCTAssertEqual(details.build, "26.3 (fallback)")
         XCTAssertNil(details.minimumMacOS)
     }
+
+    // MARK: - 本机兼容性
+
+    func testReleaseNeedingANewerMacOSIsBlocked() {
+        let release = makeRelease(minimumMacOS: "26.6")
+        let host = OperatingSystemVersion(majorVersion: 15, minorVersion: 6, patchVersion: 0)
+
+        let compatibility = release.hostCompatibility(operatingSystem: host, isAppleSilicon: true)
+
+        XCTAssertEqual(compatibility, .needsNewerOS(required: "26.6"))
+        XCTAssertTrue(compatibility.isBlocking, "系统版本不够时属于「本机无法运行」")
+    }
+
+    func testEqualAndOlderRequirementsRun() {
+        let host = OperatingSystemVersion(majorVersion: 15, minorVersion: 6, patchVersion: 0)
+
+        XCTAssertEqual(
+            makeRelease(minimumMacOS: "15.6").hostCompatibility(operatingSystem: host, isAppleSilicon: true),
+            .runs,
+            "正好等于要求应可运行"
+        )
+        XCTAssertEqual(
+            makeRelease(minimumMacOS: "10.15.4").hostCompatibility(operatingSystem: host, isAppleSilicon: true),
+            .runs,
+            "两位数老版本号的比较不能被字典序骗到"
+        )
+    }
+
+    func testPatchLevelIsCompared() {
+        let host = OperatingSystemVersion(majorVersion: 15, minorVersion: 6, patchVersion: 1)
+        XCTAssertEqual(
+            makeRelease(minimumMacOS: "15.6").hostCompatibility(operatingSystem: host, isAppleSilicon: true),
+            .runs
+        )
+        let older = OperatingSystemVersion(majorVersion: 15, minorVersion: 6, patchVersion: 0)
+        XCTAssertEqual(
+            makeRelease(minimumMacOS: "15.6.1").hostCompatibility(operatingSystem: older, isAppleSilicon: true),
+            .needsNewerOS(required: "15.6.1"),
+            "补丁版本也要参与比较"
+        )
+    }
+
+    func testUnknownRequirementIsNotTreatedAsABlock() {
+        let host = OperatingSystemVersion(majorVersion: 15, minorVersion: 6, patchVersion: 0)
+        XCTAssertEqual(
+            makeRelease(minimumMacOS: nil).hostCompatibility(operatingSystem: host, isAppleSilicon: true),
+            .runs,
+            "索引没说最低版本时不作判断"
+        )
+        XCTAssertEqual(
+            makeRelease(minimumMacOS: "未知").hostCompatibility(operatingSystem: host, isAppleSilicon: true),
+            .runs,
+            "解析不了的要求不能当成「装不了」"
+        )
+    }
+
+    func testX86OnlyDownloadNeedsRosettaRatherThanBeingBlocked() {
+        let host = OperatingSystemVersion(majorVersion: 15, minorVersion: 6, patchVersion: 0)
+        let release = makeRelease(architectures: ["x86_64"])
+
+        let compatibility = release.hostCompatibility(operatingSystem: host, isAppleSilicon: true)
+
+        XCTAssertEqual(compatibility, .needsRosetta)
+        XCTAssertFalse(compatibility.isBlocking, "Rosetta 是提醒而不是拦阻")
+    }
+
+    func testMissingArchitectureListIsNoConstraint() {
+        let host = OperatingSystemVersion(majorVersion: 15, minorVersion: 6, patchVersion: 0)
+        XCTAssertEqual(
+            makeRelease(architectures: []).hostCompatibility(operatingSystem: host, isAppleSilicon: true),
+            .runs
+        )
+        XCTAssertEqual(
+            makeRelease(architectures: ["arm64"]).hostCompatibility(operatingSystem: host, isAppleSilicon: true),
+            .runs
+        )
+    }
+
+    func testHidingIncompatibleReleasesUsesTheBlockingSet() {
+        let blocked = makeRelease(version: "27.0", build: "27A1", minimumMacOS: "26.6")
+        let rosetta = makeRelease(version: "26.0", build: "26A1", architectures: ["x86_64"])
+        let fine = makeRelease(version: "26.3", build: "17C529")
+
+        var query = XcodeReleaseQuery()
+        query.hidesIncompatible = true
+        let kept = query.apply(
+            to: [blocked, rosetta, fine],
+            installedBuilds: [],
+            incompatibleBuilds: [blocked.build]
+        )
+
+        XCTAssertFalse(kept.contains { $0.build == blocked.build }, "本机完全跑不了的应被藏掉")
+        XCTAssertTrue(kept.contains { $0.build == rosetta.build }, "需 Rosetta 的仍保留：它是提醒而非拦阻")
+        XCTAssertTrue(kept.contains { $0.build == fine.build }, "兼容的本就应在列表里")
+    }
+
+    private func makeRelease(
+        version: String = "26.6",
+        build: String = "17F113",
+        minimumMacOS: String? = nil,
+        architectures: [String] = ["arm64"]
+    ) -> XcodeReleaseInfo {
+        XcodeReleaseInfo(
+            name: "Xcode", version: version, build: build, channel: .release,
+            releaseDate: nil, minimumMacOS: minimumMacOS, sdks: [], swift: nil, clang: nil,
+            notesURL: nil, downloadURL: nil, downloadArchitectures: architectures
+        )
+    }
 }

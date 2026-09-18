@@ -124,6 +124,98 @@ struct XcodeReleaseInfo: Equatable, Sendable {
 
 /// Parsing and lookup for the release index. Pure, so it is covered without a
 /// network round trip.
+/// What stops a release from running on the Mac this app is on, if anything.
+///
+/// The index states a minimum macOS per release ("15.6", "10.15.4") and, since Xcode
+/// 26, the architectures the download ships for. Both are worth *comparing* rather than
+/// only printing: on a macOS 15 machine "需要 macOS 26.6" means the release cannot be
+/// installed here at all, while an x86_64-only build does run on Apple Silicon — under
+/// Rosetta 2, which the environment doctor already checks for.
+enum XcodeReleaseHostCompatibility: Equatable, Sendable {
+    case runs
+    /// The release needs a newer macOS than the one this Mac is running.
+    case needsNewerOS(required: String)
+    /// No arm64 download, so Rosetta 2 is needed. It still runs here.
+    case needsRosetta
+
+    /// True when the release cannot run here at all. Rosetta is a caveat, not a block.
+    var isBlocking: Bool {
+        if case .needsNewerOS = self { return true }
+        return false
+    }
+}
+
+extension XcodeReleaseInfo {
+    /// Whether this release can run on a given macOS version and architecture.
+    ///
+    /// An absent or unparseable `minimumMacOS`, and an empty `downloadArchitectures`,
+    /// all mean the index does not say — treated as no constraint rather than as a
+    /// guess in either direction.
+    func hostCompatibility(
+        operatingSystem: OperatingSystemVersion = ProcessInfo.processInfo.operatingSystemVersion,
+        isAppleSilicon: Bool = XcodeReleaseInfo.isAppleSilicon
+    ) -> XcodeReleaseHostCompatibility {
+        if let minimum = minimumMacOS,
+           let required = Self.versionComponents(minimum),
+           Self.compare(operatingSystem, required) == .orderedAscending {
+            return .needsNewerOS(required: minimum)
+        }
+        if isAppleSilicon,
+           !downloadArchitectures.isEmpty,
+           !downloadArchitectures.contains("arm64") {
+            return .needsRosetta
+        }
+        return .runs
+    }
+
+    /// The running macOS written the way the index writes it ("15.6"), so a requirement
+    /// and this Mac can be read side by side without reformatting either.
+    static var runningOSDescription: String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return version.patchVersion == 0
+            ? "\(version.majorVersion).\(version.minorVersion)"
+            : "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+    }
+
+    /// This app ships for Apple Silicon only, so the answer is fixed at compile time.
+    static var isAppleSilicon: Bool {
+        #if arch(arm64)
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    /// "10.15.4" → (10, 15, 4). A component that is not a number makes the whole
+    /// requirement unknown, which is safer than comparing a half-parsed version.
+    private static func versionComponents(_ text: String) -> OperatingSystemVersion? {
+        let raw = text.split(separator: ".")
+        let parts = raw.compactMap { Int($0) }
+        guard parts.count == raw.count, let major = parts.first else { return nil }
+        return OperatingSystemVersion(
+            majorVersion: major,
+            minorVersion: parts.count > 1 ? parts[1] : 0,
+            patchVersion: parts.count > 2 ? parts[2] : 0
+        )
+    }
+
+    private static func compare(
+        _ lhs: OperatingSystemVersion,
+        _ rhs: OperatingSystemVersion
+    ) -> ComparisonResult {
+        if lhs.majorVersion != rhs.majorVersion {
+            return lhs.majorVersion < rhs.majorVersion ? .orderedAscending : .orderedDescending
+        }
+        if lhs.minorVersion != rhs.minorVersion {
+            return lhs.minorVersion < rhs.minorVersion ? .orderedAscending : .orderedDescending
+        }
+        if lhs.patchVersion != rhs.patchVersion {
+            return lhs.patchVersion < rhs.patchVersion ? .orderedAscending : .orderedDescending
+        }
+        return .orderedSame
+    }
+}
+
 enum XcodeReleaseCatalog {
     /// Decodes the whole index. Entries without a build string are dropped: they
     /// cannot be matched to an installed Xcode, which is the only thing this is for.
@@ -564,11 +656,20 @@ struct XcodeReleaseQuery: Equatable, Sendable {
     /// They stay in by default, since they are genuinely Xcode releases, and can be
     /// hidden.
     var includesTools = true
+    /// Releases this Mac cannot run stay in by default — carrying a badge — because the
+    /// index is also a catalogue of what exists. They can be hidden, since a version
+    /// that cannot be installed here is noise while browsing.
+    var hidesIncompatible = false
 
-    func apply(to releases: [XcodeReleaseInfo], installedBuilds: Set<String>) -> [XcodeReleaseInfo] {
+    func apply(
+        to releases: [XcodeReleaseInfo],
+        installedBuilds: Set<String>,
+        incompatibleBuilds: Set<String> = []
+    ) -> [XcodeReleaseInfo] {
         let needle = search.trimmingCharacters(in: .whitespaces).lowercased()
         let filtered = releases.filter { release in
             if !includesTools, release.name == "Xcode Tools" { return false }
+            if hidesIncompatible, incompatibleBuilds.contains(release.build) { return false }
             guard channelScope.includes(release.channel) else { return false }
 
             let installed = installedBuilds.contains(release.build.lowercased())
