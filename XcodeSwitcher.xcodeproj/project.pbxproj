@@ -63,6 +63,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>5710DBD13E541E9B28C9DB4C</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>SigningStore.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>D5B826D7063557F87C97E8E0</key>
 		<dict>
 			<key>isa</key>
@@ -668,6 +679,13 @@
 			<key>fileRef</key>
 			<string>0EA8E87FC77BC2A066A54EB2</string>
 		</dict>
+		<key>32CBFA915A5217D0F16904DA</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>5710DBD13E541E9B28C9DB4C</string>
+		</dict>
 		<key>494E32776E5F35E31CD54533</key>
 		<dict>
 			<key>isa</key>
@@ -936,6 +954,7 @@
 				<string>9FE1494FCC23F6C7B24F07CE</string>
 				<string>E7B63BD1CCEEED09215CDFEC</string>
 				<string>4C6BCEACF6AD7E25378952B7</string>
+				<string>32CBFA915A5217D0F16904DA</string>
 				<string>494E32776E5F35E31CD54533</string>
 				<string>95B9CFB9A0B1F06CD4F7D69D</string>
 				<string>795DAEA3ACF008FBB6DDB5C1</string>
@@ -1635,6 +1654,7 @@
 				<string>6F309D74411C5E8911341351</string>
 				<string>D2B8281AEDFCF647E44D4329</string>
 				<string>0EA8E87FC77BC2A066A54EB2</string>
+				<string>5710DBD13E541E9B28C9DB4C</string>
 				<string>D5B826D7063557F87C97E8E0</string>
 				<string>F2A572658942DB0C69AB335C</string>
 				<string>A63A7F5AEB6B4E1AF977AECE</string>

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -52,11 +53,7 @@ final class XcodeViewModel: ObservableObject {
     @Published private(set) var detailsByID: [String: XcodeDetails] = [:]
     @Published private(set) var runtimesByID: [String: [SimulatorRuntime]] = [:]
     @Published private(set) var devicesByID: [String: [SimulatorDevice]] = [:]
-    @Published private(set) var signingCertificates: [SigningCertificate] = []
-    @Published private(set) var provisioningProfiles: [ProvisioningProfile] = []
-    @Published private(set) var signingReport: ProjectSigningReport?
-    @Published private(set) var isRefreshingSigning = false
-    @Published private(set) var isLoadingSigningReport = false
+
     @Published private(set) var isCheckingRelease = false
     @Published private(set) var releaseCheckMessage = ""
     @Published private(set) var cleanupEntriesByID: [String: [XcodeCleanupEntry]] = [:]
@@ -84,12 +81,16 @@ final class XcodeViewModel: ObservableObject {
     /// download progress does not republish the whole view model.
     let runtimeDownload = RuntimeDownloadState()
 
+    /// Code-signing identities live in their own store. Its state is re-published
+    /// below, so the views keep observing this one object.
+    let signing = SigningStore()
+
     private let store: AppConfigurationStore
     private let releaseCatalogStore: XcodeReleaseCatalogStore
+    private var cancellables = Set<AnyCancellable>()
     private var refreshTask: Task<Void, Never>?
     private var detailTasks: [String: Task<Void, Never>] = [:]
     private var runtimeDownloadTask: Task<Void, Never>?
-    private var signingReportTask: Task<Void, Never>?
     private var environmentDoctorTasks: [String: Task<Void, Never>] = [:]
     private var cleanupScanGeneration: [String: Int] = [:]
     private var cleanupScanTasks: [String: Task<Void, Never>] = [:]
@@ -141,6 +142,17 @@ final class XcodeViewModel: ObservableObject {
         self.releaseCatalogStore = releaseCatalogStore
         configuration = store.load()
         isLaunchAtLoginEnabled = LaunchAtLoginService.isEnabled
+        // The signing store's three dependencies on this model, plus the
+        // re-publish that keeps the views' single `@EnvironmentObject` working.
+        signing.resolveInstallation = { [weak self] profile in self?.installation(for: profile) }
+        signing.projectIssue = { [weak self] profile in self?.projectIssue(for: profile) }
+        signing.reportStatus = { [weak self] message, isError in
+            self?.statusMessage = message
+            self?.isError = isError
+        }
+        signing.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         // Tests construct the model to exercise caching and persistence without
         // registering global event monitors or touching the updater.
         guard configuresSystemServices else { return }
@@ -157,10 +169,28 @@ final class XcodeViewModel: ObservableObject {
         refreshTask?.cancel()
         detailTasks.values.forEach { $0.cancel() }
         runtimeDownloadTask?.cancel()
-        signingReportTask?.cancel()
         environmentDoctorTasks.values.forEach { $0.cancel() }
         projectUpdateTask?.cancel()
     }
+
+    // MARK: - 签名
+
+    /// The signing store owns this state. These forward so the views and the tests
+    /// keep talking to a single object, exactly as they did before the split.
+    var signingCertificates: [SigningCertificate] { signing.certificates }
+    var provisioningProfiles: [ProvisioningProfile] { signing.profiles }
+    var signingReport: ProjectSigningReport? { signing.report }
+    var isRefreshingSigning: Bool { signing.isRefreshing }
+    var isLoadingSigningReport: Bool { signing.isLoadingReport }
+
+    func refreshSigning() { signing.refresh() }
+    func refreshSigningReport(for profile: ProjectProfile) { signing.refreshReport(for: profile) }
+    func refreshSigningReport(for profile: ProjectProfile, scheme: String?, configuration: String?) {
+        signing.refreshReport(for: profile, scheme: scheme, configuration: configuration)
+    }
+    func exportCertificate(_ certificate: SigningCertificate) { signing.exportCertificate(certificate) }
+    func openKeychainAccess() { signing.openKeychainAccess() }
+    func revealProfilesFolder() { signing.revealProfilesFolder() }
 
     var selectedInstallation: XcodeInstallation? {
         installations.first { $0.id == selectedID }
@@ -1433,93 +1463,6 @@ final class XcodeViewModel: ObservableObject {
         environmentDoctorTasks[id] = nil
     }
 
-    func refreshSigning() {
-        guard !isRefreshingSigning else { return }
-        isRefreshingSigning = true
-        Task {
-            let result = await Task.detached(priority: .utility) {
-                (SigningService.certificates(), SigningService.provisioningProfiles())
-            }.value
-            signingCertificates = result.0
-            provisioningProfiles = result.1
-            isRefreshingSigning = false
-        }
-    }
-
-    func refreshSigningReport(for profile: ProjectProfile) {
-        refreshSigningReport(for: profile, scheme: nil, configuration: nil)
-    }
-
-    func refreshSigningReport(for profile: ProjectProfile, scheme: String?, configuration: String?) {
-        signingReportTask?.cancel()
-        if let issue = projectIssue(for: profile) {
-            signingReport = ProjectSigningReport(
-                projectPath: profile.path,
-                scheme: scheme,
-                configuration: configuration,
-                availableSchemes: signingReport?.availableSchemes ?? [],
-                availableConfigurations: signingReport?.availableConfigurations ?? [],
-                targets: [],
-                errorMessage: issue
-            )
-            isLoadingSigningReport = false
-            return
-        }
-        guard let installation = installation(for: profile) else { return }
-        signingReport = nil
-        isLoadingSigningReport = true
-        signingReportTask = Task.detached(priority: .utility) { [weak self] in
-            let report = SigningService.projectSigningReport(
-                for: profile.url,
-                developerURL: installation.developerURL,
-                scheme: scheme,
-                configuration: configuration
-            )
-            guard !Task.isCancelled else { return }
-            await self?.completeSigningReport(report)
-        }
-    }
-
-    private func completeSigningReport(_ report: ProjectSigningReport) {
-        signingReport = report
-        isLoadingSigningReport = false
-        signingReportTask = nil
-    }
-
-    func exportCertificate(_ certificate: SigningCertificate) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "\(certificate.name.replacingOccurrences(of: "/", with: "-" )).cer"
-        panel.allowedContentTypes = [UTType(filenameExtension: "cer") ?? .data]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try SigningService.exportCertificate(certificate, to: url)
-            NSWorkspace.shared.activateFileViewerSelecting([url])
-            statusMessage = String(localized: "公钥证书已导出并在 Finder 中显示。")
-            isError = false
-        } catch {
-            statusMessage = String(localized: "证书导出失败：\(error.localizedDescription)")
-            isError = true
-        }
-    }
-
-    func openKeychainAccess() {
-        if SigningService.openKeychainAccess() {
-            statusMessage = String(localized: "已打开钥匙串访问。")
-            isError = false
-        } else {
-            statusMessage = String(localized: "无法打开钥匙串访问。")
-            isError = true
-        }
-    }
-
-    func revealProfilesFolder() {
-        let directories = SigningService.profileDirectories()
-        let directory = directories.first(where: { url in
-            (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]))?.contains(where: { $0.pathExtension == "mobileprovision" }) == true
-        }) ?? directories.last!
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: directory.path)
-    }
 
     func persist() {
         invalidateProjectSnapshots()
