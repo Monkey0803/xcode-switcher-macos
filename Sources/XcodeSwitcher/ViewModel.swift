@@ -257,6 +257,40 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     func deleteUnavailableDevices(for installation: XcodeInstallation) {
         installs.deleteUnavailableDevices(for: installation)
     }
+    var deviceTypesByID: [String: [SimulatorDeviceType]] { installs.deviceTypesByID }
+    func simulatorDeviceTypes(for installation: XcodeInstallation) -> [SimulatorDeviceType] {
+        installs.simulatorDeviceTypes(for: installation)
+    }
+    func loadSimulatorDeviceTypes(for installation: XcodeInstallation) {
+        installs.loadSimulatorDeviceTypes(for: installation)
+    }
+    func cloneSimulatorDevice(
+        _ device: SimulatorDevice,
+        newName: String,
+        installation: XcodeInstallation
+    ) {
+        installs.cloneSimulatorDevice(device, newName: newName, installation: installation)
+    }
+    func renameSimulatorDevice(
+        _ device: SimulatorDevice,
+        newName: String,
+        installation: XcodeInstallation
+    ) {
+        installs.renameSimulatorDevice(device, newName: newName, installation: installation)
+    }
+    func createSimulatorDevice(
+        name: String,
+        deviceType: SimulatorDeviceType,
+        runtime: SimulatorRuntime,
+        installation: XcodeInstallation
+    ) {
+        installs.createSimulatorDevice(
+            name: name,
+            deviceType: deviceType,
+            runtime: runtime,
+            installation: installation
+        )
+    }
     func reloadInstalledRuntimes(for installation: XcodeInstallation) {
         installs.reloadInstalledRuntimes(for: installation)
     }

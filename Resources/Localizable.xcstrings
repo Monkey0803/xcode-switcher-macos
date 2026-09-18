@@ -41,6 +41,16 @@
         }
       }
     },
+    "%@ 副本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Copy"
+          }
+        }
+      }
+    },
     "%@ 正在运行。切换会改变它正在使用的工具链，可能影响正在进行的构建或调试。": {
       "localizations": {
         "en": {
@@ -586,6 +596,36 @@
         }
       }
     },
+    "克隆": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clone"
+          }
+        }
+      }
+    },
+    "克隆 Simulator 设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clone Simulator device"
+          }
+        }
+      }
+    },
+    "克隆…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clone…"
+          }
+        }
+      }
+    },
     "全局快捷键：%@": {
       "localizations": {
         "en": {
@@ -760,6 +800,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "List every Xcode version in the index, with filters and sorting"
+          }
+        }
+      }
+    },
+    "创建": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create"
           }
         }
       }
@@ -1006,6 +1056,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "A newer build of the same runtime exists; only the newest is kept."
+          }
+        }
+      }
+    },
+    "名称": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
           }
         }
       }
@@ -1396,12 +1456,32 @@
         }
       }
     },
+    "已克隆为 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloned as %@."
+          }
+        }
+      }
+    },
     "已关闭登录时启动。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Launch at login turned off."
+          }
+        }
+      }
+    },
+    "已创建 Simulator %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Created Simulator %@."
           }
         }
       }
@@ -1848,6 +1928,16 @@
         }
       }
     },
+    "已重命名为 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renamed to %@."
+          }
+        }
+      }
+    },
     "平台版本": {
       "localizations": {
         "en": {
@@ -1934,6 +2024,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The current Xcode already has an available iOS Simulator Runtime."
+          }
+        }
+      }
+    },
+    "当前 Xcode 没有可用的 Simulator 运行系统，请先下载一个再新建。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Xcode has no Simulator runtimes available. Download one before creating a device."
           }
         }
       }
@@ -2380,6 +2480,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Documentation cache, redownloaded after cleaning."
+          }
+        }
+      }
+    },
+    "新建 Simulator 设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Simulator Device"
+          }
+        }
+      }
+    },
+    "新建…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New…"
           }
         }
       }
@@ -3030,12 +3150,32 @@
         }
       }
     },
+    "正在克隆 Simulator %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloning Simulator %@…"
+          }
+        }
+      }
+    },
     "正在关闭 Simulator %@…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Shutting down Simulator %@…"
+          }
+        }
+      }
+    },
+    "正在创建 Simulator %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating Simulator %@…"
           }
         }
       }
@@ -3210,6 +3350,16 @@
         }
       }
     },
+    "正在读取设备类型…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading device types…"
+          }
+        }
+      }
+    },
     "正在读取运行时…": {
       "localizations": {
         "en": {
@@ -3236,6 +3386,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reading project signing settings…"
+          }
+        }
+      }
+    },
+    "正在重命名 Simulator %@…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renaming Simulator %@…"
           }
         }
       }
@@ -3912,6 +4072,16 @@
         }
       }
     },
+    "设备类型": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device Type"
+          }
+        }
+      }
+    },
     "设置…": {
       "localizations": {
         "en": {
@@ -4018,6 +4188,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Path: %@"
+          }
+        }
+      }
+    },
+    "运行系统": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runtime"
           }
         }
       }
@@ -4182,6 +4362,36 @@
         }
       }
     },
+    "重命名": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename"
+          }
+        }
+      }
+    },
+    "重命名 Simulator 设备": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename Simulator device"
+          }
+        }
+      }
+    },
+    "重命名…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename…"
+          }
+        }
+      }
+    },
     "重新体检": {
       "localizations": {
         "en": {
@@ -4314,16 +4524,16 @@
     },
     "需 macOS %@，本机为 %@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "需 macOS %1$@，本机为 %2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Needs macOS %1$@; this Mac runs %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "需 macOS %1$@，本机为 %2$@"
           }
         }
       }

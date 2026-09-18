@@ -24,6 +24,9 @@ final class InstallationStore: ObservableObject {
     @Published private(set) var detailsByID: [String: XcodeDetails] = [:]
     @Published private(set) var runtimesByID: [String: [SimulatorRuntime]] = [:]
     @Published private(set) var devicesByID: [String: [SimulatorDevice]] = [:]
+    /// Only needed while the creation form is open, so it is fetched then rather than on
+    /// every refresh.
+    @Published private(set) var deviceTypesByID: [String: [SimulatorDeviceType]] = [:]
 
     /// Deliberately not `@Published`: only the runtime section observes it, so the
     /// download progress does not republish the whole view model.
@@ -407,12 +410,41 @@ final class InstallationStore: ObservableObject {
         devicesByID[installation.id] ?? []
     }
 
+    /// Runs one `simctl` mutation and reloads the device list when it worked.
+    ///
+    /// The messages are passed in whole rather than assembled from a verb: injecting
+    /// 「克隆」 into a shared template (「正在%@ Simulator %@…」) cannot be translated,
+    /// because English needs a progressive form ("Cloning…") that the imperative button
+    /// label ("Clone") cannot supply.
+    private func mutateSimulatorDevices(
+        start: String,
+        success: String,
+        installation: XcodeInstallation,
+        operation: @escaping @Sendable () -> ProcessResult
+    ) {
+        status?.statusMessage = start
+        status?.isError = false
+        Task { @MainActor in
+            let outcome = await Task.detached(priority: .utility) {
+                let result = operation()
+                let devices = result.succeeded ? XcodeTooling.simulatorDevices(for: installation) : nil
+                return (result, devices)
+            }.value
+            if outcome.0.succeeded {
+                if let devices = outcome.1 { devicesByID[installation.id] = devices }
+                status?.statusMessage = success
+            } else {
+                status?.isError = true
+                status?.statusMessage = String(localized: "Simulator 操作失败：\(outcome.0.failureDescription)")
+            }
+        }
+    }
+
     func performSimulatorAction(_ action: String, device: SimulatorDevice, installation: XcodeInstallation) {
         guard ["boot", "shutdown", "erase", "delete"].contains(action) else { return }
-        // One complete sentence per action. Injecting a verb into a shared template
-        // ("正在%@ Simulator %@…") cannot be translated: English needs a progressive
-        // form ("Booting…") that the imperative button labels ("Boot") cannot supply.
-        status?.statusMessage = switch action {
+        // A `switch` expression may only be the source of an assignment, so it is bound
+        // to a local before being passed on.
+        let start = switch action {
         case "boot":
             String(localized: "正在启动 Simulator \(device.name)…")
         case "shutdown":
@@ -422,21 +454,69 @@ final class InstallationStore: ObservableObject {
         default:
             String(localized: "正在抹掉 Simulator \(device.name)…")
         }
-        status?.isError = false
-        Task { @MainActor in
-            let result = await Task.detached(priority: .utility) {
-                let actionResult = XcodeTooling.simulatorAction(action, device: device, installation: installation)
-                let devices = actionResult.succeeded ? XcodeTooling.simulatorDevices(for: installation) : nil
-                return (actionResult, devices)
-            }.value
-            if result.0.succeeded {
-                if let devices = result.1 { devicesByID[installation.id] = devices }
-                status?.statusMessage = String(localized: "Simulator \(device.name) 操作完成。")
-            } else {
-                status?.isError = true
-                status?.statusMessage = String(localized: "Simulator 操作失败：\(result.0.failureDescription)")
-            }
+        mutateSimulatorDevices(
+            start: start,
+            success: String(localized: "Simulator \(device.name) 操作完成。"),
+            installation: installation
+        ) {
+            XcodeTooling.simulatorAction(action, device: device, installation: installation)
         }
+    }
+
+    /// A copy of an existing device. It gets its own UDID, so the original is untouched.
+    func cloneSimulatorDevice(_ device: SimulatorDevice, newName: String, installation: XcodeInstallation) {
+        mutateSimulatorDevices(
+            start: String(localized: "正在克隆 Simulator \(device.name)…"),
+            success: String(localized: "已克隆为 \(newName)。"),
+            installation: installation
+        ) {
+            XcodeTooling.cloneSimulatorDevice(device, newName: newName, installation: installation)
+        }
+    }
+
+    func renameSimulatorDevice(_ device: SimulatorDevice, newName: String, installation: XcodeInstallation) {
+        mutateSimulatorDevices(
+            start: String(localized: "正在重命名 Simulator \(device.name)…"),
+            success: String(localized: "已重命名为 \(newName)。"),
+            installation: installation
+        ) {
+            XcodeTooling.renameSimulatorDevice(device, newName: newName, installation: installation)
+        }
+    }
+
+    func createSimulatorDevice(
+        name: String,
+        deviceType: SimulatorDeviceType,
+        runtime: SimulatorRuntime,
+        installation: XcodeInstallation
+    ) {
+        mutateSimulatorDevices(
+            start: String(localized: "正在创建 Simulator \(name)…"),
+            success: String(localized: "已创建 Simulator \(name)。"),
+            installation: installation
+        ) {
+            XcodeTooling.createSimulatorDevice(
+                name: name,
+                deviceTypeID: deviceType.id,
+                runtimeID: runtime.id,
+                installation: installation
+            )
+        }
+    }
+
+    /// Device types are only needed while the creation form is open.
+    func loadSimulatorDeviceTypes(for installation: XcodeInstallation) {
+        guard deviceTypesByID[installation.id] == nil else { return }
+        Task { @MainActor in
+            let types = await Task.detached(priority: .utility) {
+                XcodeTooling.simulatorDeviceTypes(for: installation)
+            }.value
+            deviceTypesByID[installation.id] = types
+        }
+    }
+
+    func simulatorDeviceTypes(for installation: XcodeInstallation) -> [SimulatorDeviceType] {
+        deviceTypesByID[installation.id] ?? []
     }
 
     func rollbackToPreviousXcode() {

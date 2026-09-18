@@ -756,7 +756,36 @@ private struct SimulatorDevicesView: View {
         case deleteUnavailable(Int)
     }
 
+    /// Clone and rename differ only in the verb, so they share one dialog with a name
+    /// field instead of growing two.
+    private enum NamingRequest {
+        case clone(SimulatorDevice)
+        case rename(SimulatorDevice)
+
+        var isClone: Bool {
+            if case .clone = self { return true }
+            return false
+        }
+
+        var dialogTitle: String {
+            switch self {
+            case .clone: return String(localized: "克隆 Simulator 设备")
+            case .rename: return String(localized: "重命名 Simulator 设备")
+            }
+        }
+
+        var confirmTitle: String {
+            switch self {
+            case .clone: return String(localized: "克隆")
+            case .rename: return String(localized: "重命名")
+            }
+        }
+    }
+
     @State private var pending: PendingDeviceAction?
+    @State private var naming: NamingRequest?
+    @State private var newName = ""
+    @State private var isCreating = false
 
     private var devices: [SimulatorDevice] { model.simulatorDevices(for: installation) }
     private var unavailableCount: Int { devices.filter { !$0.isAvailable }.count }
@@ -764,7 +793,14 @@ private struct SimulatorDevicesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
-            Text("Simulator 设备").font(.headline)
+            HStack {
+                Text("Simulator 设备").font(.headline)
+                Spacer()
+                Button("新建…") {
+                    model.loadSimulatorDeviceTypes(for: installation)
+                    isCreating = true
+                }
+            }
             if devices.isEmpty {
                 Text("未检测到 Simulator 设备。可在 Xcode 或 simctl 中创建。")
                     .font(.caption).foregroundStyle(.secondary)
@@ -791,6 +827,20 @@ private struct SimulatorDevicesView: View {
                             .foregroundStyle(.red)
                         Button("删除") { pending = .delete(device) }
                             .foregroundStyle(.red)
+                        Menu {
+                            Button("克隆…") {
+                                newName = String(localized: "\(device.name) 副本")
+                                naming = .clone(device)
+                            }
+                            Button("重命名…") {
+                                newName = device.name
+                                naming = .rename(device)
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
                     }
                     // Unavailable rows cannot boot, be erased or deleted through the
                     // per-device actions, which is exactly why they pile up; the bulk
@@ -844,6 +894,42 @@ private struct SimulatorDevicesView: View {
                 Text("将永久删除 \(count) 个不被当前 Xcode 支持的设备，且无法撤销。")
             }
         }
+        .alert(
+            naming?.dialogTitle ?? "",
+            isPresented: Binding(
+                get: { naming != nil },
+                set: { if !$0 { naming = nil } }
+            ),
+            presenting: naming
+        ) { request in
+            TextField("名称", text: $newName)
+            Button(request.confirmTitle) {
+                switch request {
+                case .clone(let device):
+                    model.cloneSimulatorDevice(device, newName: newName, installation: installation)
+                case .rename(let device):
+                    model.renameSimulatorDevice(device, newName: newName, installation: installation)
+                }
+                naming = nil
+            }
+            Button("取消", role: .cancel) { naming = nil }
+        }
+        .sheet(isPresented: $isCreating) {
+            CreateSimulatorSheet(
+                deviceTypes: model.simulatorDeviceTypes(for: installation),
+                runtimes: model.runtimesByID[installation.id] ?? [],
+                onCreate: { name, deviceType, runtime in
+                    model.createSimulatorDevice(
+                        name: name,
+                        deviceType: deviceType,
+                        runtime: runtime,
+                        installation: installation
+                    )
+                    isCreating = false
+                },
+                onCancel: { isCreating = false }
+            )
+        }
     }
 
     private var dialogTitle: LocalizedStringKey {
@@ -853,6 +939,98 @@ private struct SimulatorDevicesView: View {
         case .deleteUnavailable: return "删除不可用 Simulator 设备？"
         case nil: return "Simulator 设备"
         }
+    }
+}
+
+/// Creating a device needs a runtime and a device type, which is one picker more than an
+/// alert holds, so it gets a small sheet of its own.
+private struct CreateSimulatorSheet: View {
+    let deviceTypes: [SimulatorDeviceType]
+    let runtimes: [SimulatorRuntime]
+    let onCreate: (String, SimulatorDeviceType, SimulatorRuntime) -> Void
+    let onCancel: () -> Void
+
+    @State private var name = ""
+    @State private var deviceTypeID: String?
+    @State private var runtimeID: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("新建 Simulator 设备").font(.headline)
+
+            TextField("名称", text: $name, prompt: Text(selectedType?.name ?? String(localized: "名称")))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 320)
+
+            if runtimes.isEmpty {
+                Text("当前 Xcode 没有可用的 Simulator 运行系统，请先下载一个再新建。")
+                    .textRole(.note)
+                    .frame(width: 320, alignment: .leading)
+            } else if deviceTypes.isEmpty {
+                Text("正在读取设备类型…")
+                    .textRole(.note)
+            } else {
+                // The runtime reports which device types it can host, so the second picker
+                // offers only those instead of all 130 of them.
+                Picker("运行系统", selection: runtimeBinding) {
+                    ForEach(runtimes) { runtime in
+                        Text(runtime.name).tag(runtime.id)
+                    }
+                }
+                .fixedSize()
+
+                Picker("设备类型", selection: deviceTypeBinding) {
+                    ForEach(compatibleTypes) { type in
+                        Text(type.name).tag(type.id)
+                    }
+                }
+                .fixedSize()
+            }
+
+            HStack {
+                Spacer()
+                Button("取消") { onCancel() }
+                Button("创建") {
+                    guard let type = selectedType, let runtime = selectedRuntime else { return }
+                    onCreate(resolvedName, type, runtime)
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(selectedType == nil || selectedRuntime == nil)
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+    }
+
+    private var selectedRuntime: SimulatorRuntime? {
+        runtimes.first { $0.id == runtimeID } ?? runtimes.first
+    }
+
+    /// An empty `supportedDeviceTypes` means the runtime does not say, which is read as no
+    /// restriction rather than as "nothing fits".
+    private var compatibleTypes: [SimulatorDeviceType] {
+        guard let runtime = selectedRuntime, !runtime.supportedDeviceTypes.isEmpty else { return deviceTypes }
+        let supported = Set(runtime.supportedDeviceTypes)
+        return deviceTypes.filter { supported.contains($0.id) }
+    }
+
+    private var selectedType: SimulatorDeviceType? {
+        compatibleTypes.first { $0.id == deviceTypeID } ?? compatibleTypes.first
+    }
+
+    /// The typed name, or the device type's own name when it was left empty — creating a
+    /// device requires a name, and making the user type one is busywork.
+    private var resolvedName: String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? (selectedType?.name ?? "") : trimmed
+    }
+
+    private var runtimeBinding: Binding<String> {
+        Binding(get: { selectedRuntime?.id ?? "" }, set: { runtimeID = $0 })
+    }
+
+    private var deviceTypeBinding: Binding<String> {
+        Binding(get: { selectedType?.id ?? "" }, set: { deviceTypeID = $0 })
     }
 }
 

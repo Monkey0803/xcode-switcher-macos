@@ -360,15 +360,18 @@ public enum XcodeTooling {
     }
 
     public static func simulatorRuntimes(for installation: XcodeInstallation) -> [SimulatorRuntime] {
-        let environment = ["DEVELOPER_DIR": installation.developerURL.path]
         let result = ProcessRunner.run(
             executable: "/usr/bin/xcrun",
             arguments: ["simctl", "list", "runtimes", "--json"],
-            environment: environment,
+            environment: ["DEVELOPER_DIR": installation.developerURL.path],
             timeout: 30
         )
-        guard result.succeeded, let data = result.stdout.data(using: .utf8),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard result.succeeded, let data = result.stdout.data(using: .utf8) else { return [] }
+        return parseSimulatorRuntimes(data: data)
+    }
+
+    static func parseSimulatorRuntimes(data: Data) -> [SimulatorRuntime] {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let runtimes = root["runtimes"] as? [[String: Any]] else { return [] }
         var seenIdentifiers = Set<String>()
         return runtimes.compactMap { runtime in
@@ -377,7 +380,13 @@ public enum XcodeTooling {
                   let name = runtime["name"] as? String else { return nil }
             let version = runtime["version"] as? String ?? "未知"
             let available = runtime["isAvailable"] as? Bool ?? (runtime["availability"] as? String)?.contains("available") ?? false
-            return SimulatorRuntime(id: identifier, name: name, version: version, isAvailable: available)
+            return SimulatorRuntime(
+                id: identifier,
+                name: name,
+                version: version,
+                isAvailable: available,
+                supportedDeviceTypes: runtime["supportedDeviceTypes"] as? [String] ?? []
+            )
         }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
@@ -408,18 +417,82 @@ public enum XcodeTooling {
         }
     }
 
+    /// Runs one `simctl` subcommand against the given Xcode's own toolchain. Every
+    /// device mutation goes through here, so the `DEVELOPER_DIR` handling and the
+    /// timeout are stated once.
+    private static func simctl(
+        _ arguments: [String],
+        installation: XcodeInstallation,
+        timeout: TimeInterval = 120
+    ) -> ProcessResult {
+        ProcessRunner.run(
+            executable: "/usr/bin/xcrun",
+            arguments: ["simctl"] + arguments,
+            environment: ["DEVELOPER_DIR": installation.developerURL.path],
+            timeout: timeout
+        )
+    }
+
+    /// The device types the given Xcode's `simctl` can create.
+    public static func simulatorDeviceTypes(for installation: XcodeInstallation) -> [SimulatorDeviceType] {
+        let result = simctl(["list", "devicetypes", "--json"], installation: installation, timeout: 30)
+        guard result.succeeded, let data = result.stdout.data(using: .utf8) else { return [] }
+        return parseSimulatorDeviceTypes(data: data)
+    }
+
+    static func parseSimulatorDeviceTypes(data: Data) -> [SimulatorDeviceType] {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let types = root["devicetypes"] as? [[String: Any]] else { return [] }
+        var seenIdentifiers = Set<String>()
+        return types.compactMap { type in
+            guard let identifier = type["identifier"] as? String,
+                  seenIdentifiers.insert(identifier).inserted,
+                  let name = type["name"] as? String else { return nil }
+            return SimulatorDeviceType(
+                id: identifier,
+                name: name,
+                productFamily: type["productFamily"] as? String ?? ""
+            )
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
     @discardableResult
     public static func simulatorAction(
         _ action: String,
         device: SimulatorDevice,
         installation: XcodeInstallation
     ) -> ProcessResult {
-        ProcessRunner.run(
-            executable: "/usr/bin/xcrun",
-            arguments: ["simctl", action, device.id],
-            environment: ["DEVELOPER_DIR": installation.developerURL.path],
-            timeout: 120
-        )
+        simctl([action, device.id], installation: installation)
+    }
+
+    /// A brand-new device of the given type on the given runtime.
+    @discardableResult
+    public static func createSimulatorDevice(
+        name: String,
+        deviceTypeID: String,
+        runtimeID: String,
+        installation: XcodeInstallation
+    ) -> ProcessResult {
+        simctl(["create", name, deviceTypeID, runtimeID], installation: installation)
+    }
+
+    /// A copy of an existing device, with its own name and UDID.
+    @discardableResult
+    public static func cloneSimulatorDevice(
+        _ device: SimulatorDevice,
+        newName: String,
+        installation: XcodeInstallation
+    ) -> ProcessResult {
+        simctl(["clone", device.id, newName], installation: installation)
+    }
+
+    @discardableResult
+    public static func renameSimulatorDevice(
+        _ device: SimulatorDevice,
+        newName: String,
+        installation: XcodeInstallation
+    ) -> ProcessResult {
+        simctl(["rename", device.id, newName], installation: installation)
     }
 
     /// Devices not supported by the current Xcode SDK. They cannot be booted or

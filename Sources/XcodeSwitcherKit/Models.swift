@@ -161,6 +161,18 @@ public struct SimulatorRuntime: Identifiable, Sendable {
     public let name: String
     public let version: String
     public let isAvailable: Bool
+    /// The device types this runtime can host, as `simctl` reports them. Empty when the
+    /// runtime does not say, which the creation form reads as "no restriction" rather
+    /// than as "nothing fits".
+    public let supportedDeviceTypes: [String]
+}
+
+/// One simulator device type `simctl` can create, e.g. "iPhone 17 Pro".
+public struct SimulatorDeviceType: Identifiable, Hashable, Sendable {
+    public let id: String
+    public let name: String
+    /// "iPhone", "iPad", "Apple Watch" … — the family the model belongs to.
+    public let productFamily: String
 }
 
 public struct SimulatorDevice: Identifiable, Hashable, Sendable {
