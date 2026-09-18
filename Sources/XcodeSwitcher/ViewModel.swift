@@ -55,7 +55,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     /// Which option the preview above belongs to, so 清理 deletes exactly that set.
 
     @Published var configuration: AppConfiguration
-    @Published var pendingProjectOpen: ProjectOpenRequest?
     @Published var statusMessage = String(localized: "正在扫描本机安装的 Xcode…")
     @Published var isError = false
     @Published private(set) var configurationSaveError: String?
@@ -81,28 +80,15 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     /// Environment checks and the reports they produce.
     let environment = EnvironmentStore()
 
+    /// Projects: profiles, how each resolves to an Xcode, and opening them.
+    let projects = ProjectStore()
+
     private let store: AppConfigurationStore
     private var cancellables = Set<AnyCancellable>()
     private var refreshTask: Task<Void, Never>?
     private var detailTasks: [String: Task<Void, Never>] = [:]
     private var runtimeDownloadTask: Task<Void, Never>?
 
-    /// Resolving a project reads `.xcode-switcher.json`, `.xcode-version` and
-    /// `.tool-versions` from disk. View bodies and the status menu ask for the
-    /// result on every render, so it is cached and only re-read when the inputs
-    /// change or the short lifetime expires. Actions that change system state
-    /// resolve fresh instead of trusting the cache.
-    private struct ProjectSnapshot {
-        let resolution: ProjectXcodeResolution
-        let match: ProjectXcodeMatch?
-        let isProjectPresent: Bool
-        let computedAt: Date
-    }
-
-    private static let projectSnapshotLifetime: TimeInterval = 3
-    private var projectSnapshots: [UUID: ProjectSnapshot] = [:]
-    private var pendingProjectUpdate: (profile: ProjectProfile, name: String, xcodeID: String?)?
-    private var projectUpdateTask: Task<Void, Never>?
     /// `NSWorkspace.icon(forFile:)` goes through LaunchServices, so the result is
     /// cached instead of being re-fetched on every row render.
     private var iconCache: [String: NSImage] = [:]
@@ -144,6 +130,18 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         environment.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
+        projects.projects = { [weak self] in self?.configuration.projects ?? [] }
+        projects.setProjects = { [weak self] in self?.configuration.projects = $0 }
+        projects.persist = { [weak self] in self?.persist() }
+        projects.installations = { [weak self] in self?.installations ?? [] }
+        projects.activeInstallation = { [weak self] in self?.activeInstallation }
+        projects.aliases = { [weak self] in self?.configuration.xcodeAliases ?? [:] }
+        projects.activate = { [weak self] installation, url in self?.activate(installation, thenOpen: url) }
+        projects.showMainWindow = { [weak self] in self?.showMainWindow() }
+        projects.status = self
+        projects.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         // Tests construct the model to exercise caching and persistence without
         // registering global event monitors or touching the updater.
         guard configuresSystemServices else { return }
@@ -160,7 +158,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         refreshTask?.cancel()
         detailTasks.values.forEach { $0.cancel() }
         runtimeDownloadTask?.cancel()
-        projectUpdateTask?.cancel()
     }
 
     // MARK: - 签名
@@ -310,6 +307,35 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         environment.exportRedactedEnvironmentReport(for: installation)
     }
 
+    // MARK: - 项目
+
+    /// Same forwarding contract as the stores above.
+    var pendingProjectOpen: ProjectOpenRequest? { projects.pendingProjectOpen }
+    var invalidProjects: [ProjectProfile] { projects.invalidProjects }
+
+    func addProject(_ url: URL) { projects.addProject(url) }
+    func removeProject(_ profile: ProjectProfile) { projects.removeProject(profile) }
+    func removeInvalidProjects() { projects.removeInvalidProjects() }
+    func updateProject(_ profile: ProjectProfile, name: String, xcodeID: String?) {
+        projects.updateProject(profile, name: name, xcodeID: xcodeID)
+    }
+    func installation(for profile: ProjectProfile) -> XcodeInstallation? {
+        projects.installation(for: profile)
+    }
+    func applyAndOpen(_ profile: ProjectProfile) { projects.applyAndOpen(profile) }
+    func switchAndOpenPendingProject() { projects.switchAndOpenPendingProject() }
+    func openPendingProjectWithRecommendedXcode() { projects.openPendingProjectWithRecommendedXcode() }
+    func cancelPendingProjectOpen() { projects.cancelPendingProjectOpen() }
+    func automaticMatch(for profile: ProjectProfile) -> ProjectXcodeMatch? {
+        projects.automaticMatch(for: profile)
+    }
+    func projectIssue(for profile: ProjectProfile) -> String? { projects.projectIssue(for: profile) }
+    func invalidateProjectSnapshots() { projects.invalidateSnapshots() }
+    func scheduleProjectUpdate(_ profile: ProjectProfile, name: String, xcodeID: String?) {
+        projects.scheduleProjectUpdate(profile, name: name, xcodeID: xcodeID)
+    }
+    func flushPendingProjectUpdate() { projects.flushPendingProjectUpdate() }
+
     var selectedInstallation: XcodeInstallation? {
         installations.first { $0.id == selectedID }
     }
@@ -350,7 +376,7 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
             installations = discovery.0
             activeDeveloperPath = discovery.1
             commandLineToolsPath = discovery.2
-            invalidateProjectSnapshots()
+            projects.invalidateSnapshots()
             iconCache.removeAll()
             lastRefreshAt = Date()
             if !installations.contains(where: { $0.id == selectedID }) {
@@ -618,206 +644,8 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         persist()
     }
 
-    func addProject(_ url: URL) {
-        guard url.pathExtension == "xcodeproj" || url.pathExtension == "xcworkspace" else {
-            statusMessage = String(localized: "请选择 .xcodeproj 或 .xcworkspace。")
-            isError = true
-            return
-        }
-        guard !configuration.projects.contains(where: { $0.path == url.path }) else {
-            statusMessage = String(localized: "该项目已经添加。")
-            isError = false
-            return
-        }
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            statusMessage = String(localized: "项目路径不存在：\(url.path)")
-            isError = true
-            return
-        }
-        let profile = ProjectProfile(name: url.deletingPathExtension().lastPathComponent, path: url.path)
-        configuration.projects.append(profile)
-        persist()
-        if let match = automaticMatch(for: profile) {
-            isError = !match.isInstalled
-            statusMessage = match.isInstalled
-                ? String(localized: "已添加项目 \(profile.name)，自动匹配 Xcode \(match.requirement.normalizedVersion)。")
-                : String(localized: "已添加项目 \(profile.name)，但未安装其要求的 Xcode \(match.requirement.normalizedVersion)。")
-        } else {
-            statusMessage = String(localized: "已添加项目 \(profile.name)。")
-            isError = false
-        }
-    }
 
-    func removeProject(_ profile: ProjectProfile) {
-        configuration.projects.removeAll { $0.id == profile.id }
-        persist()
-    }
 
-    var invalidProjects: [ProjectProfile] {
-        configuration.projects.filter { !snapshot(for: $0).isProjectPresent }
-    }
-
-    func removeInvalidProjects() {
-        let invalidIDs = Set(invalidProjects.map(\.id))
-        configuration.projects.removeAll { invalidIDs.contains($0.id) }
-        persist()
-        statusMessage = invalidIDs.isEmpty ? String(localized: "没有失效项目。") : String(localized: "已移除 \(invalidIDs.count) 个失效项目。")
-        isError = false
-    }
-
-    func updateProject(_ profile: ProjectProfile, name: String, xcodeID: String?) {
-        guard let index = configuration.projects.firstIndex(where: { $0.id == profile.id }) else { return }
-        configuration.projects[index].name = name
-        configuration.projects[index].xcodeID = xcodeID
-        persist()
-    }
-
-    func installation(for profile: ProjectProfile) -> XcodeInstallation? {
-        let resolution = snapshot(for: profile).resolution
-        return resolution.installationID.flatMap { id in installations.first(where: { $0.id == id }) }
-    }
-
-    func applyAndOpen(_ profile: ProjectProfile) {
-        // Opening a project changes which Xcode is used, so resolve from disk
-        // rather than trusting a cached snapshot.
-        let resolution = snapshot(for: profile, refreshing: true).resolution
-        if let issue = resolution.issueDescription {
-            statusMessage = issue
-            isError = true
-            return
-        }
-        guard let installationID = resolution.installationID,
-              let installation = installations.first(where: { $0.id == installationID }) else {
-            statusMessage = String(localized: "没有可用于打开项目的 Xcode。")
-            isError = true
-            return
-        }
-        guard let decision = ProjectXcodeMatcher.openDecision(
-            for: resolution,
-            activeInstallationID: activeInstallation?.id
-        ) else {
-            statusMessage = String(localized: "无法解析项目使用的 Xcode。")
-            isError = true
-            return
-        }
-        switch decision {
-        case .open:
-            activate(installation, thenOpen: profile.url)
-        case let .requiresConfirmation(_, source):
-            guard let activeInstallation else {
-                activate(installation, thenOpen: profile.url)
-                return
-            }
-            pendingProjectOpen = ProjectOpenRequest(
-                profile: profile,
-                currentInstallation: activeInstallation,
-                recommendedInstallation: installation,
-                source: source
-            )
-            showMainWindow()
-        }
-    }
-
-    func switchAndOpenPendingProject() {
-        guard let request = pendingProjectOpen else { return }
-        pendingProjectOpen = nil
-        activate(request.recommendedInstallation, thenOpen: request.profile.url)
-    }
-
-    /// Opens the project with the recommended Xcode without touching
-    /// `xcode-select`, so no administrator authorization is required and the
-    /// rest of the machine keeps using the current developer directory.
-    func openPendingProjectWithRecommendedXcode() {
-        guard let request = pendingProjectOpen else { return }
-        pendingProjectOpen = nil
-        XcodeActions.open(request.profile.url, with: request.recommendedInstallation)
-        statusMessage = String(localized: "已用 Xcode \(request.recommendedInstallation.displayVersion) 打开 \(request.profile.name)，未修改系统开发者目录。")
-        isError = false
-    }
-
-    func cancelPendingProjectOpen() {
-        pendingProjectOpen = nil
-    }
-
-    func automaticMatch(for profile: ProjectProfile) -> ProjectXcodeMatch? {
-        snapshot(for: profile).match
-    }
-
-    func projectIssue(for profile: ProjectProfile) -> String? {
-        snapshot(for: profile).resolution.issueDescription
-    }
-
-    /// Drops every cached project resolution. Called whenever the inputs a
-    /// resolution depends on change, so the next read is fresh.
-    func invalidateProjectSnapshots() {
-        projectSnapshots.removeAll()
-    }
-
-    private func snapshot(for profile: ProjectProfile, refreshing: Bool = false) -> ProjectSnapshot {
-        if !refreshing,
-           let cached = projectSnapshots[profile.id],
-           Date().timeIntervalSince(cached.computedAt) < Self.projectSnapshotLifetime {
-            return cached
-        }
-
-        // Walk the ancestor directories once and reuse the result for both the
-        // resolution and the automatic match.
-        let configurationURL = ProjectLocalConfigurationStore.configurationURL(for: profile.url)
-        let localConfiguration = configurationURL.flatMap {
-            ProjectLocalConfigurationStore.load(in: $0.deletingLastPathComponent())
-        }
-        let resolved = ProjectSnapshot(
-            resolution: ProjectXcodeMatcher.resolve(
-                profile: profile,
-                installations: installations,
-                aliases: configuration.xcodeAliases,
-                activeInstallationID: activeInstallation?.id,
-                localConfiguration: localConfiguration
-            ),
-            match: Self.match(
-                for: profile,
-                installations: installations,
-                aliases: configuration.xcodeAliases,
-                localConfiguration: localConfiguration,
-                configurationURL: configurationURL
-            ),
-            isProjectPresent: FileManager.default.fileExists(atPath: profile.path),
-            computedAt: Date()
-        )
-        projectSnapshots[profile.id] = resolved
-        return resolved
-    }
-
-    private static func match(
-        for profile: ProjectProfile,
-        installations: [XcodeInstallation],
-        aliases: [String: String],
-        localConfiguration: ProjectLocalConfiguration?,
-        configurationURL: URL?
-    ) -> ProjectXcodeMatch? {
-        if let selector = localConfiguration?.xcode?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !selector.isEmpty,
-           let installation = installations.first(where: {
-               $0.id == selector || $0.appURL.path == selector || $0.developerURL.path == selector ||
-               $0.name.localizedCaseInsensitiveCompare(selector) == .orderedSame ||
-               aliases[$0.id]?.localizedCaseInsensitiveCompare(selector) == .orderedSame
-           }),
-           let normalized = ProjectXcodeMatcher.normalizeVersion(selector) ?? ProjectXcodeMatcher.normalizeVersion(installation.version) {
-            return ProjectXcodeMatch(
-                requirement: ProjectXcodeRequirement(
-                    source: configurationURL?.path ?? ".xcode-switcher.json",
-                    rawValue: selector,
-                    normalizedVersion: normalized
-                ),
-                installationID: installation.id
-            )
-        }
-        return ProjectXcodeMatcher.match(
-            projectURL: profile.url,
-            installations: installations,
-            aliases: aliases
-        )
-    }
 
     func addSearchPath() {
         let panel = NSOpenPanel()
@@ -1089,7 +917,7 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
 
 
     func persist() {
-        invalidateProjectSnapshots()
+        projects.invalidateSnapshots()
         do {
             try store.save(configuration)
             configurationSaveError = nil
@@ -1100,28 +928,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
             statusMessage = String(localized: "配置保存失败：\(error.localizedDescription)")
             isError = true
         }
-    }
-
-    /// Project name and binding edits arrive per keystroke. Debounce them so
-    /// typing does not rewrite the configuration file and its backups on every
-    /// character.
-    func scheduleProjectUpdate(_ profile: ProjectProfile, name: String, xcodeID: String?) {
-        pendingProjectUpdate = (profile, name, xcodeID)
-        projectUpdateTask?.cancel()
-        projectUpdateTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled else { return }
-            self?.flushPendingProjectUpdate()
-        }
-    }
-
-    /// Applies an edit that is still inside the debounce window.
-    func flushPendingProjectUpdate() {
-        projectUpdateTask?.cancel()
-        projectUpdateTask = nil
-        guard let pending = pendingProjectUpdate else { return }
-        pendingProjectUpdate = nil
-        updateProject(pending.profile, name: pending.name, xcodeID: pending.xcodeID)
     }
 
     func requestSearchFocus() {
