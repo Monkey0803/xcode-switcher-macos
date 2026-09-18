@@ -155,11 +155,11 @@ struct AllVersionsView: View {
                 }
             }
 
-        case .loaded(let cachedAt, let refreshFailed):
+        case .loaded(let cachedAt, let failure):
             // A split view rather than a fixed 300 pt column: the two sides trade
             // width with the window, and the divider can be dragged.
             HSplitView {
-                list(cachedAt: cachedAt, refreshFailed: refreshFailed)
+                list(cachedAt: cachedAt, failure: failure)
                     .frame(minWidth: 420, maxWidth: .infinity)
 
                 if !isDetailsCollapsed {
@@ -171,14 +171,19 @@ struct AllVersionsView: View {
     }
 
     @ViewBuilder
-    private func list(cachedAt: Date?, refreshFailed: Bool) -> some View {
+    private func list(cachedAt: Date?, failure: String?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if refreshFailed, let cachedAt {
-                Label(
-                    "无法刷新，显示的是 \(cachedAt.formatted(date: .abbreviated, time: .shortened)) 的缓存副本。",
-                    systemImage: "exclamationmark.triangle.fill"
-                )
-                .textRole(.warning)
+            if let failure, let cachedAt {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(
+                        "无法刷新，显示的是 \(cachedAt.formatted(date: .abbreviated, time: .shortened)) 的缓存副本。",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .textRole(.warning)
+                    // The error itself. A dropped connection and a rejected response
+                    // are different problems, and the banner alone cannot tell them apart.
+                    Text(failure).textRole(.note)
+                }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
             }

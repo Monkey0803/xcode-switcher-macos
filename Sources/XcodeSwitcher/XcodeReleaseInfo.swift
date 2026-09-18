@@ -333,9 +333,11 @@ struct XcodeReleaseCatalogSnapshot: Sendable {
     let releases: [XcodeReleaseInfo]
     /// When the on-disk copy was written, when the result came from it.
     let cachedAt: Date?
-    /// True when a refresh was attempted, failed, and a stale copy was served
-    /// instead — the UI says so rather than presenting old data as current.
-    let refreshFailed: Bool
+    /// Why a refresh failed, when one was attempted, failed, and a stale copy was
+    /// served instead. The UI says so rather than presenting old data as current —
+    /// and shows this, so a dropped connection can be told apart from a rejected
+    /// response without guessing.
+    let failure: String?
 }
 
 /// Loads and caches the release index.
@@ -405,7 +407,7 @@ struct XcodeReleaseCatalogStore: Sendable {
         let cached = readCache()
         if !forceRefresh, let cached, now.timeIntervalSince(cached.cachedAt) < maxAge {
             return .success(
-                XcodeReleaseCatalogSnapshot(releases: cached.releases, cachedAt: cached.cachedAt, refreshFailed: false)
+                XcodeReleaseCatalogSnapshot(releases: cached.releases, cachedAt: cached.cachedAt, failure: nil)
             )
         }
 
@@ -414,12 +416,12 @@ struct XcodeReleaseCatalogStore: Sendable {
             let releases = try XcodeReleaseCatalog.parse(data)
             writeCache(data)
             return .success(
-                XcodeReleaseCatalogSnapshot(releases: releases, cachedAt: nil, refreshFailed: false)
+                XcodeReleaseCatalogSnapshot(releases: releases, cachedAt: nil, failure: nil)
             )
         } catch {
             if let cached {
                 return .success(
-                    XcodeReleaseCatalogSnapshot(releases: cached.releases, cachedAt: cached.cachedAt, refreshFailed: true)
+                    XcodeReleaseCatalogSnapshot(releases: cached.releases, cachedAt: cached.cachedAt, failure: error.localizedDescription)
                 )
             }
             return .failure(.unavailable(error.localizedDescription))

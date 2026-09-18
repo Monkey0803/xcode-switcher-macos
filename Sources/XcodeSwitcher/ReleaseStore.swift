@@ -20,7 +20,7 @@ final class ReleaseStore: ObservableObject {
     enum ReleaseCatalogState: Equatable, Sendable {
         case idle
         case loading
-        case loaded(cachedAt: Date?, refreshFailed: Bool)
+        case loaded(cachedAt: Date?, failure: String?)
         case unavailable(String)
     }
 
@@ -100,7 +100,7 @@ final class ReleaseStore: ObservableObject {
             switch result {
             case .success(let snapshot):
                 releaseCatalog = snapshot.releases
-                releaseCatalogState = .loaded(cachedAt: snapshot.cachedAt, refreshFailed: snapshot.refreshFailed)
+                releaseCatalogState = .loaded(cachedAt: snapshot.cachedAt, failure: snapshot.failure)
             case .failure(let error):
                 releaseCatalogState = .unavailable(
                     error.errorDescription ?? String(localized: "无法获取发布信息。")

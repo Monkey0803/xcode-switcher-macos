@@ -709,14 +709,15 @@ private struct VersionInfoSectionView: View {
                 ProgressView().controlSize(.small)
                 Text("正在获取发布信息…").textRole(.note)
             }
-        case .loaded(let cachedAt, let refreshFailed):
+        case .loaded(let cachedAt, let failure):
             VStack(alignment: .leading, spacing: 4) {
-                if refreshFailed, let cachedAt {
+                if let failure, let cachedAt {
                     Label(
                         "无法刷新，显示的是 \(cachedAt.formatted(date: .abbreviated, time: .shortened)) 的缓存副本。",
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .textRole(.warning)
+                    Text(failure).textRole(.note)
                 }
                 if release == nil {
                     Text("发布信息索引里没有构建号 \(installation.build) 对应的条目。")

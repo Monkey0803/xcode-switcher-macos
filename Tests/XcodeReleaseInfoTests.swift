@@ -207,7 +207,7 @@ final class XcodeReleaseInfoTests: XCTestCase {
 
         let snapshot = try XCTUnwrap(try? result.get())
         XCTAssertEqual(snapshot.releases.count, 13)
-        XCTAssertFalse(snapshot.refreshFailed)
+        XCTAssertNil(snapshot.failure)
         XCTAssertTrue(FileManager.default.fileExists(atPath: cacheURL.path), "抓取后应写入缓存")
     }
 
@@ -225,7 +225,7 @@ final class XcodeReleaseInfoTests: XCTestCase {
 
         let snapshot = try XCTUnwrap(try? second.get())
         XCTAssertEqual(counter.value, 1, "24 小时内的缓存不应再次联网")
-        XCTAssertFalse(snapshot.refreshFailed)
+        XCTAssertNil(snapshot.failure)
         XCTAssertNotNil(snapshot.cachedAt)
     }
 
@@ -243,7 +243,8 @@ final class XcodeReleaseInfoTests: XCTestCase {
 
         let snapshot = try XCTUnwrap(try? result.get())
         XCTAssertEqual(snapshot.releases.count, 13, "离线时应回退到过期缓存，而不是什么都不显示")
-        XCTAssertTrue(snapshot.refreshFailed, "回退到过期缓存时必须标记出来")
+        // 原因要一路带上来，界面才能说出「为什么」而不是只说「失败了」。
+        XCTAssertEqual(snapshot.failure, URLError(.notConnectedToInternet).localizedDescription)
     }
 
     func testNoCacheAndFailedFetchReportsUnavailable() async {
