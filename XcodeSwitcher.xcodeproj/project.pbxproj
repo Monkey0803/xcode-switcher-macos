@@ -52,6 +52,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>CFD1BB548C74C9EB2DF270A9</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>ReleaseStore.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>D2B8281AEDFCF647E44D4329</key>
 		<dict>
 			<key>isa</key>
@@ -694,6 +705,13 @@
 			<key>fileRef</key>
 			<string>6F309D74411C5E8911341351</string>
 		</dict>
+		<key>760813AA98F1F54A70EA759B</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>CFD1BB548C74C9EB2DF270A9</string>
+		</dict>
 		<key>E7B63BD1CCEEED09215CDFEC</key>
 		<dict>
 			<key>isa</key>
@@ -989,6 +1007,7 @@
 				<string>C7DC9AECEFA944B4BB0DF711</string>
 				<string>D478C4D8FFB98A420BA8A1DE</string>
 				<string>9FE1494FCC23F6C7B24F07CE</string>
+				<string>760813AA98F1F54A70EA759B</string>
 				<string>E7B63BD1CCEEED09215CDFEC</string>
 				<string>4C6BCEACF6AD7E25378952B7</string>
 				<string>32CBFA915A5217D0F16904DA</string>
@@ -1691,6 +1710,7 @@
 				<string>4B42363FDF665F9DCAD9852D</string>
 				<string>85E8863BD4CC12EEB137B550</string>
 				<string>6F309D74411C5E8911341351</string>
+				<string>CFD1BB548C74C9EB2DF270A9</string>
 				<string>D2B8281AEDFCF647E44D4329</string>
 				<string>0EA8E87FC77BC2A066A54EB2</string>
 				<string>5710DBD13E541E9B28C9DB4C</string>

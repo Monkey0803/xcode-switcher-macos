@@ -54,12 +54,7 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     @Published private(set) var runtimesByID: [String: [SimulatorRuntime]] = [:]
     @Published private(set) var devicesByID: [String: [SimulatorDevice]] = [:]
 
-    @Published private(set) var isCheckingRelease = false
-    @Published private(set) var releaseCheckMessage = ""
     /// Which option the preview above belongs to, so 清理 deletes exactly that set.
-    @Published private(set) var releaseCatalog: [XcodeReleaseInfo] = []
-    @Published private(set) var releaseCatalogState: ReleaseCatalogState = .idle
-    @Published private(set) var installDetailsByID: [String: XcodeInstallDetails] = [:]
 
     @Published var configuration: AppConfiguration
     @Published var pendingProjectOpen: ProjectOpenRequest?
@@ -81,23 +76,16 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     /// is re-published below, so the views keep observing this one object.
     let cleanup = DiskCleanupStore()
 
+    /// The release index, per-installation build details and the update check.
+    /// Assigned in `init` because it takes the injected catalog store.
+    let releases: ReleaseStore
+
     private let store: AppConfigurationStore
-    private let releaseCatalogStore: XcodeReleaseCatalogStore
     private var cancellables = Set<AnyCancellable>()
     private var refreshTask: Task<Void, Never>?
     private var detailTasks: [String: Task<Void, Never>] = [:]
     private var runtimeDownloadTask: Task<Void, Never>?
     private var environmentDoctorTasks: [String: Task<Void, Never>] = [:]
-    private var releaseCatalogTask: Task<Void, Never>?
-
-    /// How the release-index fetch is going, so the panel can tell "not fetched yet"
-    /// from "network unreachable" from "showing a stale copy".
-    enum ReleaseCatalogState: Equatable, Sendable {
-        case idle
-        case loading
-        case loaded(cachedAt: Date?, refreshFailed: Bool)
-        case unavailable(String)
-    }
 
     /// Resolving a project reads `.xcode-switcher.json`, `.xcode-version` and
     /// `.tool-versions` from disk. View bodies and the status menu ask for the
@@ -130,11 +118,11 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         configuresSystemServices: Bool = true
     ) {
         self.store = store
-        self.releaseCatalogStore = releaseCatalogStore
+        releases = ReleaseStore(releaseCatalogStore: releaseCatalogStore)
         configuration = store.load()
         isLaunchAtLoginEnabled = LaunchAtLoginService.isEnabled
-        // The signing store's three dependencies on this model, plus the
-        // re-publish that keeps the views' single `@EnvironmentObject` working.
+        // Each store's dependencies on this model, plus the re-publish that keeps
+        // the views' single `@EnvironmentObject` working.
         signing.resolveInstallation = { [weak self] profile in self?.installation(for: profile) }
         signing.projectIssue = { [weak self] profile in self?.projectIssue(for: profile) }
         signing.status = self
@@ -144,6 +132,11 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         cleanup.status = self
         cleanup.isAnyXcodeRunning = { [weak self] in self?.isAnyXcodeRunning ?? false }
         cleanup.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        releases.status = self
+        releases.installations = { [weak self] in self?.installations ?? [] }
+        releases.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
         // Tests construct the model to exercise caching and persistence without
@@ -261,6 +254,32 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         }
     }
 
+    // MARK: - 版本索引与更新
+
+    /// Same forwarding contract as the stores above.
+    var releaseCatalogState: ReleaseStore.ReleaseCatalogState { releases.releaseCatalogState }
+    var allReleases: [XcodeReleaseInfo] { releases.allReleases }
+    var installedBuilds: Set<String> { releases.installedBuilds }
+    var isCheckingRelease: Bool { releases.isCheckingRelease }
+    var isUpdateServiceAvailable: Bool { releases.isUpdateServiceAvailable }
+    var updateServiceMessage: String { releases.updateServiceMessage }
+
+    func installation(matching release: XcodeReleaseInfo) -> XcodeInstallation? {
+        releases.installation(matching: release)
+    }
+    func installDetails(for installation: XcodeInstallation) -> XcodeInstallDetails? {
+        releases.installDetails(for: installation)
+    }
+    func loadInstallDetails(for installation: XcodeInstallation) {
+        releases.loadInstallDetails(for: installation)
+    }
+    func releaseInfo(for installation: XcodeInstallation) -> XcodeReleaseInfo? {
+        releases.releaseInfo(for: installation)
+    }
+    func loadReleaseCatalog(force: Bool = false) { releases.loadReleaseCatalog(force: force) }
+    func checkForUpdates() { releases.checkForUpdates() }
+    func openReleasePage() { releases.openReleasePage() }
+
     var selectedInstallation: XcodeInstallation? {
         installations.first { $0.id == selectedID }
     }
@@ -356,38 +375,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     ///
     /// Two plist reads, so it is done on demand rather than inside the toolchain
     /// scan, which shells out to several processes.
-    func loadInstallDetails(for installation: XcodeInstallation) {
-        guard installDetailsByID[installation.id] == nil else { return }
-        installDetailsByID[installation.id] = XcodeInstallDetails.read(
-            appURL: installation.appURL,
-            fallbackBuild: installation.build
-        )
-    }
-
-    func installDetails(for installation: XcodeInstallation) -> XcodeInstallDetails? {
-        installDetailsByID[installation.id]
-    }
-
-    /// The index entry for an installation, matched on Apple's published build.
-    func releaseInfo(for installation: XcodeInstallation) -> XcodeReleaseInfo? {
-        XcodeReleaseCatalog.release(matchingBuild: installation.build, in: releaseCatalog)
-    }
-
-    /// One row per build across the whole index, for the "every version" window.
-    var allReleases: [XcodeReleaseInfo] {
-        XcodeReleaseCatalog.uniqueReleases(from: releaseCatalog)
-    }
-
-    /// The builds installed here, so the list can mark them. Uses the public build
-    /// string, which is what the index is keyed by.
-    var installedBuilds: Set<String> {
-        Set(installations.map { $0.build.lowercased() })
-    }
-
-    /// The installation a catalogue entry corresponds to, when it is installed here.
-    func installation(matching release: XcodeReleaseInfo) -> XcodeInstallation? {
-        installations.first { $0.build.lowercased() == release.build.lowercased() }
-    }
 
     /// The Xcode app icon, taken from a locally installed copy.
     ///
@@ -404,30 +391,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     /// Called when a detail page is opened, which is what makes this automatic; a
     /// loaded or in-flight fetch is not repeated. A previous failure is retried,
     /// since opening the page again is a reasonable way to ask again.
-    func loadReleaseCatalog(force: Bool = false) {
-        if !force {
-            switch releaseCatalogState {
-            case .loading, .loaded: return
-            case .idle, .unavailable: break
-            }
-        }
-        releaseCatalogTask?.cancel()
-        releaseCatalogState = .loading
-        let store = releaseCatalogStore
-        releaseCatalogTask = Task { [weak self] in
-            let result = await store.load(forceRefresh: force)
-            guard let self else { return }
-            switch result {
-            case .success(let snapshot):
-                releaseCatalog = snapshot.releases
-                releaseCatalogState = .loaded(cachedAt: snapshot.cachedAt, refreshFailed: snapshot.refreshFailed)
-            case .failure(let error):
-                releaseCatalogState = .unavailable(
-                    error.errorDescription ?? String(localized: "无法获取发布信息。")
-                )
-            }
-        }
-    }
 
     func loadDetails(for installation: XcodeInstallation) {
         guard detailsByID[installation.id] == nil, detailTasks[installation.id] == nil else { return }
@@ -875,15 +838,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         configuration.globalShortcut.displayName
     }
 
-    var isUpdateServiceAvailable: Bool {
-        UpdateService.shared.isAvailable
-    }
-
-    var updateServiceMessage: String {
-        if !releaseCheckMessage.isEmpty { return releaseCheckMessage }
-        if UpdateService.shared.isAvailable { return "Sparkle 自动更新已启用。" }
-        return "当前为直接分发构建，可检查 GitHub Releases；Sparkle 自动更新仅在正式签名构建启用。"
-    }
 
     func toggleLaunchAtLogin(_ enabled: Bool) {
         do {
@@ -912,42 +866,7 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         UpdateService.shared.setAutomaticallyChecksForUpdates(enabled)
     }
 
-    func checkForUpdates() {
-        guard !isCheckingRelease else { return }
-        if UpdateService.shared.isAvailable {
-            UpdateService.shared.checkForUpdates()
-            statusMessage = String(localized: "正在检查更新…")
-            isError = false
-            return
-        }
-        isCheckingRelease = true
-        releaseCheckMessage = "正在读取 GitHub Releases…"
-        statusMessage = String(localized: "正在检查 GitHub Releases…")
-        isError = false
-        Task { @MainActor in
-            let result = await UpdateService.shared.checkGitHubRelease()
-            isCheckingRelease = false
-            if let error = result.errorMessage {
-                releaseCheckMessage = "GitHub Releases 检查失败：\(error)"
-                statusMessage = releaseCheckMessage
-                isError = true
-            } else if result.isUpdateAvailable, let latest = result.latestVersion {
-                releaseCheckMessage = "发现新版本 \(latest)，点击右侧按钮下载。"
-                statusMessage = releaseCheckMessage
-                isError = false
-            } else {
-                releaseCheckMessage = "当前已是最新版本（\(result.currentVersion)）。"
-                statusMessage = releaseCheckMessage
-                isError = false
-            }
-        }
-    }
 
-    func openReleasePage() {
-        let opened = UpdateService.shared.openReleasePage()
-        statusMessage = opened ? String(localized: "已打开 GitHub Releases 下载页。") : String(localized: "无法打开 GitHub Releases。")
-        isError = !opened
-    }
 
     func exportConfiguration() {
         let panel = NSSavePanel()
