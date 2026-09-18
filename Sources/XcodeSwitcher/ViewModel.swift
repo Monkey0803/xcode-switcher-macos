@@ -17,15 +17,11 @@ struct ProjectOpenRequest: Identifiable {
 @MainActor
 final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwning {
 
-    @Published private(set) var isGlobalShortcutAvailable = true
-    @Published private(set) var isLaunchAtLoginEnabled = false
-
     /// Which option the preview above belongs to, so 清理 deletes exactly that set.
 
-    @Published var configuration: AppConfiguration
     @Published var statusMessage = String(localized: "正在扫描本机安装的 Xcode…")
     @Published var isError = false
-    @Published private(set) var configurationSaveError: String?
+
     @Published var filter = ""
     @Published private(set) var searchFocusRequest = 0
 
@@ -50,10 +46,13 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     /// Projects: profiles, how each resolves to an Xcode, and opening them.
     let projects = ProjectStore()
 
+    /// The configuration and the settings built on it. Assigned in `init` because
+    /// it takes the injected configuration store.
+    let settings: SettingsStore
+
     /// The installed Xcodes and everything done to one of them.
     let installs = InstallationStore()
 
-    private let store: AppConfigurationStore
     private var cancellables = Set<AnyCancellable>()
 
     /// `NSWorkspace.icon(forFile:)` goes through LaunchServices, so the result is
@@ -68,10 +67,8 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
         releaseCatalogStore: XcodeReleaseCatalogStore = .live,
         configuresSystemServices: Bool = true
     ) {
-        self.store = store
+        settings = SettingsStore(store: store)
         releases = ReleaseStore(releaseCatalogStore: releaseCatalogStore)
-        configuration = store.load()
-        isLaunchAtLoginEnabled = LaunchAtLoginService.isEnabled
         // Each store's dependencies on this model, plus the re-publish that keeps
         // the views' single `@EnvironmentObject` working.
         signing.resolveInstallation = { [weak self] profile in self?.installation(for: profile) }
@@ -124,20 +121,57 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
         installs.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
+        settings.status = self
+        settings.configurationDidChange = { [weak self] in self?.projects.invalidateSnapshots() }
+        settings.searchFoldersDidChange = { [weak self] in
+            self?.installs.refresh()
+            self?.onSearchPathsChanged?()
+        }
+        settings.shortcutPressed = { [weak self] in self?.showMainWindow(focusSearch: true) }
+        settings.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         // Tests construct the model to exercise caching and persistence without
         // registering global event monitors or touching the updater.
         guard configuresSystemServices else { return }
-        GlobalShortcutService.shared.onPressed = { [weak self] in
-            Task { @MainActor in self?.showMainWindow(focusSearch: true) }
-        }
-        if configuration.globalShortcutEnabled {
-            isGlobalShortcutAvailable = GlobalShortcutService.shared.start(using: configuration.globalShortcut)
-        }
-        UpdateService.shared.setAutomaticallyChecksForUpdates(configuration.automaticallyChecksForUpdates)
+        settings.configureSystemServices()
     }
 
     deinit {
     }
+
+    // MARK: - 设置与配置
+
+    /// The settings store owns the configuration; this forward (with the
+    /// `ConfigurationOwning` conformance above it) is what keeps the views, the
+    /// tests and the other stores reading and writing it the same way.
+    var configuration: AppConfiguration {
+        get { settings.configuration }
+        set { settings.configuration = newValue }
+    }
+    var configurationSaveError: String? { settings.configurationSaveError }
+    var isGlobalShortcutAvailable: Bool { settings.isGlobalShortcutAvailable }
+    var isLaunchAtLoginEnabled: Bool { settings.isLaunchAtLoginEnabled }
+    var hasConfigurationBackup: Bool { settings.hasConfigurationBackup }
+    var globalShortcutDisplayName: String { settings.globalShortcutDisplayName }
+
+    func persist() { settings.persist() }
+    func toggleGlobalShortcut(_ enabled: Bool) { settings.toggleGlobalShortcut(enabled) }
+    func updateGlobalShortcut(_ shortcut: GlobalShortcut) { settings.updateGlobalShortcut(shortcut) }
+    func refreshGlobalShortcutPermission() { settings.refreshGlobalShortcutPermission() }
+    func toggleLaunchAtLogin(_ enabled: Bool) { settings.toggleLaunchAtLogin(enabled) }
+    func toggleMenuBarOnly(_ enabled: Bool) { settings.toggleMenuBarOnly(enabled) }
+    func toggleAutomaticUpdateChecks(_ enabled: Bool) { settings.toggleAutomaticUpdateChecks(enabled) }
+    func exportConfiguration() { settings.exportConfiguration() }
+    func importConfiguration() { settings.importConfiguration() }
+    func restoreConfigurationBackup() { settings.restoreConfigurationBackup() }
+    func copyShellIntegrationCommand() { settings.copyShellIntegrationCommand() }
+    func copyCLILinkCommand() { settings.copyCLILinkCommand() }
+
+    /// Forwarded because the tests exercise these as pure functions.
+    nonisolated static var shellIntegrationCommand: String { SettingsStore.shellIntegrationCommand }
+    nonisolated static var cliExecutablePath: String { SettingsStore.cliExecutablePath }
+    nonisolated static var cliLinkCommand: String { SettingsStore.cliLinkCommand }
 
     // MARK: - 安装列表
 
@@ -368,160 +402,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
         projects.scheduleProjectUpdate(profile, name: name, xcodeID: xcodeID)
     }
     func flushPendingProjectUpdate() { projects.flushPendingProjectUpdate() }
-
-    /// What the installed bundle says about itself.
-    ///
-    /// Two plist reads, so it is done on demand rather than inside the toolchain
-    /// scan, which shells out to several processes.
-    /// Fetches the release index, served from a cached copy for a day.
-    ///
-    /// Called when a detail page is opened, which is what makes this automatic; a
-    /// loaded or in-flight fetch is not repeated. A previous failure is retried,
-    /// since opening the page again is a reasonable way to ask again.
-
-    /// Line the user adds to `.zshrc` so entering a project directory sets
-    /// `DEVELOPER_DIR` automatically.
-    ///
-    /// The trailing `"` needs the doubled quote: in a raw string literal the
-    /// first `"#` terminates it, which would silently drop the closing quote.
-    nonisolated static var shellIntegrationCommand: String {
-        #"eval "$(xcodeswitcher shell-init zsh)""#
-    }
-
-    nonisolated static var cliExecutablePath: String {
-        Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/xcodeswitcher").path
-    }
-
-    /// Command that puts the CLI bundled inside the app on the user's PATH.
-    nonisolated static var cliLinkCommand: String {
-        "mkdir -p ~/.local/bin && ln -sf \"\(cliExecutablePath)\" ~/.local/bin/xcodeswitcher"
-    }
-
-    func copyShellIntegrationCommand() {
-        copyToPasteboard(Self.shellIntegrationCommand)
-        statusMessage = String(localized: "已复制 Shell 集成命令，请添加到 ~/.zshrc。")
-        isError = false
-    }
-
-    func copyCLILinkCommand() {
-        copyToPasteboard(Self.cliLinkCommand)
-        statusMessage = String(localized: "已复制 CLI 链接命令。")
-        isError = false
-    }
-
-    private func copyToPasteboard(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-    }
-
-    func toggleGlobalShortcut(_ enabled: Bool) {
-        configuration.globalShortcutEnabled = enabled
-        if enabled {
-            isGlobalShortcutAvailable = GlobalShortcutService.shared.start(using: configuration.globalShortcut)
-        } else {
-            GlobalShortcutService.shared.stop()
-            isGlobalShortcutAvailable = true
-        }
-        persist()
-    }
-
-    func updateGlobalShortcut(_ shortcut: GlobalShortcut) {
-        configuration.globalShortcut = shortcut
-        if configuration.globalShortcutEnabled {
-            isGlobalShortcutAvailable = GlobalShortcutService.shared.update(shortcut)
-        }
-        persist()
-    }
-
-    func refreshGlobalShortcutPermission() {
-        isGlobalShortcutAvailable = GlobalShortcutService.shared.isAccessibilityTrusted
-    }
-
-    var globalShortcutDisplayName: String {
-        configuration.globalShortcut.displayName
-    }
-
-    func toggleLaunchAtLogin(_ enabled: Bool) {
-        do {
-            try LaunchAtLoginService.setEnabled(enabled)
-            isLaunchAtLoginEnabled = LaunchAtLoginService.isEnabled
-            configuration.launchAtLoginEnabled = isLaunchAtLoginEnabled
-            persist()
-            statusMessage = isLaunchAtLoginEnabled ? String(localized: "已启用登录时启动。") : String(localized: "已关闭登录时启动。")
-            isError = false
-        } catch {
-            isLaunchAtLoginEnabled = LaunchAtLoginService.isEnabled
-            statusMessage = String(localized: "无法修改登录项：\(error.localizedDescription)")
-            isError = true
-        }
-    }
-
-    func toggleMenuBarOnly(_ enabled: Bool) {
-        configuration.menuBarOnly = enabled
-        persist()
-        AppDelegate.shared?.applyMenuBarOnly(enabled)
-    }
-
-    func toggleAutomaticUpdateChecks(_ enabled: Bool) {
-        configuration.automaticallyChecksForUpdates = enabled
-        persist()
-        UpdateService.shared.setAutomaticallyChecksForUpdates(enabled)
-    }
-
-    func exportConfiguration() {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "xcode-switcher-config.json"
-        panel.allowedContentTypes = [.json]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try store.export(configuration, to: url)
-            statusMessage = String(localized: "配置已导出。")
-            isError = false
-        } catch { statusMessage = String(localized: "导出失败：\(error.localizedDescription)"); isError = true }
-    }
-
-    func importConfiguration() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            configuration = try store.import(from: url)
-            persist()
-            refresh()
-            onSearchPathsChanged?()
-            statusMessage = String(localized: "配置已导入。")
-            isError = false
-        } catch { statusMessage = String(localized: "导入失败：\(error.localizedDescription)"); isError = true }
-    }
-
-    var hasConfigurationBackup: Bool { store.hasBackup }
-
-    func restoreConfigurationBackup() {
-        do {
-            configuration = try store.restoreBackup()
-            refresh()
-            onSearchPathsChanged?()
-            statusMessage = String(localized: "已恢复上次配置备份。")
-            isError = false
-        } catch {
-            statusMessage = String(localized: "恢复配置失败：\(error.localizedDescription)")
-            isError = true
-        }
-    }
-
-    func persist() {
-        projects.invalidateSnapshots()
-        do {
-            try store.save(configuration)
-            configurationSaveError = nil
-        } catch {
-            // Losing an alias or project binding silently is worse than a visible
-            // error, so keep it on screen until a later save succeeds.
-            configurationSaveError = error.localizedDescription
-            statusMessage = String(localized: "配置保存失败：\(error.localizedDescription)")
-            isError = true
-        }
-    }
 
     func requestSearchFocus() {
         searchFocusRequest += 1

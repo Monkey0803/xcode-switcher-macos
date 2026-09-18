@@ -43,6 +43,10 @@ final class ReleaseStore: ObservableObject {
         releaseCatalogTask?.cancel()
     }
 
+    /// What the installed bundle says about itself.
+    ///
+    /// Two plist reads, so it is done on demand rather than inside the toolchain
+    /// scan, which shells out to several processes.
     func loadInstallDetails(for installation: XcodeInstallation) {
         guard installDetailsByID[installation.id] == nil else { return }
         installDetailsByID[installation.id] = XcodeInstallDetails.read(
@@ -75,6 +79,11 @@ final class ReleaseStore: ObservableObject {
     func installation(matching release: XcodeReleaseInfo) -> XcodeInstallation? {
         installations().first { $0.build.lowercased() == release.build.lowercased() }
     }
+    /// Fetches the release index, served from a cached copy for a day.
+    ///
+    /// Called when a detail page is opened, which is what makes this automatic; a
+    /// loaded or in-flight fetch is not repeated. A previous failure is retried,
+    /// since opening the page again is a reasonable way to ask again.
     func loadReleaseCatalog(force: Bool = false) {
         if !force {
             switch releaseCatalogState {
