@@ -174,6 +174,7 @@ domain is now its own type, and the view model forwards to it:
 
 | Store | Owns |
 | --- | --- |
+| `InstallationStore` | the installed Xcodes, their details, simulators and runtime downloads |
 | `SigningStore` | signing identities, provisioning profiles, the signing report |
 | `DiskCleanupStore` | disk cleanup, runtime sizes, runtime reclamation |
 | `ReleaseStore` | the release index, per-installation build details, the update check |
@@ -191,17 +192,24 @@ Three rules keep this from turning back into one big class:
   `StatusReporting` protocol for reporting a result. `ProjectStore` is the widest case
   — the profile list is shared with the configuration through a read/write closure
   pair instead of a second copy.
-- **Split by concept, not by adjacency.** Members that merely sat next to a domain
-  stayed behind: `deleteUnavailableDevices` is a simulator-device action,
-  `diagnostics(for:)` renders installation facts, and `xcodeIcon` reads the icon cache.
+- **Split by concept, not by adjacency.** `diagnostics(for:)` sits next to the release
+  lookup but renders installation facts, so it belongs to `InstallationStore`;
+  `filteredInstallations` is installation state, but the search text the views bind to
+  stays on the model and the store takes the query as an argument.
 
 Reporting goes through `StatusReporting` on purpose. Folding `statusMessage = …` and
 `isError = …` into one call was tried and rejected: the two statements are sometimes
 reversed and sometimes separated by other work, so the protocol form — which keeps the
 original assignment shape — is the reliable one.
 
-The installation list and the settings/configuration domain still live in
-`XcodeViewModel`; it is the store extraction that has not happened yet.
+Configuration is shared through `ConfigurationOwning` (the model conforms) rather than
+one closure per key: the search folders, favourites and activation history belong to the
+installation domain, the shortcuts and login item to the settings domain, and they live
+in the same `AppConfiguration`.
+
+The settings domain — `configuration` and its persistence, the shortcut/login/menu-bar
+toggles, and configuration import/export — still lives in `XcodeViewModel`, which is the
+one store extraction that has not happened yet.
 
 ## Translations
 

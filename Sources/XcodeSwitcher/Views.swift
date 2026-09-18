@@ -237,7 +237,7 @@ struct ContentView: View {
             }
         }
         .task { model.refresh() }
-        .onReceive(model.$installations) { installations in
+        .onReceive(model.installationsPublisher) { installations in
             guard model.selectedInstallation == nil, let first = installations.first else { return }
             model.select(first)
         }
