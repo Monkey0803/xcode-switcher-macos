@@ -167,6 +167,42 @@ Because the Kit owns strings, `Scripts/sync_string_catalog.sh` lists the target
 directories it reads by name. A new target that owns localized strings has to be
 added to that `find` expression too, or its keys silently leave the catalog.
 
+## `XcodeViewModel` is a coordinator over stores
+
+The view model used to own every domain at once (1574 lines, 41 `@Published`). Each
+domain is now its own type, and the view model forwards to it:
+
+| Store | Owns |
+| --- | --- |
+| `SigningStore` | signing identities, provisioning profiles, the signing report |
+| `DiskCleanupStore` | disk cleanup, runtime sizes, runtime reclamation |
+| `ReleaseStore` | the release index, per-installation build details, the update check |
+| `EnvironmentStore` | environment checks and their reports |
+| `ProjectStore` | project profiles, resolution, opening, the debounced edit |
+
+Three rules keep this from turning back into one big class:
+
+- **Views and tests never change.** `XcodeViewModel` keeps same-named forwards and
+  subscribes to each store's `objectWillChange` to re-publish, so the views still see a
+  single `@EnvironmentObject`; the `init` parameters are forwarded rather than
+  replaced, so tests keep constructing the model the way they always did.
+- **A store never reaches back into the model.** Whatever it needs is injected at
+  construction: a closure for a query or an action that belongs elsewhere, or the
+  `StatusReporting` protocol for reporting a result. `ProjectStore` is the widest case
+  — the profile list is shared with the configuration through a read/write closure
+  pair instead of a second copy.
+- **Split by concept, not by adjacency.** Members that merely sat next to a domain
+  stayed behind: `deleteUnavailableDevices` is a simulator-device action,
+  `diagnostics(for:)` renders installation facts, and `xcodeIcon` reads the icon cache.
+
+Reporting goes through `StatusReporting` on purpose. Folding `statusMessage = …` and
+`isError = …` into one call was tried and rejected: the two statements are sometimes
+reversed and sometimes separated by other work, so the protocol form — which keeps the
+original assignment shape — is the reliable one.
+
+The installation list and the settings/configuration domain still live in
+`XcodeViewModel`; it is the store extraction that has not happened yet.
+
 ## Translations
 
 Read [TRANSLATION.md](TRANSLATION.md) before adding or changing translations in
