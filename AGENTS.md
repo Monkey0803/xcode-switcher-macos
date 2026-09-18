@@ -129,30 +129,53 @@ this repository has no UI test target, so nothing exercises that path.
 
 `Scripts/sync_string_catalog.sh` decides a `.stringsdata` is stale by **mtime** and
 skips it with a warning (`skipping stale <File>.stringsdata (source is newer; rebuild
-the app target)`). Xcode decides whether to recompile by **content** signature, so a
-source file whose content is unchanged but whose mtime moved — a `cp` of an identical
-file, a `git checkout` that restores the same content, a `touch` — is not recompiled,
-and its old `.stringsdata` stays older than the source.
+the app target)`). That comparison produces a false alarm in **two** situations, both
+verified 2026-09-18:
 
-What follows is a false alarm that fails the catalog gate: every string that file
-contributes is marked `"extractionState": "stale"`, and `verify_string_catalog.sh`
-treats any stale entry as a hard error, so CI goes red with the strings themselves
-perfectly fine. Verified 2026-09-17, after restoring `Sources/XcodeSwitcher/AllVersionsView.swift`
-with `cp` while splitting commits.
+- The source's content is unchanged but its mtime moved — a `cp` of an identical file,
+  a `git checkout` restoring the same content, a `touch` — so it is not recompiled.
+- The source *did* change but its **extracted strings** did not (an edit that touches
+  no string literal, e.g. renaming an enum case). The file is recompiled — its `.o`,
+  `.d` and `.dia` all get fresh mtimes — while the `.stringsdata` output is reused from
+  the build cache **without being rewritten**, so it keeps an old mtime. Observed:
+  `ReleaseStore.o/.d/.dia` at 13:41:30 next to `ReleaseStore.stringsdata` still at
+  12:27:11, after an edit that only changed a case label.
 
-Force that one file to recompile, then sync again:
+Either way the file's *content* is correct and only its mtime is old. What follows is a
+false alarm that fails the catalog gate: every string that file contributes gets marked
+`"extractionState": "stale"`, and `verify_string_catalog.sh` treats stale as a hard
+error, so the gate goes red with the strings themselves perfectly fine.
+
+Delete that file's **whole artifact set** (not just the `.stringsdata`) and rebuild:
 
 ```bash
-find build/DerivedData/Build/Intermediates.noindex -name "AllVersionsView.*" -delete
+find build/DerivedData/Build/Intermediates.noindex -name "ReleaseStore.*" -delete
 xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
   -configuration Debug -derivedDataPath build/DerivedData build
 ./Scripts/sync_string_catalog.sh   # 期望「已合并 N 个 .stringsdata」，且没有 skipping stale
 ```
 
-Do not truncate the sync output — the warning is one line next to the merge count, and
-`tail -1` hides exactly it. Afterwards `git diff -- Resources/Localizable.xcstrings`
-must be empty.
+Deleting only the `.stringsdata` is the trap: it does **not** make the build system
+re-emit it — its database still counts that output as up to date — so the file stays
+missing and those strings become *genuinely* stale. That is worse than the false alarm,
+and it is how 5 keys ended up marked stale by hand during a session on 2026-09-18.
+Afterwards `git diff -- Resources/Localizable.xcstrings` must be empty.
 
+### Reading the two scripts' output
+
+Both hide their bad news, so neither may be judged through a truncated pipe:
+
+- `sync` prints the `skipping stale …` warning next to the merge count, so `tail -1`
+  hides exactly it.
+- `verify` prints its problem list to **stderr** and its counts to **stdout**. Under
+  `2>&1 | tail -2` the unbuffered stderr is flushed *before* the block-buffered stdout,
+  so `tail` shows the counts and hides the failure — and the pipeline's exit status is
+  `tail`'s `0`, not the script's. Verified: a catalog with one manually stale key
+  printed only the two count lines and reported success through that pipe, and exit 1
+  when run directly.
+
+Run them directly, or check the script's own exit code (with `set -o pipefail` if you
+must pipe).
 ## The shared module has to stay an Xcode target
 
 `XcodeSwitcherKit` is a target of the generated project, not a product of the local
