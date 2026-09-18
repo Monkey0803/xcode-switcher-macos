@@ -176,6 +176,7 @@ Both hide their bad news, so neither may be judged through a truncated pipe:
 
 Run them directly, or check the script's own exit code (with `set -o pipefail` if you
 must pipe).
+
 ## The shared module has to stay an Xcode target
 
 `XcodeSwitcherKit` is a target of the generated project, not a product of the local
