@@ -46,8 +46,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     @Published private(set) var isRefreshing = false
     @Published private(set) var isSwitching = false
     @Published private(set) var loadingDetailsIDs: Set<String> = []
-    @Published private(set) var environmentReportsByID: [String: EnvironmentReport] = [:]
-    @Published private(set) var environmentDoctorRunningIDs: Set<String> = []
     @Published private(set) var isGlobalShortcutAvailable = true
     @Published private(set) var isLaunchAtLoginEnabled = false
     @Published private(set) var detailsByID: [String: XcodeDetails] = [:]
@@ -80,12 +78,14 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     /// Assigned in `init` because it takes the injected catalog store.
     let releases: ReleaseStore
 
+    /// Environment checks and the reports they produce.
+    let environment = EnvironmentStore()
+
     private let store: AppConfigurationStore
     private var cancellables = Set<AnyCancellable>()
     private var refreshTask: Task<Void, Never>?
     private var detailTasks: [String: Task<Void, Never>] = [:]
     private var runtimeDownloadTask: Task<Void, Never>?
-    private var environmentDoctorTasks: [String: Task<Void, Never>] = [:]
 
     /// Resolving a project reads `.xcode-switcher.json`, `.xcode-version` and
     /// `.tool-versions` from disk. View bodies and the status menu ask for the
@@ -139,6 +139,11 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         releases.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
+        environment.status = self
+        environment.activeDeveloperPath = { [weak self] in self?.activeDeveloperPath }
+        environment.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         // Tests construct the model to exercise caching and persistence without
         // registering global event monitors or touching the updater.
         guard configuresSystemServices else { return }
@@ -155,7 +160,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         refreshTask?.cancel()
         detailTasks.values.forEach { $0.cancel() }
         runtimeDownloadTask?.cancel()
-        environmentDoctorTasks.values.forEach { $0.cancel() }
         projectUpdateTask?.cancel()
     }
 
@@ -279,6 +283,32 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
     func loadReleaseCatalog(force: Bool = false) { releases.loadReleaseCatalog(force: force) }
     func checkForUpdates() { releases.checkForUpdates() }
     func openReleasePage() { releases.openReleasePage() }
+
+    // MARK: - 环境体检
+
+    /// Same forwarding contract as the stores above. `diagnostics(for:)` stays in
+    /// this type on purpose: it renders installation facts rather than check
+    /// results, and reads `detailsByID` / `commandLineToolsPath`.
+    var environmentReportsByID: [String: EnvironmentReport] { environment.reportsByID }
+
+    func runEnvironmentDoctor(for installation: XcodeInstallation) {
+        environment.runEnvironmentDoctor(for: installation)
+    }
+    func isEnvironmentDoctorRunning(for installation: XcodeInstallation) -> Bool {
+        environment.isEnvironmentDoctorRunning(for: installation)
+    }
+    func copyEnvironmentReport(for installation: XcodeInstallation) {
+        environment.copyEnvironmentReport(for: installation)
+    }
+    func copyRedactedEnvironmentReport(for installation: XcodeInstallation) {
+        environment.copyRedactedEnvironmentReport(for: installation)
+    }
+    func exportEnvironmentReport(for installation: XcodeInstallation) {
+        environment.exportEnvironmentReport(for: installation)
+    }
+    func exportRedactedEnvironmentReport(for installation: XcodeInstallation) {
+        environment.exportRedactedEnvironmentReport(for: installation)
+    }
 
     var selectedInstallation: XcodeInstallation? {
         installations.first { $0.id == selectedID }
@@ -1056,88 +1086,6 @@ final class XcodeViewModel: ObservableObject, StatusReporting {
         ]
     }
 
-    func runEnvironmentDoctor(for installation: XcodeInstallation) {
-        guard environmentDoctorTasks[installation.id] == nil else { return }
-        environmentDoctorRunningIDs.insert(installation.id)
-        statusMessage = String(localized: "正在体检 Xcode \(installation.displayVersion)…")
-        isError = false
-        let activePath = activeDeveloperPath
-        environmentDoctorTasks[installation.id] = Task.detached(priority: .userInitiated) { [weak self] in
-            let report = EnvironmentDoctor.inspect(
-                installation: installation,
-                activeDeveloperPath: activePath
-            )
-            guard !Task.isCancelled else {
-                await self?.completeEnvironmentDoctor(for: installation.id, report: nil)
-                return
-            }
-            await self?.completeEnvironmentDoctor(for: installation.id, report: report)
-        }
-    }
-
-    func isEnvironmentDoctorRunning(for installation: XcodeInstallation) -> Bool {
-        environmentDoctorRunningIDs.contains(installation.id)
-    }
-
-    func copyEnvironmentReport(for installation: XcodeInstallation) {
-        guard let report = environmentReportsByID[installation.id] else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(EnvironmentDoctor.render(report), forType: .string)
-        statusMessage = String(localized: "环境诊断报告已复制。")
-        isError = false
-    }
-
-    func copyRedactedEnvironmentReport(for installation: XcodeInstallation) {
-        guard let report = environmentReportsByID[installation.id] else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(EnvironmentDoctor.render(report, redacted: true), forType: .string)
-        statusMessage = String(localized: "脱敏环境诊断报告已复制。")
-        isError = false
-    }
-
-    func exportEnvironmentReport(for installation: XcodeInstallation) {
-        guard let report = environmentReportsByID[installation.id] else { return }
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "\(installation.name)-environment-report.txt"
-        panel.allowedContentTypes = [.plainText]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try EnvironmentDoctor.render(report).write(to: url, atomically: true, encoding: .utf8)
-            statusMessage = String(localized: "环境诊断报告已导出。")
-            isError = false
-        } catch {
-            statusMessage = String(localized: "报告导出失败：\(error.localizedDescription)")
-            isError = true
-        }
-    }
-
-    func exportRedactedEnvironmentReport(for installation: XcodeInstallation) {
-        guard let report = environmentReportsByID[installation.id] else { return }
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "\(installation.name)-environment-report-redacted.txt"
-        panel.allowedContentTypes = [.plainText]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try EnvironmentDoctor.render(report, redacted: true).write(to: url, atomically: true, encoding: .utf8)
-            statusMessage = String(localized: "脱敏环境诊断报告已导出。")
-            isError = false
-        } catch {
-            statusMessage = String(localized: "报告导出失败：\(error.localizedDescription)")
-            isError = true
-        }
-    }
-
-    private func completeEnvironmentDoctor(for id: String, report: EnvironmentReport?) {
-        if let report {
-            environmentReportsByID[id] = report
-            isError = report.highestSeverity == .error
-            statusMessage = report.issueCount == 0
-                ? String(localized: "环境体检完成，未发现问题。")
-                : String(localized: "环境体检完成，发现 \(report.issueCount) 项需要关注。")
-        }
-        environmentDoctorRunningIDs.remove(id)
-        environmentDoctorTasks[id] = nil
-    }
 
 
     func persist() {
