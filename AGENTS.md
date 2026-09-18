@@ -21,6 +21,30 @@ The Xcode project, `Package.swift` and `build_app.sh` must all keep working;
 see `docs/superpowers/plans/` for the migration notes and the constraints
 behind the unusual build settings.
 
+## Release artifacts and the cask checksum
+
+`Casks/xcode-switcher.rb`'s `sha256` must come from the **published** Release, never
+from a local `./build_local_release.sh` — the script is not reproducible across
+machines. For v1.6.0 the same tag and build number produced
+`8c2b8c5766ad265f…` locally and `958c6d6509f94ad619…` on the CI runner, so a
+checksum taken from `release/local/` would make every `brew install --cask` fail.
+
+Read it from the Release, and prefer re-hashing the downloaded asset over copying
+`SHA256SUMS` blind:
+
+```bash
+gh release download v1.6.0 --dir /tmp --pattern "*-local.zip" --clobber
+shasum -a 256 /tmp/Xcode-Switcher-1.6.0-6-local.zip   # 应等于 Release 里 SHA256SUMS 的对应行
+```
+
+Run that from inside the repository: `gh release download` needs a git context and
+fails with `fatal: not a git repository` from `/tmp`.
+
+Pushing a `v*` tag **is** the release action. `.github/workflows/release.yml` then
+validates the tag against `Info.plist`, builds with `build_local_release.sh`, and
+publishes the ZIP, DMG and `SHA256SUMS` itself. `build_release.sh` is the separate
+notarized path that needs Developer ID and notary credentials, and is not part of it.
+
 ## SwiftUI `@State` (SDK 27)
 
 SDK 27 turns `@State` into a macro, which changes what an initializer may do. In a
