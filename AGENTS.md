@@ -45,6 +45,12 @@ validates the tag against `Info.plist`, builds with `build_local_release.sh`, an
 publishes the ZIP, DMG and `SHA256SUMS` itself. `build_release.sh` is the separate
 notarized path that needs Developer ID and notary credentials, and is not part of it.
 
+The post-release commit that bumps `Casks/` and `Formula/` must also bump the version
+line under the README title — both `当前版本：…` and the previous stable release.
+That step was dropped in v1.5.1 and again in v1.6.0, so the README advertised 1.5.0
+two releases after it shipped. `9fd8a3d` (v1.5.0) is the only one that got it right
+and is the model to copy.
+
 ## SwiftUI `@State` (SDK 27)
 
 SDK 27 turns `@State` into a macro, which changes what an initializer may do. In a
