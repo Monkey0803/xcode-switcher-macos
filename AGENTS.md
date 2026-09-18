@@ -180,6 +180,7 @@ domain is now its own type, and the view model forwards to it:
 | `ReleaseStore` | the release index, per-installation build details, the update check |
 | `EnvironmentStore` | environment checks and their reports |
 | `ProjectStore` | project profiles, resolution, opening, the debounced edit |
+| `SettingsStore` | the configuration, its persistence, and the settings built on it |
 
 Three rules keep this from turning back into one big class:
 
@@ -207,9 +208,11 @@ one closure per key: the search folders, favourites and activation history belon
 installation domain, the shortcuts and login item to the settings domain, and they live
 in the same `AppConfiguration`.
 
-The settings domain — `configuration` and its persistence, the shortcut/login/menu-bar
-toggles, and configuration import/export — still lives in `XcodeViewModel`, which is the
-one store extraction that has not happened yet.
+Every domain has been extracted. What is left in `XcodeViewModel` is the composition
+root: the store properties and their wiring, the same-named forwards, `onSearchPathsChanged`,
+the four application commands (`requestSearchFocus`, `showMainWindow`, `showSettings`,
+`showAllVersions`), and the one place that knows about all the stores — the reload that
+runs after a refresh or a selection.
 
 ## Translations
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 未发布
+
+### 变更
+
+- **最低支持版本从 macOS 13 抬到 macOS 15**：`Package.swift`、`Info.plist`、生成的 Xcode 工程与 `build_app.sh` 的部署目标一并升到 15.0，cask 的 `depends_on macos` 改为 `:sequoia`。macOS 13 与 14 不再受支持。
+- **迁移随版本抬升而失效的 API**：`onChange(of:perform:)` 自 macOS 14 起废弃，在 13 的部署目标下不触发、抬到 15 后会被「警告即错误」拦下，三处已改为两参数形式。
+- **内部结构重组（不影响功能）**：app 与 CLI 共享的代码拆成 `XcodeSwitcherKit` 模块，两条构建路径真正共用同一份而不是各编译一份；1574 行的 `XcodeViewModel` 按职责拆成七个 store，它本身只剩协调与转发。这两项都不改变用户可见行为，列在这里是为了让下一个版本能照实记录。
+
 ## 1.6.0 - 2026-09-17
 
 ### 新增
