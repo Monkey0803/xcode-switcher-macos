@@ -173,7 +173,13 @@ final class EnvironmentDoctorTests: XCTestCase {
             installation: makeInstallation()
         )
         XCTAssertEqual(elsewhere.severity, .warning, "全局 DEVELOPER_DIR 指向另一台时即便本次一致也要提醒")
-        XCTAssertTrue(elsewhere.detail.contains("另一个"), "要说清是「指向另一个」而不是「路径不存在」")
+        // 用与实现相同的本地化查找来断言整句，这样中英文环境下都成立——CI runner 是英文环境，
+        // 直接找中文字串会在那里失败（本项目既有的 render 测试也是这个写法）。
+        XCTAssertEqual(
+            elsewhere.detail,
+            String(localized: "终端里的 DEVELOPER_DIR 指向另一个 Xcode：\(root.path)"),
+            "要说清是「指向另一个」而不是「路径不存在」"
+        )
     }
 
     func testThirdPartyCheckComparesWithTheInspectedXcode() {
