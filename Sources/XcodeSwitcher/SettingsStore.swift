@@ -3,6 +3,47 @@ import Combine
 import Foundation
 import XcodeSwitcherKit
 
+enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
+    case system
+    case simplifiedChinese = "zh-Hans"
+    case english = "en"
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .system: return String(localized: "跟随系统")
+        case .simplifiedChinese: return String(localized: "简体中文")
+        case .english: return "English"
+        }
+    }
+}
+
+/// The bundle chooses its localization before SwiftUI creates the first view, so an
+/// in-app language change is stored in the standard `AppleLanguages` preference and
+/// takes effect in a fresh process. A separate key distinguishes an app override from
+/// the system-wide language list inherited through UserDefaults.
+enum AppLanguagePreference {
+    static let selectionKey = "XcodeSwitcherAppLanguage"
+    static let appleLanguagesKey = "AppleLanguages"
+
+    static func selected(in defaults: UserDefaults) -> AppLanguage {
+        guard let rawValue = defaults.string(forKey: selectionKey) else { return .system }
+        return AppLanguage(rawValue: rawValue) ?? .system
+    }
+
+    static func apply(_ language: AppLanguage, to defaults: UserDefaults) {
+        switch language {
+        case .system:
+            defaults.removeObject(forKey: selectionKey)
+            defaults.removeObject(forKey: appleLanguagesKey)
+        case .simplifiedChinese, .english:
+            defaults.set(language.rawValue, forKey: selectionKey)
+            defaults.set([language.rawValue], forKey: appleLanguagesKey)
+        }
+    }
+}
+
 /// The configuration and the settings built on it.
 ///
 /// Split out of `XcodeViewModel`, which owned every domain at once. `configuration`
@@ -15,6 +56,8 @@ final class SettingsStore: ObservableObject {
     @Published private(set) var configurationSaveError: String?
     @Published private(set) var isGlobalShortcutAvailable = true
     @Published private(set) var isLaunchAtLoginEnabled = false
+    @Published private(set) var appLanguage: AppLanguage
+    @Published private(set) var languageRestartRequired = false
 
     /// Set by `XcodeViewModel` at construction.
     weak var status: (any StatusReporting)?
@@ -28,9 +71,15 @@ final class SettingsStore: ObservableObject {
     var shortcutPressed: () -> Void = {}
 
     private let store: AppConfigurationStore
+    private let languageDefaults: UserDefaults
+    private let launchedLanguage: AppLanguage
 
-    init(store: AppConfigurationStore = .shared) {
+    init(store: AppConfigurationStore = .shared, languageDefaults: UserDefaults = .standard) {
         self.store = store
+        self.languageDefaults = languageDefaults
+        let language = AppLanguagePreference.selected(in: languageDefaults)
+        launchedLanguage = language
+        appLanguage = language
         configuration = store.load()
         isLaunchAtLoginEnabled = LaunchAtLoginService.isEnabled
     }
@@ -132,6 +181,34 @@ final class SettingsStore: ObservableObject {
         configuration.automaticallyChecksForUpdates = enabled
         persist()
         UpdateService.shared.setAutomaticallyChecksForUpdates(enabled)
+    }
+
+    func selectAppLanguage(_ language: AppLanguage) {
+        guard appLanguage != language else { return }
+        AppLanguagePreference.apply(language, to: languageDefaults)
+        appLanguage = language
+        languageRestartRequired = language != launchedLanguage
+        status?.statusMessage = languageRestartRequired
+            ? String(localized: "语言设置已保存，重新启动 App 后生效。")
+            : String(localized: "已恢复当前语言设置。")
+        status?.isError = false
+    }
+
+    func restartToApplyLanguage() {
+        guard languageRestartRequired else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { [weak self] _, error in
+            Task { @MainActor in
+                if let error {
+                    self?.status?.statusMessage = String(localized: "重新启动失败：\(error.localizedDescription)")
+                    self?.status?.isError = true
+                    return
+                }
+                NSApp.terminate(nil)
+            }
+        }
     }
 
     func exportConfiguration() {

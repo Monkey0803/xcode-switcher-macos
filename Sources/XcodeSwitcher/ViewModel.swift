@@ -65,9 +65,10 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     init(
         store: AppConfigurationStore = .shared,
         releaseCatalogStore: XcodeReleaseCatalogStore = .live,
+        languageDefaults: UserDefaults = .standard,
         configuresSystemServices: Bool = true
     ) {
-        settings = SettingsStore(store: store)
+        settings = SettingsStore(store: store, languageDefaults: languageDefaults)
         releases = ReleaseStore(releaseCatalogStore: releaseCatalogStore)
         // Each store's dependencies on this model, plus the re-publish that keeps
         // the views' single `@EnvironmentObject` working.
@@ -154,6 +155,8 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     var isLaunchAtLoginEnabled: Bool { settings.isLaunchAtLoginEnabled }
     var hasConfigurationBackup: Bool { settings.hasConfigurationBackup }
     var globalShortcutDisplayName: String { settings.globalShortcutDisplayName }
+    var appLanguage: AppLanguage { settings.appLanguage }
+    var languageRestartRequired: Bool { settings.languageRestartRequired }
 
     func persist() { settings.persist() }
     func toggleGlobalShortcut(_ enabled: Bool) { settings.toggleGlobalShortcut(enabled) }
@@ -162,6 +165,8 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     func toggleLaunchAtLogin(_ enabled: Bool) { settings.toggleLaunchAtLogin(enabled) }
     func toggleMenuBarOnly(_ enabled: Bool) { settings.toggleMenuBarOnly(enabled) }
     func toggleAutomaticUpdateChecks(_ enabled: Bool) { settings.toggleAutomaticUpdateChecks(enabled) }
+    func selectAppLanguage(_ language: AppLanguage) { settings.selectAppLanguage(language) }
+    func restartToApplyLanguage() { settings.restartToApplyLanguage() }
     func exportConfiguration() { settings.exportConfiguration() }
     func importConfiguration() { settings.importConfiguration() }
     func restoreConfigurationBackup() { settings.restoreConfigurationBackup() }

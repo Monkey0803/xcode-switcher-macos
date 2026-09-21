@@ -1694,6 +1694,29 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         Form {
+            Section("语言") {
+                Picker("应用语言", selection: Binding(
+                    get: { model.appLanguage },
+                    set: { model.selectAppLanguage($0) }
+                )) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.title).tag(language)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("app-language-picker")
+
+                Text("语言更改会应用到 App 主窗口和菜单栏。需要重新启动 App 才能生效。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if model.languageRestartRequired {
+                    Button("重新启动以应用") { model.restartToApplyLanguage() }
+                        .prominentActionStyle()
+                        .accessibilityIdentifier("restart-for-language-button")
+                }
+            }
+
             Section("启动与更新") {
                 Toggle("登录时启动", isOn: Binding(
                     get: { model.isLaunchAtLoginEnabled },

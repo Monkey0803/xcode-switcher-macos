@@ -170,4 +170,37 @@ struct ViewModelCachingTests {
         ).count
         #expect(afterRepeatedSaves == settled)
     }
+
+    @Test("应用语言写入 AppleLanguages，并可恢复为跟随系统")
+    func persistsAppLanguageOverride() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("XcodeSwitcherVM-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let suiteName = "XcodeSwitcherLanguageTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let store = AppConfigurationStore(fileURL: root.appendingPathComponent("configuration.json"))
+        let model = XcodeViewModel(
+            store: store,
+            languageDefaults: defaults,
+            configuresSystemServices: false
+        )
+
+        #expect(model.appLanguage == .system)
+        #expect(!model.languageRestartRequired)
+
+        model.selectAppLanguage(.english)
+        #expect(model.appLanguage == .english)
+        #expect(model.languageRestartRequired)
+        #expect(defaults.string(forKey: AppLanguagePreference.selectionKey) == "en")
+        #expect(defaults.stringArray(forKey: AppLanguagePreference.appleLanguagesKey) == ["en"])
+
+        model.selectAppLanguage(.system)
+        #expect(model.appLanguage == .system)
+        #expect(!model.languageRestartRequired)
+        #expect(defaults.object(forKey: AppLanguagePreference.selectionKey) == nil)
+    }
 }
