@@ -292,23 +292,28 @@ struct AllVersionsView: View {
 /// It opens Apple's downloads page rather than the raw `.xip`: that URL needs a developer
 /// session cookie, and without one Apple answers with a redirect to `/unauthorized/` — which
 /// is what a direct link looked like to anyone not already signed in. The direct link stays
-/// on the context menu, for download managers and scripts.
+/// available, as its own visible control, for download managers and scripts.
 private struct DownloadLink: View {
     let release: XcodeReleaseInfo
 
     var body: some View {
-        if let page = release.downloadsPageURL {
-            Link("下载", destination: page)
-                .font(.subheadline)
-                .help("在 Apple 开发者网站下载：需要登录并接受许可")
-                .contextMenu {
-                    if let direct = release.downloadURL {
-                        Button("复制直链") {
-                            NSPasteboard.general.replaceContents(with: direct.absoluteString)
-                        }
-                    }
+        HStack(spacing: 12) {
+            if let page = release.downloadsPageURL {
+                Link("下载", destination: page)
+                    .help("在 Apple 开发者网站下载：需要登录并接受许可")
+            }
+            // A visible control rather than a context menu on the link: the right-click-only
+            // version turned out to be undiscoverable in practice — the honest report was
+            // 「没有看到」.
+            if let direct = release.downloadURL {
+                Button("复制直链") {
+                    NSPasteboard.general.replaceContents(with: direct.absoluteString)
                 }
+                .buttonStyle(.link)
+                .help(direct.absoluteString)
+            }
         }
+        .font(.subheadline)
     }
 }
 
