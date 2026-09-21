@@ -43,6 +43,11 @@ jobs:
             exit 1
           fi
 
+      # Needs the `.stringsdata` written by the build above, and catches what the two
+      # catalog steps cannot: a Chinese string that never entered the catalog at all.
+      - name: Audit for unlocalized strings
+        run: ./Scripts/audit_unlocalized_strings.py
+
   scripts:
     name: Script build path
     runs-on: macos-26

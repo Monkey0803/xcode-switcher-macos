@@ -21,11 +21,34 @@
 xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
   -configuration Debug -derivedDataPath build/DerivedData build test
 ./run_smoke_test.sh        # swift test + the script build path + packaged launch
+./Scripts/audit_unlocalized_strings.py   # 需要上面那次构建产出的 .stringsdata
 ```
 
 The Xcode project, `Package.swift` and `build_app.sh` must all keep working;
 see `docs/superpowers/plans/` for the migration notes and the constraints
 behind the unusual build settings.
+
+### Known environmental failure: Xcode 27 and the SwiftPM path
+
+Verified 2026-09-21, with **Xcode 27.1 beta** as the active developer directory:
+`swift build` / `swift test` — and therefore `run_smoke_test.sh` — fails while
+compiling the CLI target,
+
+```
+error: unable to open dependencies file (…/xcodeswitcher-p.build/Objects-normal/arm64/CLIEntryPoint.d)
+```
+
+It is **not** caused by the change at hand: the same failure reproduces on a clean
+tree (`git stash` the sources, `rm -rf .build/out`, rebuild). The same tree builds
+with `Build complete!` and zero errors when the toolchain is pinned:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer ./run_smoke_test.sh
+```
+
+CI runs on `macos-26`, so the gate stays green there. Do not read a red `swift test`
+on a machine whose active Xcode has been switched to 27 as a defect in the sources —
+check `xcode-select -p` first, then re-run with `DEVELOPER_DIR` pinned.
 
 ## Release artifacts and the cask checksum
 
@@ -176,6 +199,42 @@ Both hide their bad news, so neither may be judged through a truncated pipe:
 
 Run them directly, or check the script's own exit code (with `set -o pipefail` if you
 must pipe).
+
+## `audit_unlocalized_strings.py` and the localization gate
+
+`verify` and `sync` only ever look at strings that are *already* in the catalog, so
+neither notices a Chinese literal written as a plain `String` — which is how about
+forty user-visible strings stayed Chinese in the English UI until 2026-09-21.
+`Scripts/audit_unlocalized_strings.py` closes that gap and runs in CI right after the
+build. It compares the Chinese literals under `Sources/` and `SourcesCLI/` against the
+`.stringsdata` the compiler wrote, whose location is the source of truth for "this
+literal is localizable".
+
+Three things about that data, each of which produced a round of false results:
+
+- **`startingColumn` counts UTF-8 bytes, not characters.** A column that follows any
+  CJK text is inflated by the extra bytes. On
+  `.accessibilityLabel(isListCollapsed ? "显示列表" : "隐藏列表")` the second literal is
+  at character column 50 and byte column 58, and only 58 matches the compiler.
+- **mtime cannot be used as a freshness test.** A source whose *extracted strings* did
+  not change gets its `.stringsdata` reused without being rewritten, so the file keeps
+  an old mtime while staying perfectly correct — the same trap `sync` documents above.
+  The audit instead re-checks that every recorded position still lands on the literal's
+  opening quote, which catches the shifts that actually break the comparison.
+- **The literal's own text excludes its interpolations.** In
+  `"\(String(localized: "未知命令：\(command)"))\n\n\(Self.help)"` the Chinese belongs
+  to the inner literal; a scanner that reports the outer one invents a problem. The
+  scanner walks into interpolations and reports the inner literals separately.
+
+A Chinese literal that is deliberately left alone is waived on its own line, and the
+waiver count is printed rather than applied silently:
+
+```swift
+public static let unknownValue = "未知"  // unlocalized-audit:ok：参与相等比较的哨兵，只应在显示时本地化
+```
+
+A multi-line literal cannot carry a trailing comment, so the line above counts too —
+that is where the AppleScript template's waiver sits.
 
 ## The shared module has to stay an Xcode target
 

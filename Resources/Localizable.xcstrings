@@ -5257,6 +5257,16 @@
         }
       }
     },
+    "键(keyCode)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Key(keyCode)"
+          }
+        }
+      }
+    },
     "问题数：%lld": {
       "localizations": {
         "en": {

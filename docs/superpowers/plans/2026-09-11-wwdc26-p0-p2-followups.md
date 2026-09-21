@@ -160,3 +160,18 @@ App Intents / Shortcuts（310、240、295）、Liquid Glass 视觉适配（289�
 判断是否告警，包上本地化后显示值与比较值会分家，因此改成对同一个 `unset` 常量比较。
 数据层的哨兵值（`XcodeDetails.unknownValue`、`Services` 里 simctl 字段的 `"未知"` 回退）
 **故意不本地化**，其理由写在 `Models.swift` 的注释里：它们参与相等比较，改了会静默改变分支。
+
+### 同一条漏法已经变成门禁（2026-09-21 晚些时候）
+
+上面那套临时脚本已经固化为 `Scripts/audit_unlocalized_strings.py`，并作为 CI 的一个 step
+（`.github/workflows/ci.yml` 的「Audit for unlocalized strings」，紧跟在构建之后）。判据从
+「提取到的键是字面量前缀」换成了更强的一条：`.stringsdata` 里的 `startingLine` /
+`startingColumn` 就是提取到的字面量位置，**列号是 UTF-8 字节列**，直接比对位置即可，既不
+怕嵌套引号也不怕重复文案。三条踩过的坑与豁免注释的写法写在 `AGENTS.md` 的
+「`audit_unlocalized_strings.py` and the localization gate」一节；豁免条数会被打印出来，
+不会静默放过。
+
+顺带记一个仍未处理的隐患：`sync_string_catalog.sh` 判断 `.stringsdata` 是否陈旧仍按 mtime，
+于是「内容正确但 mtime 陈旧」的文件会被跳过，它贡献的键被整批误标 `stale`——本次就因此误标
+188 个键，按文档里的办法（删掉该文件整组产物再重建）恢复。审计脚本用的内容判据（记录的
+位置是否仍落在引号上）是更可靠的替代，将来若动 `sync` 可以从那里借。

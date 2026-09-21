@@ -378,7 +378,7 @@ public enum XcodeTooling {
             guard let identifier = runtime["identifier"] as? String,
                   seenIdentifiers.insert(identifier).inserted,
                   let name = runtime["name"] as? String else { return nil }
-            let version = runtime["version"] as? String ?? "未知"
+            let version = runtime["version"] as? String ?? "未知"  // unlocalized-audit:ok：哨兵值，写进被比较的模型字段
             let available = runtime["isAvailable"] as? Bool ?? (runtime["availability"] as? String)?.contains("available") ?? false
             return SimulatorRuntime(
                 id: identifier,
@@ -408,7 +408,7 @@ public enum XcodeTooling {
             devices.compactMap { device in
                 guard let id = device["udid"] as? String,
                       let name = device["name"] as? String else { return nil }
-                let state = device["state"] as? String ?? "未知"
+                let state = device["state"] as? String ?? "未知"  // unlocalized-audit:ok：同上，simctl 字段缺失时的哨兵
                 let available = device["isAvailable"] as? Bool ?? true
                 return SimulatorDevice(id: id, name: name, state: state, runtimeID: runtimeID, isAvailable: available)
             }
@@ -938,6 +938,7 @@ public enum XcodeActions {
     /// Kept separate from the runner so the script syntax can be compiled and
     /// validated in tests without ever executing it.
     static func xcodeSettingsScript(processName: String) -> String {
+        // unlocalized-audit:ok：脚本里的中文是匹配菜单栏用的令牌（Xcode 界面语言是中文时），不是文案
         """
         tell application "System Events"
             tell process \(XcodeActivator.appleScriptQuote(processName))

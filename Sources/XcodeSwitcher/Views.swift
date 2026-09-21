@@ -1546,7 +1546,7 @@ final class ShortcutRecorderNSView: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) 未实现") }
+    required init?(coder: NSCoder) { fatalError("init(coder:) 未实现") }  // unlocalized-audit:ok：崩溃信息，不面向用户
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()

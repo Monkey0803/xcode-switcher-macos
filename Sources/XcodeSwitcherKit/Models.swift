@@ -17,8 +17,8 @@ public struct GlobalShortcut: Codable, Hashable, Sendable {
         22: "6", 23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8", 29: "0", 30: "]", 31: "O",
         32: "U", 33: "[", 34: "I", 35: "P", 36: "↩", 37: "L", 38: "J", 39: "'", 40: "K", 41: ";",
         42: "\\", 43: ",", 44: "/", 45: "N", 46: "M", 47: ".", 48: "Tab", 49: "Space", 50: "`",
-        51: "Delete", 53: "Esc", 54: "右⌘", 55: "左⌘", 56: "左⇧", 57: "右⇧", 58: "左⌥", 59: "左⌃",
-        60: "右⌥", 61: "右⌃", 62: "右⌘", 65: ".", 67: "*", 69: "+", 71: "Clear", 75: "/", 76: "↩",
+        51: "Delete", 53: "Esc", 54: "右⌘", 55: "左⌘", 56: "左⇧", 57: "右⇧", 58: "左⌥", 59: "左⌃",  // unlocalized-audit:ok：键帽符号，左右是键位而不是文案
+        60: "右⌥", 61: "右⌃", 62: "右⌘", 65: ".", 67: "*", 69: "+", 71: "Clear", 75: "/", 76: "↩",  // unlocalized-audit:ok：同上，键帽符号不翻译
         78: "-", 81: "=", 82: "0", 83: "1", 84: "2", 85: "3", 86: "4", 87: "5", 88: "6", 89: "7",
         91: "8", 92: "9", 96: "F5", 97: "F6", 98: "F7", 99: "F3", 100: "F8", 101: "F9", 103: "F11",
         109: "F10", 111: "F12", 118: "F4", 120: "F2", 122: "F1", 123: "←", 124: "→", 125: "↓", 126: "↑"
@@ -43,7 +43,7 @@ public struct GlobalShortcut: Codable, Hashable, Sendable {
         if modifiers.contains(.option) { result += "⌥" }
         if modifiers.contains(.shift) { result += "⇧" }
         if modifiers.contains(.command) { result += "⌘" }
-        return result + (Self.keyNames[keyCode] ?? "键(keyCode)")
+        return result + (Self.keyNames[keyCode] ?? String(localized: "键(keyCode)"))
     }
 }
 
@@ -149,7 +149,7 @@ public struct XcodeDetails: Sendable {
     /// never shown as-is: `XcodeViewModel.hasAvailableRuntime` compares against it,
     /// so translating the stored value would silently change which branch runs.
     /// Localize only at display time.
-    public static let unknownValue = "未知"
+    public static let unknownValue = "未知"  // unlocalized-audit:ok：参与相等比较的哨兵，只应在显示时本地化（见上）
 
     public var swiftVersion = XcodeDetails.unknownValue
     public var sdkVersion = XcodeDetails.unknownValue
