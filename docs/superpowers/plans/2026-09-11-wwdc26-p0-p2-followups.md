@@ -120,3 +120,43 @@ App Intents / Shortcuts（310、240、295）、Liquid Glass 视觉适配（289�
 1574 行、41 个 `@Published` 拆成七个 store：`InstallationStore`、`SigningStore`、`DiskCleanupStore`、`ReleaseStore`、`EnvironmentStore`、`ProjectStore`、`SettingsStore`；协调器剩 421 行，只含 store 与接线、同名转发、四个应用命令，以及唯一知道全部 store 的那处刷新扇出。
 
 当初「该文件没有测试覆盖，建议先补测试再动结构」的顾虑，实际上是靠**拆分方式**绕开的而不是靠补测试：全程保持同名转发并订阅各 store 的 `objectWillChange` 再发布，于是视图与测试零改动，既有的 148 个用例恰好成了这次重构的安全网。结构约定与三条防退化规则记在 `AGENTS.md` 的「`XcodeViewModel` is a coordinator over stores」一节。
+
+## 追加决定（2026-09-21）
+
+### 索引内直接下载安装 Xcode —— 不做
+
+「所有 Xcode 版本」窗口只到「打开 Apple 下载页 / 复制直链」为止，不在应用内实现下载、
+校验与安装。理由、以及将来若重开需要先满足的前置条件，见
+[2026-09-21-no-in-app-xcode-download.md](2026-09-21-no-in-app-xcode-download.md)。
+
+### 已安装 Xcode 的「有新版本」提示 —— 已实现
+
+同一天补上：`XcodeReleaseCatalog.newerRelease(than:in:)` 在索引里找同主版本、比本机更新
+且本机跑得起来的**正式版**，`ReleaseStore.newerRelease(for:)` 转发到界面，主窗口列表行与
+详情页「版本详细信息」各显示一处。只做提示、不做安装——这正是上面那条决定的产品后果。
+
+### 英文文案补漏 —— 已实现，并记下漏法
+
+起因是一个错判：一开始按「catalog 里 `en` 的 `stringUnit.value` 为空」统计，得到 29 个
+「缺英文」的键，但其中 5 个其实是用 `variations.plural` 写的英文复数（`%lld 个版本`、
+`已发现 %lld 个 Xcode。` 等），并不是没翻译。**再判断是否需要翻译时，必须同时看
+`stringUnit` 与 `variations.plural`**，只看前者会虚报。
+
+真正的问题在另一处：有约 40 处用户可见文案**根本没有进入 catalog**——`String(localized:)`
+之外的普通字符串字面量（窗口与菜单标题、状态消息、体检详情与建议、磁盘清理目录名、
+签名页的空值占位）。它们在英文系统下原样显示中文。
+
+查法（可复用）：编译后 `build/DerivedData` 下每个源文件都有 `.stringsdata`，里面是编译器
+**实际提取到**的键与 `location.startingLine`。把源文件里含中文的字面量与同一行的提取结果比对，
+没有对应键的就是漏网之鱼。两个坑：
+
+- 路径要统一（`.stringsdata` 里的 `source` 是绝对路径，脚本里用相对路径匹配会全部落空，
+  于是把整棵树都报成候选）。
+- 嵌套引号（`String(localized: "…\(x.joined(separator: "、"))")`）会让朴素的字面量正则只截到
+  半个字符串，需要允许「提取到的键是字面量前缀」才算命中，否则同样是假阳性。
+
+修法：把这些字面量包进 `String(localized:)`，跑 `sync_string_catalog.sh` 让它们进入 catalog，
+再补 `en`。有一处不能只包壳——`SigningServices.targetReports` 原先用 `value == "未设置"`
+判断是否告警，包上本地化后显示值与比较值会分家，因此改成对同一个 `unset` 常量比较。
+数据层的哨兵值（`XcodeDetails.unknownValue`、`Services` 里 simctl 字段的 `"未知"` 回退）
+**故意不本地化**，其理由写在 `Models.swift` 的注释里：它们参与相等比较，改了会静默改变分支。
