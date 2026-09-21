@@ -39,6 +39,12 @@ STALE = "its recorded locations no longer line up with the source; rebuild the a
 GONE = "its source no longer exists"
 UNREADABLE = "its extraction metadata could not be read"
 
+# Swift writes one of these per target. It holds compiler metadata rather than string
+# keys, has no source file of its own, and `audit_unlocalized_strings.py` already
+# ignores it by name — reporting "its source no longer exists" for it on every single
+# run was pure noise.
+GENERATED_TABLES = ("ExtractedAppShortcutsMetadata",)
+
 
 def load(path: pathlib.Path) -> tuple[pathlib.Path, set[tuple[int, int]]] | None:
     """The source a `.stringsdata` names and its recorded literal positions.
@@ -100,6 +106,9 @@ def main(argv: list[str]) -> int:
     skipped = 0
     for argument in argv[1:]:
         path = pathlib.Path(argument)
+        # Generated metadata tables are neither merged nor worth a warning.
+        if path.stem in GENERATED_TABLES:
+            continue
         reason = freshness(path)
         if reason is None:
             print(path)

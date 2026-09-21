@@ -4,7 +4,9 @@
 
 ### 修复
 
+- **Xcode 27 / macOS 27 下无法构建与测试**：`swift build`、`swift test`（因而 `run_smoke_test.sh`）在 Xcode 27 上编译 CLI 目标时报 `unable to open dependencies file …/CLIEntryPoint.d`。根因是 `Package.swift` 里两个 SwiftPM **产品**名只差大小写——app 的 `XcodeSwitcher` 与 CLI 的 `xcodeswitcher`；新版 Swift Build 后端按 `<产品名>-p.build` 建立目录，而 APFS 默认大小写不敏感，两者塌进同一个目录（实测同一 inode），互相覆盖文件列表与 output map。app 产品改名 `XcodeSwitcherApp`（与 `CFBundleExecutable` 一致）后修复；目标名早就为此改过（`xcodeswitcher-cli`），产品名漏了。Xcode 27.1 与 26.3 下均实测 `swift build` 与 `run_smoke_test.sh` 通过。注意这不等于 formula 支持 macOS 27——那条还卡在 Homebrew 沙箱的 SDK 27 `@State` 宏问题上。
 - **`sync_string_catalog.sh` 不再因 mtime 误报陈旧**：它原先按 mtime 判断 `.stringsdata` 是否过期，而「提取出的字符串没变」时构建系统会复用该文件（mtime 旧、内容正确），`git checkout`/`stash`/`cp` 也会只改 mtime 而不动内容——两种情况下该文件贡献的键都会被整批误标为 `"extractionState": "stale"`，目录门禁随之变红却没有任何真问题（本次会话中就发生了两次，其中一次误标 204 个键）。判断改为按内容：记录的位置是否仍落在字面量的起始引号上，实现抽到 `Scripts/stringsdata_freshness.py`，与 `audit_unlocalized_strings.py` 共用同一份判断，两个门禁不会各自漂移。
+- **`sync_string_catalog.sh` 不再打印生成文件的跳过噪声**：Swift 每个 target 都会写一份 `ExtractedAppShortcutsMetadata`（编译器元数据而非字符串键，没有对应源码），此前每次 sync 都会为它打印两行「its source no longer exists」。审计脚本本来就按名字忽略它，现在两处一致。
 
 ## 2.1.0 - 2026-09-21
 

@@ -28,57 +28,52 @@ The Xcode project, `Package.swift` and `build_app.sh` must all keep working;
 see `docs/superpowers/plans/` for the migration notes and the constraints
 behind the unusual build settings.
 
-### Known environmental failure: Xcode 27 and the SwiftPM path
+### SwiftPM product names must not differ only by case (fixed 2026-09-21)
 
-Verified 2026-09-21, with **Xcode 27.1 beta** as the active developer directory:
-`swift build` / `swift test` — and therefore `run_smoke_test.sh` — fails while
-compiling the CLI target,
+On 2026-09-21, with **Xcode 27.1 beta** as the active developer directory, `swift build`
+/ `swift test` — and therefore `run_smoke_test.sh` — failed while compiling the CLI
+target:
 
 ```
 error: unable to open dependencies file (…/xcodeswitcher-p.build/Objects-normal/arm64/CLIEntryPoint.d)
 ```
 
-It is **not** caused by the change at hand: the same failure reproduces on a clean
-tree (`git stash` the sources, `rm -rf .build/out`, rebuild).
-
-**Root cause, located 2026-09-21 (not yet fixed):** two SwiftPM **product** names in
-`Package.swift` differ only by case — the app's `XcodeSwitcher` and the CLI's
-`xcodeswitcher`. The newer Swift Build back-end gives each product its own directory
-(`<product>-p.build`), and APFS is case-insensitive, so the two collapse into one:
+It was **not** caused by the change at hand (the same failure reproduced on a clean tree:
+`git stash` the sources, `rm -rf .build/out`, rebuild). The root cause was a name
+collision: `Package.swift` declared two **products** differing only by case — the app's
+`XcodeSwitcher` and the CLI's `xcodeswitcher` — and the newer Swift Build back-end gives
+each product its own build directory (`<product>-p.build`). APFS is case-insensitive, so
+the two collapsed into one:
 
 ```bash
 ls -di .build/out/Intermediates.noindex/XcodeSwitcher.build/Debug/{XcodeSwitcher,xcodeswitcher}-p.build
-# 42461178 … 42461178   ← same inode; the directory holds the app target's objects and no CLI ones
+# 42461178 … 42461178   ← same inode; the directory held the app target's objects and no CLI ones
 ```
 
-The two products then clobber each other's file lists and output maps, and the CLI
-compile looks for a `.d` file that is not there. The **target** names already avoid
-this (`xcodeswitcher-cli`, with a comment in `Package.swift` explaining why) — the
-product names were missed.
+The two products then clobbered each other's file lists and output maps, and the CLI
+compile looked for a `.d` file that was never written. The **target** names already
+avoided this (`xcodeswitcher-cli`, with a comment in `Package.swift` explaining why) —
+the product names were missed.
 
-Renaming the app product to `XcodeSwitcherApp` (matching `CFBundleExecutable`) was
-verified to fix it end to end, with the CLI product still produced as `xcodeswitcher`:
+The app product is now `XcodeSwitcherApp` (which also matches `CFBundleExecutable`), and
+the CLI product stays `xcodeswitcher`:
 
 ```
 swift build            → Build complete! (0 errors, Xcode 27.1, clean .build/out)
-./run_smoke_test.sh    → Smoke test passed  (Xcode 27.1 — it fails without the rename)
+./run_smoke_test.sh    → Smoke test passed  (Xcode 27.1 and 26.3)
 ```
 
-Until that lands, pin the toolchain to build and test locally:
-
-```bash
-DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer ./run_smoke_test.sh
-```
-
-CI runs on `macos-26` (Xcode 26.6), where the collision does not bite. Do not read a red
-`swift test` on a machine whose active Xcode has been switched to 27 as a defect in the
-sources — check `xcode-select -p` first.
+**The general rule**, whenever a target or product is added: no two of them may differ
+only by case. macOS volumes are case-insensitive and SwiftPM's per-target/per-product
+directories are derived from those names. CI runs on `macos-26` (Xcode 26.6), where the
+old collision happened not to bite — which is exactly why it took until a developer
+switched to Xcode 27 to surface.
 
 Consequence for distribution: `Formula/xcode-switcher.rb` carries
 `depends_on maximum_macos: :tahoe` precisely because Homebrew on macOS 27 requires
-Xcode 27, which is the toolchain that fails here. Lifting that cap is a **separate**
-question: it also depends on the Homebrew sandbox / SDK 27 `@State` macro problem
-recorded below.
+Xcode 27, which is the toolchain that used to fail here. **Lifting that cap is a separate
+question** and is not implied by this fix: it also depends on the Homebrew sandbox /
+SDK 27 `@State` macro problem recorded below.
 
 ## Release artifacts and the cask checksum
 

@@ -9,7 +9,15 @@ let package = Package(
     // （tools-version 6.0 会让 target 默认切到 Swift 6 语言模式，是另一个改动）。
     platforms: [.macOS("15.0")],
     products: [
-        .executable(name: "XcodeSwitcher", targets: ["XcodeSwitcher"]),
+        // Named `XcodeSwitcherApp` rather than `XcodeSwitcher` for the same reason the
+        // CLI target is named `xcodeswitcher-cli`: macOS volumes are case-insensitive,
+        // and the newer Swift Build back-end gives each **product** its own build
+        // directory (`<product>-p.build`). `XcodeSwitcher` and `xcodeswitcher` collapsed
+        // into one directory — verified as a single inode — and the two products then
+        // clobbered each other's file lists and output maps, which made `swift build` /
+        // `swift test` fail under Xcode 27 with "unable to open dependencies file
+        // …/CLIEntryPoint.d". It also matches `CFBundleExecutable`.
+        .executable(name: "XcodeSwitcherApp", targets: ["XcodeSwitcher"]),
         .executable(name: "xcodeswitcher", targets: ["xcodeswitcher-cli"]),
         .library(name: "XcodeSwitcherKit", targets: ["XcodeSwitcherKit"]),
     ],
