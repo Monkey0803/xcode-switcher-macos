@@ -107,14 +107,18 @@ final class ReleaseStore: ObservableObject {
         releaseCatalogTask = Task { [weak self] in
             let result = await store.load(forceRefresh: force)
             guard let self else { return }
+            let releaseLog = AppLog.logger(.release)
             switch result {
             case .success(let snapshot):
                 releaseCatalog = snapshot.releases
                 releaseCatalogState = .loaded(cachedAt: snapshot.cachedAt, failure: snapshot.failure)
-            case .failure(let error):
-                releaseCatalogState = .unavailable(
-                    error.errorDescription ?? String(localized: "无法获取发布信息。")
+                releaseLog.info(
+                    "release index: \(snapshot.releases.count) entries, cached \(snapshot.cachedAt?.description ?? "none", privacy: .public), refresh failure \(snapshot.failure ?? "none", privacy: .public)"
                 )
+            case .failure(let error):
+                let message = error.errorDescription ?? String(localized: "无法获取发布信息。")
+                releaseLog.error("release index unavailable: \(message, privacy: .public)")
+                releaseCatalogState = .unavailable(message)
             }
         }
     }

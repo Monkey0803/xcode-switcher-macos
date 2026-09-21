@@ -109,10 +109,13 @@ final class DiskCleanupStore: ObservableObject {
             }.value
             guard let self else { return }
             cleanupRemovingPaths.remove(entry.path)
+            let cleanupLog = AppLog.logger(.cleanup)
             if let errorMessage {
+                cleanupLog.error("cleanup failed for \(entry.path, privacy: .public): \(errorMessage, privacy: .public)")
                 status?.isError = true
                 status?.statusMessage = String(localized: "清理失败：\(errorMessage)")
             } else {
+                cleanupLog.notice("cleaned \(entry.path, privacy: .public) (\(entry.safety == .safe ? "deleted" : "trashed"))")
                 cleanupSharedEntries?.removeAll { $0.id == entry.id }
                 for id in Array(cleanupEntriesByID.keys) {
                     cleanupEntriesByID[id]?.removeAll { $0.id == entry.id }
@@ -183,6 +186,9 @@ final class DiskCleanupStore: ObservableObject {
         isReclaimingRuntimes = true
         status?.isError = false
         status?.statusMessage = String(localized: "正在删除 Runtime \(runtime.label)…")
+        AppLog.logger(.runtime).info(
+            "delete requested: \(runtime.identifier, privacy: .public) \(runtime.label, privacy: .public)"
+        )
         Task { [weak self] in
             let report = await Task.detached(priority: .utility) { () -> RuntimeRemovalReport in
                 let outcome = XcodeTooling.deleteSimulatorRuntimes([runtime.identifier], installation: installation)
@@ -316,6 +322,18 @@ final class DiskCleanupStore: ObservableObject {
         isReclaimingRuntimes = false
         runtimeReclaimPreview = nil
         runtimeReclaimPreviewOption = nil
+        // The status line carries one message; the log carries all three buckets, which
+        // is what a report needs when the line says something unexpected.
+        let runtimeLog = AppLog.logger(.runtime)
+        if !report.removed.isEmpty {
+            runtimeLog.notice("removed: \(report.removed.joined(separator: ", "), privacy: .public)")
+        }
+        if !report.alreadyGone.isEmpty {
+            runtimeLog.notice("already gone: \(report.alreadyGone.joined(separator: ", "), privacy: .public)")
+        }
+        if !report.failed.isEmpty {
+            runtimeLog.error("failed: \(report.failed.joined(separator: " | "), privacy: .public)")
+        }
         if !report.failed.isEmpty {
             status?.isError = true
             status?.statusMessage = String(localized: "清理失败：\(report.failed.joined(separator: "、"))")

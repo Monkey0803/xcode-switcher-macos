@@ -11,6 +11,7 @@
 ### 变更
 
 - **工程**：新增 `Scripts/sync_tap_repo.sh`，把 `Casks/` 与 `Formula/` 同步进 Homebrew tap 仓库（并改掉 tap README 里的两处版本引用），打印 diff 与提交/推送命令——推送仍由人做，且必须用 tap 仓库要求的 noreply 提交身份（用本机邮箱会被 GitHub 拒收）。此前这一步完全靠记忆：v2.0.0 发布时就没做，于是 `brew install --cask xcode-switcher` 在两个版本里一直提供 1.5.1，且那个 cask 还写着 `depends_on macos: :ventura`。
+- **工程**：新增应用日志（`AppLog`，subsystem `com.yostar.xcodeswitcher`，按领域分为 launch / switching / cleanup / runtime / release / projects / environment / settings）。每次启动先记「哪个构建、哪个系统、哪个开发者目录」，切换、清理目录、删除 Runtime、Runtime 下载与发布索引加载各记一条——界面上这些失败只有一行状态消息，此前排查只能读代码并现场复现。取证方式见 `AGENTS.md` 的「Diagnosing from the log」。
 
 ## 2.1.0 - 2026-09-21
 

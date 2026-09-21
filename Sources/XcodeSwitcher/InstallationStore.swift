@@ -262,6 +262,8 @@ final class InstallationStore: ObservableObject {
         isSwitching = true
         status?.isError = false
         status?.statusMessage = String(localized: "正在请求管理员授权…")
+        let switchLog = AppLog.logger(.switching)
+        switchLog.info("switch requested: \(installation.developerURL.path, privacy: .public) (was \(self.activeDeveloperPath ?? "none", privacy: .public))")
         Task {
             let errorMessage = await Task.detached(priority: .userInitiated) { () -> String? in
                 do {
@@ -275,6 +277,7 @@ final class InstallationStore: ObservableObject {
             if let errorMessage {
                 status?.isError = true
                 status?.statusMessage = String(localized: "切换失败：\(errorMessage)")
+                switchLog.error("switch failed: \(errorMessage, privacy: .public)")
                 return
             }
             activeDeveloperPath = XcodeLocator.activeDeveloperPath()
@@ -282,7 +285,10 @@ final class InstallationStore: ObservableObject {
             status?.isError = !verified
             status?.statusMessage = verified ? String(localized: "已激活并验证 Xcode \(installation.displayVersion)。") : String(localized: "切换命令完成，但未能验证当前开发者目录。")
             if verified {
+                switchLog.notice("switch verified: \(installation.developerURL.path, privacy: .public)")
                 recordActivation(installation)
+            } else {
+                switchLog.error("switch not verified: xcode-select reports \(self.activeDeveloperPath ?? "none", privacy: .public), expected \(installation.developerURL.path, privacy: .public)")
             }
             if let project, verified { XcodeActions.open(project, with: installation) }
         }
@@ -541,13 +547,17 @@ final class InstallationStore: ObservableObject {
     private func completeRuntimeDownload(result: ProcessResult, runtimes: [SimulatorRuntime]?, installationID: String) {
         runtimeDownloadTask = nil
         status?.isError = !result.succeeded && !result.cancelled
+        let downloadLog = AppLog.logger(.runtime)
         if result.succeeded {
+            downloadLog.notice("iOS runtime download finished for \(installationID, privacy: .public)")
             status?.statusMessage = String(localized: "iOS Simulator Runtime 下载命令已完成。")
             runtimeDownload.finish(String(localized: "下载完成"))
         } else if result.cancelled {
+            downloadLog.notice("iOS runtime download cancelled for \(installationID, privacy: .public)")
             status?.statusMessage = String(localized: "已取消 iOS Simulator Runtime 下载。")
             runtimeDownload.finish(String(localized: "已取消"))
         } else {
+            downloadLog.error("iOS runtime download failed for \(installationID, privacy: .public): \(result.failureDescription, privacy: .public)")
             status?.statusMessage = String(localized: "下载失败：\(result.failureDescription)")
             runtimeDownload.finish(result.failureDescription)
         }

@@ -45,12 +45,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherMainWindow")
     private static let settingsWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherSettingsWindow")
 
+    /// "Xcode Switcher 2.1.0 (8)", for the launch line of the log.
+    private static var versionDescription: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "Xcode Switcher \(version) (\(build))"
+    }
+
+    /// "macOS 27.0", built from the components rather than
+    /// `operatingSystemVersionString`, which is localized by the process's language and
+    /// made the log line switch between "macOS Version 27.0 (…)" and
+    /// 「macOS 版本27.0（…）」 depending on how the app was launched.
+    private static var osDescription: String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "macOS \(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+    }
+
     override init() {
         super.init()
         Self.shared = self
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // First line of every log: which build is running, on what system, and which
+        // developer directory it started from. A bug report is much easier to place
+        // with that than without it.
+        AppLog.logger(.launch).notice(
+            "launched \(Self.versionDescription, privacy: .public) on \(Self.osDescription, privacy: .public), developer dir \(XcodeLocator.activeDeveloperPath() ?? "none", privacy: .public)"
+        )
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = Self.menuBarIcon() ?? NSImage(systemSymbolName: "arrow.triangle.2.circlepath", accessibilityDescription: "Xcode Switcher")
         statusItem.button?.imagePosition = .imageOnly

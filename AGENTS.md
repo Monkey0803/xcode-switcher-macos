@@ -366,6 +366,33 @@ the four application commands (`requestSearchFocus`, `showMainWindow`, `showSett
 `showAllVersions`), and the one place that knows about all the stores — the reload that
 runs after a refresh or a selection.
 
+## Diagnosing from the log (`AppLog`)
+
+The app logs through `os.Logger` under subsystem `com.yostar.xcodeswitcher`, with one
+category per domain: `launch`, `switching`, `cleanup`, `runtime`, `release`, `projects`,
+`environment`, `settings`. Every run starts with a line naming the build, the system and
+the developer directory it found:
+
+```bash
+log show --last 30m --predicate 'subsystem == "com.yostar.xcodeswitcher"' --info --style compact
+log stream --predicate 'subsystem == "com.yostar.xcodeswitcher"' --level info   # 实时
+```
+
+This exists because the status bar carries **one line** while the log carries the detail
+behind it: which path, which exit code, whether the target was already gone. Diagnosing
+the failed `simctl runtime delete` on 2026-09-21 meant reading the code and re-running the
+command by hand, because there was nothing in the log to consult.
+
+Two conventions worth keeping:
+
+- `privacy: .public` on the interpolated values. This is a local developer tool and the
+  log is meant to be read by the person hitting the problem; the redacted environment
+  report is the separate artifact for sharing.
+- Build human-readable values from components, not from preformatted system strings.
+  `ProcessInfo.operatingSystemVersionString` follows the process's language, so the same
+  line came out as "macOS Version 27.0 (…)" and 「macOS 版本27.0（…）」 depending on how the
+  app was launched; `AppDelegate.osDescription` formats the components instead.
+
 ## Translations
 
 Read [TRANSLATION.md](TRANSLATION.md) before adding or changing translations in
