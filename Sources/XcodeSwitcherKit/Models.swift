@@ -259,7 +259,7 @@ public struct ProvisioningProfile: Identifiable, Hashable, Sendable {
     public let isExpired: Bool
 
     public var displayExpiration: String {
-        guard let expirationDate else { return "未知" }
+        guard let expirationDate else { return String(localized: "未知") }
         return expirationDate.formatted(date: .abbreviated, time: .omitted)
     }
 

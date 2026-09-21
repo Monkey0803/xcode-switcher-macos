@@ -97,10 +97,10 @@ public enum ProjectEnvironmentResolver {
         if let issue = resolution.issueDescription { return .issue(issue) }
         guard let installationID = resolution.installationID,
               let installation = installations.first(where: { $0.id == installationID }) else {
-            return .issue("无法解析项目使用的 Xcode。")
+            return .issue(String(localized: "无法解析项目使用的 Xcode。"))
         }
         guard case let .resolved(_, source) = resolution else {
-            return .issue("无法解析项目使用的 Xcode。")
+            return .issue(String(localized: "无法解析项目使用的 Xcode。"))
         }
         switch source {
         case .explicitBinding, .localConfiguration, .automaticRequirement:

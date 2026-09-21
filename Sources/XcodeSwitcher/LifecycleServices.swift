@@ -46,7 +46,7 @@ final class UpdateService {
         let feed = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
         let publicKey = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String
         guard let feed, URL(string: feed)?.scheme == "https", let publicKey, !publicKey.isEmpty else {
-            configurationError = "正式构建需要配置 HTTPS SUFeedURL 和 SUPublicEDKey。"
+            configurationError = String(localized: "正式构建需要配置 HTTPS SUFeedURL 和 SUPublicEDKey。")
             return
         }
         updaterController = SPUStandardUpdaterController(
@@ -126,13 +126,13 @@ final class UpdateService {
         if let error = error as? UpdateServiceError { return error.localizedDescription }
         if let urlError = error as? URLError {
             switch urlError.code {
-            case .timedOut: return "GitHub Releases 请求超时，请稍后重试。"
+            case .timedOut: return String(localized: "GitHub Releases 请求超时，请稍后重试。")
             case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost:
-                return "无法连接 GitHub Releases，请检查网络后重试。"
+                return String(localized: "无法连接 GitHub Releases，请检查网络后重试。")
             default: break
             }
         }
-        if error is DecodingError { return "GitHub Releases 返回的数据格式无效。" }
+        if error is DecodingError { return String(localized: "GitHub Releases 返回的数据格式无效。") }
         return error.localizedDescription
     }
 
@@ -165,15 +165,15 @@ private enum UpdateServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            return "GitHub Releases 返回了无效响应。"
+            return String(localized: "GitHub Releases 返回了无效响应。")
         case .httpStatus(403):
-            return "GitHub Releases 请求受到限流，请稍后重试。"
+            return String(localized: "GitHub Releases 请求受到限流，请稍后重试。")
         case .httpStatus(404):
-            return "GitHub Releases 暂无可用版本。"
+            return String(localized: "GitHub Releases 暂无可用版本。")
         case let .httpStatus(status):
-            return "GitHub Releases 请求失败（HTTP \(status)）。"
+            return String(localized: "GitHub Releases 请求失败（HTTP \(status)）。")
         case let .invalidVersion(tag):
-            return "GitHub Release 标签无效：\(tag)。"
+            return String(localized: "GitHub Release 标签无效：\(tag)。")
         }
     }
 }

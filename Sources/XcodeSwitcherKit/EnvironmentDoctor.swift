@@ -63,7 +63,9 @@ public enum EnvironmentDoctor {
             id: "iphoneos-sdk",
             title: String(localized: "iPhoneOS SDK"),
             result: sdkResult,
-            successDetail: sdkResult.stdout.isEmpty ? "已安装。" : "版本 \(sdkResult.stdout)",
+            successDetail: sdkResult.stdout.isEmpty
+                ? String(localized: "已安装。")
+                : String(localized: "版本 \(sdkResult.stdout)"),
             remediation: String(localized: "检查 Xcode 安装完整性或重新安装对应平台组件。")
         ))
 
@@ -73,10 +75,12 @@ public enum EnvironmentDoctor {
             id: "simulator-runtime",
             title: String(localized: "Simulator Runtime"),
             detail: availableRuntimes.isEmpty
-                ? "未检测到可用的 Simulator Runtime。"
-                : "已安装 \(availableRuntimes.count) 个可用 Runtime：\(availableRuntimes.map { "\($0.name) \($0.version)" }.joined(separator: "、"))",
+                ? String(localized: "未检测到可用的 Simulator Runtime。")
+                : String(localized: "已安装 \(availableRuntimes.count) 个可用 Runtime：\(availableRuntimes.map { "\($0.name) \($0.version)" }.joined(separator: "、"))"),
             severity: availableRuntimes.isEmpty ? .warning : .healthy,
-            remediation: availableRuntimes.isEmpty ? "在 App 中下载 iOS Runtime，或打开 Xcode Settings。" : nil
+            remediation: availableRuntimes.isEmpty
+                ? String(localized: "在 App 中下载 iOS Runtime，或打开 Xcode Settings。")
+                : nil
         ))
 
         let simulatorResult = ProcessRunner.run(
@@ -346,9 +350,9 @@ public enum EnvironmentDoctor {
         return EnvironmentCheck(
             id: "installation-path",
             title: String(localized: "安装路径"),
-            detail: healthy ? installation.developerURL.path : "Xcode.app 或 Contents/Developer 不存在。",
+            detail: healthy ? installation.developerURL.path : String(localized: "Xcode.app 或 Contents/Developer 不存在。"),
             severity: healthy ? .healthy : .error,
-            remediation: healthy ? nil : "重新扫描 Xcode，或移除失效的自定义搜索路径。"
+            remediation: healthy ? nil : String(localized: "重新扫描 Xcode，或移除失效的自定义搜索路径。")
         )
     }
 
@@ -357,14 +361,15 @@ public enum EnvironmentDoctor {
         activeDeveloperPath: String?
     ) -> EnvironmentCheck {
         let isActive = installation.developerURL.path == activeDeveloperPath
+        let currentPath = activeDeveloperPath ?? String(localized: "未配置")
         return EnvironmentCheck(
             id: "developer-directory",
             title: String(localized: "Command Line Tools"),
             detail: isActive
-                ? "xcode-select 已指向当前 Xcode。"
-                : "当前为 \(activeDeveloperPath ?? "未配置")",
+                ? String(localized: "xcode-select 已指向当前 Xcode。")
+                : String(localized: "当前为 \(currentPath)"),
             severity: isActive ? .healthy : .informational,
-            remediation: isActive ? nil : "需要全局使用此版本时，点击“激活此版本”。"
+            remediation: isActive ? nil : String(localized: "需要全局使用此版本时，点击“激活此版本”。")
         )
     }
 
@@ -385,7 +390,8 @@ public enum EnvironmentDoctor {
     }
 
     private static func rosettaCheck() -> EnvironmentCheck {
-        let architecture = ProcessRunner.output(executable: "/usr/bin/uname", arguments: ["-m"]) ?? "未知"
+        let architecture = ProcessRunner.output(executable: "/usr/bin/uname", arguments: ["-m"])
+            ?? String(localized: "未知")
         guard architecture == "arm64" else {
             return EnvironmentCheck(
                 id: "rosetta",
@@ -403,9 +409,13 @@ public enum EnvironmentDoctor {
         return EnvironmentCheck(
             id: "rosetta",
             title: String(localized: "Rosetta 2"),
-            detail: result.succeeded ? "Rosetta 2 可用。" : "未检测到可用的 Rosetta 2。",
+            detail: result.succeeded
+                ? String(localized: "Rosetta 2 可用。")
+                : String(localized: "未检测到可用的 Rosetta 2。"),
             severity: result.succeeded ? .healthy : .warning,
-            remediation: result.succeeded ? nil : "如需运行 Intel 工具链，请执行 softwareupdate --install-rosetta。"
+            remediation: result.succeeded
+                ? nil
+                : String(localized: "如需运行 Intel 工具链，请执行 softwareupdate --install-rosetta。")
         )
     }
 
@@ -413,7 +423,9 @@ public enum EnvironmentDoctor {
         let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
         let available = values?.volumeAvailableCapacityForImportantUsage ?? 0
         let gigabytes = Double(available) / 1_000_000_000
-        let detail = available > 0 ? String(format: "可用空间 %.1f GB。", gigabytes) : "无法读取可用磁盘空间。"
+        let detail = available > 0
+            ? String(format: String(localized: "可用空间 %.1f GB。"), gigabytes)
+            : String(localized: "无法读取可用磁盘空间。")
         if available == 0 {
             return EnvironmentCheck(
                 id: "disk-space",
@@ -428,7 +440,9 @@ public enum EnvironmentDoctor {
             title: String(localized: "磁盘空间"),
             detail: detail,
             severity: gigabytes < 40 ? .warning : .healthy,
-            remediation: gigabytes < 40 ? "建议至少保留 40 GB，以安装 Runtime 和构建缓存。" : nil
+            remediation: gigabytes < 40
+                ? String(localized: "建议至少保留 40 GB，以安装 Runtime 和构建缓存。")
+                : nil
         )
     }
 }

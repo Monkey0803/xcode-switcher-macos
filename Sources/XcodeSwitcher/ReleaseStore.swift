@@ -69,6 +69,16 @@ final class ReleaseStore: ObservableObject {
         XcodeReleaseCatalog.uniqueReleases(from: releaseCatalog)
     }
 
+    /// The newest shipped release on this installation's major line, when the index
+    /// knows of one newer than what is installed.
+    ///
+    /// Nothing extra is fetched for this: the index is already loaded whenever an
+    /// installation is selected, which is exactly when the list and the detail pane
+    /// ask for the hint.
+    func newerRelease(for installation: XcodeInstallation) -> XcodeReleaseInfo? {
+        XcodeReleaseCatalog.newerRelease(than: installation.version, in: releaseCatalog)
+    }
+
     /// The builds installed here, so the list can mark them. Uses the public build
     /// string, which is what the index is keyed by.
     var installedBuilds: Set<String> {
@@ -114,8 +124,8 @@ final class ReleaseStore: ObservableObject {
 
     var updateServiceMessage: String {
         if !releaseCheckMessage.isEmpty { return releaseCheckMessage }
-        if UpdateService.shared.isAvailable { return "Sparkle 自动更新已启用。" }
-        return "当前为直接分发构建，可检查 GitHub Releases；Sparkle 自动更新仅在正式签名构建启用。"
+        if UpdateService.shared.isAvailable { return String(localized: "Sparkle 自动更新已启用。") }
+        return String(localized: "当前为直接分发构建，可检查 GitHub Releases；Sparkle 自动更新仅在正式签名构建启用。")
     }
     func checkForUpdates() {
         guard !isCheckingRelease else { return }
@@ -126,22 +136,22 @@ final class ReleaseStore: ObservableObject {
             return
         }
         isCheckingRelease = true
-        releaseCheckMessage = "正在读取 GitHub Releases…"
+        releaseCheckMessage = String(localized: "正在读取 GitHub Releases…")
         status?.statusMessage = String(localized: "正在检查 GitHub Releases…")
         status?.isError = false
         Task { @MainActor in
             let result = await UpdateService.shared.checkGitHubRelease()
             isCheckingRelease = false
             if let error = result.errorMessage {
-                releaseCheckMessage = "GitHub Releases 检查失败：\(error)"
+                releaseCheckMessage = String(localized: "GitHub Releases 检查失败：\(error)")
                 status?.statusMessage = releaseCheckMessage
                 status?.isError = true
             } else if result.isUpdateAvailable, let latest = result.latestVersion {
-                releaseCheckMessage = "发现新版本 \(latest)，点击右侧按钮下载。"
+                releaseCheckMessage = String(localized: "发现新版本 \(latest)，点击右侧按钮下载。")
                 status?.statusMessage = releaseCheckMessage
                 status?.isError = false
             } else {
-                releaseCheckMessage = "当前已是最新版本（\(result.currentVersion)）。"
+                releaseCheckMessage = String(localized: "当前已是最新版本（\(result.currentVersion)）。")
                 status?.statusMessage = releaseCheckMessage
                 status?.isError = false
             }

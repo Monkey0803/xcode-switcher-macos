@@ -387,7 +387,7 @@ final class InstallationStore: ObservableObject {
             status?.isError = false
             return
         }
-        runtimeDownload.begin("正在准备下载…")
+        runtimeDownload.begin(String(localized: "正在准备下载…"))
         status?.statusMessage = String(localized: "正在下载 iOS Simulator Runtime…")
         runtimeDownloadTask = Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
@@ -402,7 +402,7 @@ final class InstallationStore: ObservableObject {
     }
 
     func cancelRuntimeDownload() {
-        runtimeDownload.update("正在取消…")
+        runtimeDownload.update(String(localized: "正在取消…"))
         runtimeDownloadTask?.cancel()
     }
 
@@ -543,10 +543,10 @@ final class InstallationStore: ObservableObject {
         status?.isError = !result.succeeded && !result.cancelled
         if result.succeeded {
             status?.statusMessage = String(localized: "iOS Simulator Runtime 下载命令已完成。")
-            runtimeDownload.finish("下载完成")
+            runtimeDownload.finish(String(localized: "下载完成"))
         } else if result.cancelled {
             status?.statusMessage = String(localized: "已取消 iOS Simulator Runtime 下载。")
-            runtimeDownload.finish("已取消")
+            runtimeDownload.finish(String(localized: "已取消"))
         } else {
             status?.statusMessage = String(localized: "下载失败：\(result.failureDescription)")
             runtimeDownload.finish(result.failureDescription)

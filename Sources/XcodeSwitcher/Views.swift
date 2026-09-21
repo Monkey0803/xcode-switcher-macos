@@ -74,6 +74,12 @@ struct InstallationRow: View {
                     }
                 }
                 Text(installation.displayVersion).font(.subheadline)
+                if let newer = model.newerRelease(for: installation) {
+                    Label("有新版 \(newer.version)", systemImage: "arrow.up.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .help("发布索引里已有 \(newer.version)（\(newer.build)），本机是 \(installation.version)。")
+                }
                 if !model.alias(for: installation).isEmpty {
                     Text(installation.name).font(.caption).foregroundStyle(.secondary)
                 }
@@ -652,6 +658,8 @@ private struct VersionInfoSectionView: View {
                     detailList("编译器", values: toolchainLabels)
                 }
 
+                upgradeNotice
+
                 releaseStatus
 
                 Button {
@@ -695,6 +703,27 @@ private struct VersionInfoSectionView: View {
                 }
             }
             Spacer()
+        }
+    }
+
+    /// The release index knows a shipped release on this Xcode's own major line that
+    /// is newer than the installed one.
+    ///
+    /// Deliberately a hint rather than an action: the app has no download path — see
+    /// the "不做索引内下载安装" decision recorded in `docs/superpowers/plans/` — so the
+    /// honest thing is to say what exists and leave the version window to it.
+    @ViewBuilder
+    private var upgradeNotice: some View {
+        if let newer = model.newerRelease(for: installation) {
+            VStack(alignment: .leading, spacing: 4) {
+                Label(
+                    "有新版本可用：\(newer.version)（\(newer.build)）",
+                    systemImage: "arrow.up.circle.fill"
+                )
+                .textRole(.warning)
+                Text("本机安装的是 \(installation.version)。")
+                    .textRole(.note)
+            }
         }
     }
 

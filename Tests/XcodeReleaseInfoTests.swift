@@ -375,6 +375,74 @@ final class XcodeReleaseInfoTests: XCTestCase {
         XCTAssertEqual(XcodeReleaseCatalog.release(matchingBuild: "17F113", in: releases)?.channel, .release)
     }
 
+    // MARK: - 可升级提示
+
+    /// The hint compares within the installed version's own major line, so the
+    /// newest 26.x release wins even when a much newer major exists.
+    func testNewerReleaseIsFoundWithinTheSameMajorLine() throws {
+        XCTAssertEqual(
+            XcodeReleaseCatalog.newerRelease(than: "26.3", in: try catalog())?.version,
+            "26.6"
+        )
+    }
+
+    func testNoHintWhenTheInstalledVersionIsAlreadyTheNewest() throws {
+        XCTAssertNil(XcodeReleaseCatalog.newerRelease(than: "26.6", in: try catalog()))
+    }
+
+    /// Two reasons a newer entry does not count: it is not shipped yet, or it is a
+    /// different major line (15.x → 26.x is a migration, not an update).
+    func testPrereleasesAndOtherMajorLinesAreNotUpdates() throws {
+        let catalog = try catalog()
+        XCTAssertNil(
+            XcodeReleaseCatalog.newerRelease(than: "15.4", in: catalog),
+            "26.x 不是 15.x 的更新，而是另一条产品线"
+        )
+        XCTAssertNil(
+            XcodeReleaseCatalog.newerRelease(than: "9.0", in: catalog),
+            "同一个 9.0 不是更新"
+        )
+    }
+
+    func testOnlyShippedReleasesCount() {
+        let catalog = [
+            makeRelease(version: "26.5", build: "17E1", channel: .beta(3)),
+            makeRelease(version: "26.5", build: "17E2", channel: .goldenMaster(seed: nil)),
+            makeRelease(version: "26.5", build: "17E3", channel: .releaseCandidate(1)),
+        ]
+        XCTAssertNil(
+            XcodeReleaseCatalog.newerRelease(than: "26.4", in: catalog),
+            "预发布版本不构成「有新版本」"
+        )
+    }
+
+    func testAnUpdateThisMacCannotRunIsNotOffered() {
+        let catalog = [makeRelease(version: "26.6", build: "17F113", minimumMacOS: "26.6")]
+        let older = OperatingSystemVersion(majorVersion: 26, minorVersion: 5, patchVersion: 0)
+        let matching = OperatingSystemVersion(majorVersion: 26, minorVersion: 6, patchVersion: 0)
+
+        XCTAssertNil(
+            XcodeReleaseCatalog.newerRelease(
+                than: "26.3", in: catalog, operatingSystem: older, isAppleSilicon: true
+            ),
+            "本机跑不了的版本不能算升级目标"
+        )
+        XCTAssertEqual(
+            XcodeReleaseCatalog.newerRelease(
+                than: "26.3", in: catalog, operatingSystem: matching, isAppleSilicon: true
+            )?.version,
+            "26.6"
+        )
+    }
+
+    func testAnUnparseableInstalledVersionYieldsNoHint() throws {
+        XCTAssertNil(XcodeReleaseCatalog.newerRelease(than: "", in: try catalog()))
+        XCTAssertNil(
+            XcodeReleaseCatalog.newerRelease(than: "beta", in: try catalog()),
+            "解析不出主版本号时给不出可信建议，不能猜"
+        )
+    }
+
     // MARK: - 版本号比较
 
     func testVersionComparisonIsNumericNotTextual() {

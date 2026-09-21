@@ -287,6 +287,38 @@ enum XcodeReleaseCatalog {
         return mostReleased(in: catalog.filter { $0.build.lowercased() == target })
     }
 
+    /// The newest shipped release on `version`'s own major line, when it is newer
+    /// than `version` — the only case this app calls an "update".
+    ///
+    /// Four deliberate restrictions, all of which keep the hint from becoming noise:
+    ///
+    /// - Only `release` entries count, so a beta or GM of the next point release is
+    ///   not advertised to someone running the shipped one.
+    /// - Only the same major version counts. `15.x` → `26.x` is a migration, not an
+    ///   update, and a machine that keeps an older Xcode on purpose should not be
+    ///   nagged about it.
+    /// - The version comparison is numeric (`compareVersions`), so `9.0` never
+    ///   outranks `26.3`.
+    /// - A release this Mac cannot run is not offered, since "update to something
+    ///   that will refuse to launch" is not an upgrade.
+    ///
+    /// An unparseable installed version yields no hint rather than a guess.
+    static func newerRelease(
+        than version: String,
+        in catalog: [XcodeReleaseInfo],
+        operatingSystem: OperatingSystemVersion = ProcessInfo.processInfo.operatingSystemVersion,
+        isAppleSilicon: Bool = XcodeReleaseInfo.isAppleSilicon
+    ) -> XcodeReleaseInfo? {
+        guard let major = components(of: version).first else { return nil }
+        return catalog
+            .filter { $0.channel == .release && components(of: $0.version).first == major }
+            .filter { compareVersions($0.version, version) == .orderedDescending }
+            .filter {
+                !$0.hostCompatibility(operatingSystem: operatingSystem, isAppleSilicon: isAppleSilicon).isBlocking
+            }
+            .max { compareVersions($0.version, $1.version) == .orderedAscending }
+    }
+
     /// The entry that best represents one build: the most released channel first,
     /// then the plain distribution name over its variants.
     static func mostReleased(in releases: [XcodeReleaseInfo]) -> XcodeReleaseInfo? {

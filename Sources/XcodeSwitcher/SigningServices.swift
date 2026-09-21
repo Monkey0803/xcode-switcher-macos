@@ -62,7 +62,11 @@ enum SigningService {
             arguments: ["find-certificate", "-a", "-c", certificate.name, "-p"]
         )
         guard result.succeeded, !result.stdout.isEmpty else {
-            throw NSError(domain: "XcodeSwitcher.Signing", code: 1, userInfo: [NSLocalizedDescriptionKey: "无法从钥匙串读取公钥证书。"])
+            throw NSError(
+                domain: "XcodeSwitcher.Signing",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "无法从钥匙串读取公钥证书。")]
+            )
         }
         try result.stdout.data(using: .utf8)?.write(to: url, options: .atomic)
     }
@@ -132,7 +136,9 @@ enum SigningService {
             availableSchemes: schemes,
             availableConfigurations: configurations,
             targets: targets,
-            errorMessage: targets.isEmpty ? "未读取到签名配置，请确认项目包含可构建的 Scheme。" : nil
+            errorMessage: targets.isEmpty
+                ? String(localized: "未读取到签名配置，请确认项目包含可构建的 Scheme。")
+                : nil
         )
     }
 
@@ -158,10 +164,10 @@ enum SigningService {
         guard result.succeeded, let data = result.stdout.data(using: .utf8),
               let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any] else { return nil }
         let uuid = plist["UUID"] as? String ?? url.deletingPathExtension().lastPathComponent
-        let name = plist["Name"] as? String ?? "未命名 Profile"
-        let teamID = (plist["TeamIdentifier"] as? [String])?.first ?? "未知"
+        let name = plist["Name"] as? String ?? String(localized: "未命名 Profile")
+        let teamID = (plist["TeamIdentifier"] as? [String])?.first ?? String(localized: "未知")
         let entitlements = plist["Entitlements"] as? [String: Any]
-        let appIdentifier = entitlements?["application-identifier"] as? String ?? "未知"
+        let appIdentifier = entitlements?["application-identifier"] as? String ?? String(localized: "未知")
         let expiration = plist["ExpirationDate"] as? Date
         return ProvisioningProfile(
             id: uuid,
@@ -203,16 +209,22 @@ enum SigningService {
             let targetName = record["target"] as? String
                 ?? buildSettings["TARGET_NAME"] as? String
                 ?? buildSettings["PRODUCT_NAME"] as? String
-                ?? "未命名 Target"
-            let configuration = buildSettings["CONFIGURATION"] as? String ?? fallbackConfiguration ?? "默认"
+                ?? String(localized: "未命名 Target")
+            let configuration = buildSettings["CONFIGURATION"] as? String
+                ?? fallbackConfiguration
+                ?? String(localized: "默认")
+            // One value for "the build setting is empty", so the warning flag below
+            // compares against the same text the row displays — after localization,
+            // comparing against a fresh literal would quietly stop matching.
+            let unset = String(localized: "未设置")
             let settings = keys.map { key in
-                let value = (buildSettings[key] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "未设置"
+                let value = (buildSettings[key] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? unset
                 let warningKeys = ["PRODUCT_BUNDLE_IDENTIFIER", "DEVELOPMENT_TEAM", "CODE_SIGN_STYLE"]
                 return SigningSetting(
                     id: "\(targetName)-\(configuration)-\(key)",
                     key: key,
                     value: value,
-                    isWarning: warningKeys.contains(key) && value == "未设置"
+                    isWarning: warningKeys.contains(key) && value == unset
                 )
             }
             return SigningTargetReport(

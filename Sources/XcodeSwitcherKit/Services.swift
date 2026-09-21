@@ -272,7 +272,7 @@ public enum XcodeLocator {
     }
 
     public static func commandLineToolsPath() -> String {
-        activeDeveloperPath() ?? "未配置"
+        activeDeveloperPath() ?? String(localized: "未配置")
     }
 
     private static func addApplications(in folder: URL, to candidates: inout Set<URL>) {

@@ -3,6 +3,12 @@
   "strings": {
     "%@\n%@": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@\n%@"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "new",
@@ -13,6 +19,12 @@
     },
     "%@ %@": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %@"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -23,6 +35,12 @@
     },
     "%@ · %@": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -33,6 +51,12 @@
     },
     "%@ · Team %@": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · Team %@"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -168,6 +192,86 @@
     "Finder": {},
     "GM": {},
     "GM Seed %lld": {},
+    "GitHub Release 标签无效：%@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid GitHub Release tag: %@."
+          }
+        }
+      }
+    },
+    "GitHub Releases 暂无可用版本。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No versions are available on GitHub Releases."
+          }
+        }
+      }
+    },
+    "GitHub Releases 检查失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Releases check failed: %@"
+          }
+        }
+      }
+    },
+    "GitHub Releases 请求受到限流，请稍后重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Releases rate-limited the request. Try again later."
+          }
+        }
+      }
+    },
+    "GitHub Releases 请求失败（HTTP %lld）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Releases request failed (HTTP %lld)."
+          }
+        }
+      }
+    },
+    "GitHub Releases 请求超时，请稍后重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The GitHub Releases request timed out. Try again later."
+          }
+        }
+      }
+    },
+    "GitHub Releases 返回了无效响应。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Releases returned an invalid response."
+          }
+        }
+      }
+    },
+    "GitHub Releases 返回的数据格式无效。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Releases returned data in an invalid format."
+          }
+        }
+      }
+    },
     "Intel": {},
     "License 已接受。": {
       "localizations": {
@@ -182,6 +286,16 @@
     "Provisioning Profiles": {},
     "RC %lld": {},
     "Rosetta 2": {},
+    "Rosetta 2 可用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rosetta 2 is available."
+          }
+        }
+      }
+    },
     "Runtime 已安装": {
       "localizations": {
         "en": {
@@ -264,6 +378,16 @@
         }
       }
     },
+    "Sparkle 自动更新已启用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sparkle automatic updates are enabled."
+          }
+        }
+      }
+    },
     "Swift": {},
     "Swift Package Manager 缓存。": {
       "localizations": {
@@ -281,6 +405,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Swift/Xcode package cache, redownloaded after cleaning."
+          }
+        }
+      }
+    },
+    "SwiftPM 缓存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SwiftPM Caches"
           }
         }
       }
@@ -304,6 +438,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Xcode Switcher environment diagnostics report"
+          }
+        }
+      }
+    },
+    "Xcode Switcher 设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode Switcher Settings"
           }
         }
       }
@@ -374,6 +518,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Xcode Disk Cleanup"
+          }
+        }
+      }
+    },
+    "Xcode 缓存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode Caches"
+          }
+        }
+      }
+    },
+    "Xcode.app 或 Contents/Developer 不存在。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode.app or Contents/Developer does not exist."
           }
         }
       }
@@ -467,12 +631,32 @@
         }
       }
     },
+    "xcode-select 已指向当前 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xcode-select already points at this Xcode."
+          }
+        }
+      }
+    },
     "xcode-select 当前路径": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Current xcode-select path"
+          }
+        }
+      }
+    },
+    "xcodebuild 缓存": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "xcodebuild Caches"
           }
         }
       }
@@ -505,6 +689,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Download failed: %@"
+          }
+        }
+      }
+    },
+    "下载完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download complete"
           }
         }
       }
@@ -595,6 +789,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Oldest first"
+          }
+        }
+      }
+    },
+    "使用 %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using %@ %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "使用 %1$@ %2$@"
           }
         }
       }
@@ -1009,6 +1219,32 @@
         }
       }
     },
+    "发布索引里已有 %@（%@），本机是 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The release index lists %@ (%@); this Mac has %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "发布索引里已有 %1$@（%2$@），本机是 %3$@。"
+          }
+        }
+      }
+    },
+    "发现新版本 %@，点击右侧按钮下载。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %@ is available. Use the button on the right to download it."
+          }
+        }
+      }
+    },
     "发行说明": {
       "localizations": {
         "en": {
@@ -1075,6 +1311,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Available"
+          }
+        }
+      }
+    },
+    "可用空间 %.1f GB。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f GB available."
           }
         }
       }
@@ -1175,6 +1421,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Roll Back to Previous"
+          }
+        }
+      }
+    },
+    "在 App 中下载 iOS Runtime，或打开 Xcode Settings。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download an iOS Runtime in the app, or open Xcode Settings."
           }
         }
       }
@@ -1325,6 +1581,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy Link Command"
+          }
+        }
+      }
+    },
+    "如需运行 Intel 工具链，请执行 softwareupdate --install-rosetta。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To run Intel toolchains, run softwareupdate --install-rosetta."
           }
         }
       }
@@ -1597,6 +1863,16 @@
         }
       }
     },
+    "已取消": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canceled"
+          }
+        }
+      }
+    },
     "已取消 iOS Simulator Runtime 下载。": {
       "localizations": {
         "en": {
@@ -1673,6 +1949,32 @@
           "stringUnit": {
             "state": "translated",
             "value": "Installed"
+          }
+        }
+      }
+    },
+    "已安装 %lld 个可用 Runtime：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installed %lld available Runtime: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已安装 %1$lld 个可用 Runtime：%2$@"
+          }
+        }
+      }
+    },
+    "已安装。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installed."
           }
         }
       }
@@ -2057,6 +2359,16 @@
         }
       }
     },
+    "建议至少保留 40 GB，以安装 Runtime 和构建缓存。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep at least 40 GB free for runtimes and build caches."
+          }
+        }
+      }
+    },
     "建议：%@": {
       "localizations": {
         "en": {
@@ -2123,6 +2435,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "This Xcode has no Simulator runtimes available. Download one before creating a device."
+          }
+        }
+      }
+    },
+    "当前为 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currently %@"
+          }
+        }
+      }
+    },
+    "当前为直接分发构建，可检查 GitHub Releases；Sparkle 自动更新仅在正式签名构建启用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is a direct-distribution build, so it checks GitHub Releases instead; Sparkle updates are only enabled in signed builds."
+          }
+        }
+      }
+    },
+    "当前已是最新版本（%@）。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are on the latest version (%@)."
           }
         }
       }
@@ -2209,6 +2551,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restoring the configuration failed: %@"
+          }
+        }
+      }
+    },
+    "所有 Xcode 版本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Xcode Versions"
           }
         }
       }
@@ -2603,6 +2955,16 @@
         }
       }
     },
+    "无法从钥匙串读取公钥证书。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read the public certificate from the Keychain."
+          }
+        }
+      }
+    },
     "无法修改登录项：%@": {
       "localizations": {
         "en": {
@@ -2773,6 +3135,26 @@
         }
       }
     },
+    "无法读取可用磁盘空间。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read the available disk space."
+          }
+        }
+      }
+    },
+    "无法连接 GitHub Releases，请检查网络后重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach GitHub Releases. Check your network and try again."
+          }
+        }
+      }
+    },
     "是": {
       "localizations": {
         "en": {
@@ -2863,6 +3245,32 @@
         }
       }
     },
+    "有新版 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Newer %@ available"
+          }
+        }
+      }
+    },
+    "有新版本可用：%@（%@）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Newer version available: %@ (%@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "有新版本可用：%1$@（%2$@）"
+          }
+        }
+      }
+    },
     "未发现 Xcode": {
       "localizations": {
         "en": {
@@ -2899,6 +3307,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "No directories to clean."
+          }
+        }
+      }
+    },
+    "未命名 Profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untitled Profile"
+          }
+        }
+      }
+    },
+    "未命名 Target": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untitled Target"
           }
         }
       }
@@ -2993,6 +3421,26 @@
         }
       }
     },
+    "未检测到可用的 Rosetta 2。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable Rosetta 2 found."
+          }
+        }
+      }
+    },
+    "未检测到可用的 Simulator Runtime。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usable Simulator Runtime found."
+          }
+        }
+      }
+    },
     "未知": {
       "localizations": {
         "en": {
@@ -3023,6 +3471,26 @@
         }
       }
     },
+    "未设置": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not set"
+          }
+        }
+      }
+    },
+    "未读取到签名配置，请确认项目包含可构建的 Scheme。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No signing settings were read. Make sure the project has a buildable Scheme."
+          }
+        }
+      }
+    },
     "未配置": {
       "localizations": {
         "en": {
@@ -3049,6 +3517,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Installed here"
+          }
+        }
+      }
+    },
+    "本机安装的是 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac has %@ installed."
           }
         }
       }
@@ -3269,6 +3747,16 @@
         }
       }
     },
+    "正在准备下载…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing the download…"
+          }
+        }
+      }
+    },
     "正在创建 Simulator %@…": {
       "localizations": {
         "en": {
@@ -3305,6 +3793,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deleting Simulator %@…"
+          }
+        }
+      }
+    },
+    "正在取消…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canceling…"
           }
         }
       }
@@ -3439,6 +3937,16 @@
         }
       }
     },
+    "正在读取 GitHub Releases…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading GitHub Releases…"
+          }
+        }
+      }
+    },
     "正在读取 Runtime…": {
       "localizations": {
         "en": {
@@ -3509,6 +4017,16 @@
         }
       }
     },
+    "正式构建需要配置 HTTPS SUFeedURL 和 SUPublicEDKey。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A signed build needs an HTTPS SUFeedURL and SUPublicEDKey."
+          }
+        }
+      }
+    },
     "正式版": {
       "localizations": {
         "en": {
@@ -3545,6 +4063,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Xcode is available to open the project."
+          }
+        }
+      }
+    },
+    "没有可用的 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Xcode available"
           }
         }
       }
@@ -3695,6 +4223,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Version"
+          }
+        }
+      }
+    },
+    "版本 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %@"
           }
         }
       }
@@ -4207,6 +4745,22 @@
         }
       }
     },
+    "自动匹配 %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic match: %@ %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "自动匹配 %1$@ %2$@"
+          }
+        }
+      }
+    },
     "自动匹配 / 跟随当前": {
       "localizations": {
         "en": {
@@ -4393,6 +4947,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Runtime"
+          }
+        }
+      }
+    },
+    "还有 %lld 个项目，请在设置中查看": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more projects; see Settings"
           }
         }
       }
@@ -4617,6 +5181,16 @@
         }
       }
     },
+    "重新扫描 Xcode，或移除失效的自定义搜索路径。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rescan for Xcode, or remove the search folder that no longer exists."
+          }
+        }
+      }
+    },
     "重新测量": {
       "localizations": {
         "en": {
@@ -4749,6 +5323,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The bundled CLI must be on your PATH first, for example by linking it into ~/.local/bin:"
+          }
+        }
+      }
+    },
+    "需要全局使用此版本时，点击“激活此版本”。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To use this version system-wide, click “Activate This Version”."
           }
         }
       }
@@ -4951,6 +5535,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "First launch components"
+          }
+        }
+      }
+    },
+    "默认": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
           }
         }
       }

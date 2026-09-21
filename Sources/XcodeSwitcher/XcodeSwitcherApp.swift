@@ -180,7 +180,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !model.configuration.projects.isEmpty {
             menu.addItem(.separator())
             let projectsItem = NSMenuItem(title: String(localized: "项目"), action: nil, keyEquivalent: "")
-            let projectsMenu = NSMenu(title: "项目")
+            let projectsMenu = NSMenu(title: String(localized: "项目"))
             for profile in model.configuration.projects.prefix(12) {
                 let issue = model.projectIssue(for: profile)
                 let item = NSMenuItem(
@@ -197,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if model.configuration.projects.count > 12 {
                 projectsMenu.addItem(.separator())
                 let remaining = NSMenuItem(
-                    title: "还有 \(model.configuration.projects.count - 12) 个项目，请在设置中查看",
+                    title: String(localized: "还有 \(model.configuration.projects.count - 12) 个项目，请在设置中查看"),
                     action: nil,
                     keyEquivalent: ""
                 )
@@ -249,11 +249,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func projectXcodeDescription(for profile: ProjectProfile) -> String {
-        guard let installation = model.installation(for: profile) else { return "没有可用的 Xcode" }
-        if profile.xcodeID == nil, let match = model.automaticMatch(for: profile) {
-            return "自动匹配 \(installation.name) \(match.requirement.normalizedVersion)"
+        guard let installation = model.installation(for: profile) else {
+            return String(localized: "没有可用的 Xcode")
         }
-        return "使用 \(installation.name) \(installation.displayVersion)"
+        if profile.xcodeID == nil, let match = model.automaticMatch(for: profile) {
+            return String(localized: "自动匹配 \(installation.name) \(match.requirement.normalizedVersion)")
+        }
+        return String(localized: "使用 \(installation.name) \(installation.displayVersion)")
     }
 
     @objc private func openMainWindow() { model.showMainWindow() }
@@ -305,7 +307,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "所有 Xcode 版本"
+        window.title = String(localized: "所有 Xcode 版本")
         window.contentViewController = NSHostingController(rootView: content)
         // Handing AppKit a hosting controller makes it adopt the view's minimum size,
         // which silently ignores the contentRect above — the window opened at the
@@ -331,7 +333,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Xcode Switcher 设置"
+        window.title = String(localized: "Xcode Switcher 设置")
         window.identifier = Self.settingsWindowIdentifier
         window.contentViewController = NSHostingController(rootView: content)
         window.center()

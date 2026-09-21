@@ -378,6 +378,9 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     func releaseInfo(for installation: XcodeInstallation) -> XcodeReleaseInfo? {
         releases.releaseInfo(for: installation)
     }
+    func newerRelease(for installation: XcodeInstallation) -> XcodeReleaseInfo? {
+        releases.newerRelease(for: installation)
+    }
     func loadReleaseCatalog(force: Bool = false) { releases.loadReleaseCatalog(force: force) }
     func checkForUpdates() { releases.checkForUpdates() }
     func openReleasePage() { releases.openReleasePage() }
