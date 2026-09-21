@@ -139,6 +139,7 @@
         }
       }
     },
+    "Apple Silicon": {},
     "Beta %lld": {},
     "CocoaPods": {},
     "Command Line Tools": {},
@@ -167,6 +168,7 @@
     "Finder": {},
     "GM": {},
     "GM Seed %lld": {},
+    "Intel": {},
     "License 已接受。": {
       "localizations": {
         "en": {
@@ -4221,6 +4223,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Check for updates automatically"
+          }
+        }
+      }
+    },
+    "芯片": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chip"
           }
         }
       }

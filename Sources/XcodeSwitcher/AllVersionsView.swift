@@ -119,6 +119,13 @@ struct AllVersionsView: View {
                 }
                 .fixedSize()
 
+                Picker("芯片", selection: $query.architectureScope) {
+                    ForEach(XcodeReleaseQuery.ArchitectureScope.allCases) { scope in
+                        Text(scope.title).tag(scope)
+                    }
+                }
+                .fixedSize()
+
                 Spacer()
             }
 

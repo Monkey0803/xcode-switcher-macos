@@ -604,4 +604,40 @@ final class XcodeReleaseInfoTests: XCTestCase {
         XCTAssertFalse(page.contains("download.developer.apple.com"))
         XCTAssertTrue(page.hasPrefix("https://developer.apple.com/download/all/"))
     }
+
+    // MARK: - 按芯片筛选
+
+    func testArchitectureScopeFiltersByChip() {
+        let armOnly = makeRelease(version: "27.0", build: "27A1", architectures: ["arm64"])
+        let intelOnly = makeRelease(version: "26.0", build: "26A1", architectures: ["x86_64"])
+        let both = makeRelease(version: "25.0", build: "25A1", architectures: ["arm64", "x86_64"])
+        let unknown = makeRelease(version: "24.0", build: "24A1", architectures: [])
+        let catalogue = [armOnly, intelOnly, both, unknown]
+
+        var query = XcodeReleaseQuery()
+        query.architectureScope = .appleSilicon
+        let appleSilicon = query.apply(to: catalogue, installedBuilds: []).map(\.build)
+        XCTAssertTrue(appleSilicon.contains("27A1"))
+        XCTAssertTrue(appleSilicon.contains("25A1"), "同时提供两种下载的应属于任一筛选")
+        XCTAssertTrue(appleSilicon.contains("24A1"), "索引没说架构的条目不能被筛掉——不说并不等于没有")
+        XCTAssertFalse(appleSilicon.contains("26A1"))
+
+        query.architectureScope = .intel
+        let intel = query.apply(to: catalogue, installedBuilds: []).map(\.build)
+        XCTAssertTrue(intel.contains("26A1"))
+        XCTAssertTrue(intel.contains("25A1"))
+        XCTAssertTrue(intel.contains("24A1"))
+        XCTAssertFalse(intel.contains("27A1"))
+    }
+
+    func testArchitectureScopeTreatsAnUnknownListAsNoConstraint() {
+        for scope in XcodeReleaseQuery.ArchitectureScope.allCases {
+            XCTAssertTrue(scope.includes([]), "\(scope) 不应把「索引没说」当成不提供")
+        }
+        XCTAssertFalse(XcodeReleaseQuery.ArchitectureScope.appleSilicon.includes(["x86_64"]))
+        XCTAssertFalse(XcodeReleaseQuery.ArchitectureScope.intel.includes(["arm64"]))
+        // 索引里实际只会出现这两种取值（实测：arm64 79 条、x86_64 37 条）。
+        XCTAssertTrue(XcodeReleaseQuery.ArchitectureScope.intel.includes(["arm64", "x86_64"]))
+        XCTAssertTrue(XcodeReleaseQuery.ArchitectureScope.appleSilicon.includes(["arm64", "x86_64"]))
+    }
 }

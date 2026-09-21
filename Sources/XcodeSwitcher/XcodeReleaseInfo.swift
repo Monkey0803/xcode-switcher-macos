@@ -650,6 +650,35 @@ struct XcodeReleaseQuery: Equatable, Sendable {
         }
     }
 
+    /// Which download variants to keep by chip.
+    ///
+    /// An entry whose architecture list is empty is never filtered out: the index not saying
+    /// is not the same as it not shipping one, and hiding those would be inventing a fact.
+    enum ArchitectureScope: String, CaseIterable, Identifiable, Sendable {
+        case all
+        case appleSilicon
+        case intel
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .all: return String(localized: "全部")
+            case .appleSilicon: return String(localized: "Apple Silicon")
+            case .intel: return String(localized: "Intel")
+            }
+        }
+
+        func includes(_ architectures: [String]) -> Bool {
+            guard !architectures.isEmpty else { return true }
+            switch self {
+            case .all: return true
+            case .appleSilicon: return architectures.contains("arm64")
+            case .intel: return architectures.contains("x86_64")
+            }
+        }
+    }
+
     enum Sort: String, CaseIterable, Identifiable, Sendable {
         case version
         case releaseDate
@@ -683,6 +712,7 @@ struct XcodeReleaseQuery: Equatable, Sendable {
     var search = ""
     var channelScope: ChannelScope = .all
     var installationScope: InstallationScope = .all
+    var architectureScope: ArchitectureScope = .all
     var sort: Sort = .version
     var direction: SortDirection = .descending
     /// The index carries eight 2005-era `Xcode Tools` packages next to Xcode itself.
@@ -703,6 +733,7 @@ struct XcodeReleaseQuery: Equatable, Sendable {
         let filtered = releases.filter { release in
             if !includesTools, release.name == "Xcode Tools" { return false }
             if hidesIncompatible, incompatibleBuilds.contains(release.build) { return false }
+            guard architectureScope.includes(release.downloadArchitectures) else { return false }
             guard channelScope.includes(release.channel) else { return false }
 
             let installed = installedBuilds.contains(release.build.lowercased())
