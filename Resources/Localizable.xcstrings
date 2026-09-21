@@ -33,6 +33,16 @@
         }
       }
     },
+    "%@ Simulator Runtime 下载命令已完成。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The %@ Simulator Runtime download finished."
+          }
+        }
+      }
+    },
     "%@ · %@": {
       "localizations": {
         "en": {
@@ -312,6 +322,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Runtime installed"
+          }
+        }
+      }
+    },
+    "Runtime 平台": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runtime platform"
           }
         }
       }
@@ -620,16 +640,6 @@
         }
       }
     },
-    "iOS Simulator Runtime 下载命令已完成。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The iOS Simulator Runtime download finished."
-          }
-        }
-      }
-    },
     "iPhoneOS SDK": {},
     "iPhoneOS SDK 构建": {
       "localizations": {
@@ -683,12 +693,12 @@
         }
       }
     },
-    "下载 iOS Runtime": {
+    "下载 %@ Runtime": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Download iOS Runtime"
+            "value": "Download %@ Runtime"
           }
         }
       }
@@ -1435,12 +1445,12 @@
         }
       }
     },
-    "在 App 中下载 iOS Runtime，或打开 Xcode Settings。": {
+    "在 App 中下载 Simulator Runtime，或打开 Xcode Settings。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Download an iOS Runtime in the app, or open Xcode Settings."
+            "value": "Download a Simulator Runtime in the app, or open Xcode Settings."
           }
         }
       }
@@ -1883,12 +1893,12 @@
         }
       }
     },
-    "已取消 iOS Simulator Runtime 下载。": {
+    "已取消 %@ Simulator Runtime 下载。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "iOS Simulator Runtime download canceled."
+            "value": "%@ Simulator Runtime download canceled."
           }
         }
       }
@@ -2175,18 +2185,12 @@
         }
       }
     },
-    "已清理 %lld 个 Runtime：%@；另有 %lld 个已经不存在。": {
+    "已清理 %lld 个 Runtime：%@；另有 %@ 已经不存在。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cleaned %lld runtimes: %@; %lld were already gone."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "已清理 %1$lld 个 Runtime：%2$@；另有 %3$lld 个已经不存在。"
+            "value": "Cleaned %lld runtimes: %@; %@ were already gone."
           }
         }
       }
@@ -2445,12 +2449,12 @@
         }
       }
     },
-    "当前 Xcode 已有可用的 iOS Simulator Runtime。": {
+    "当前 Xcode 已有可用的 %@ Simulator Runtime。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The current Xcode already has an available iOS Simulator Runtime."
+            "value": "The current Xcode already has an available %@ Simulator Runtime."
           }
         }
       }
@@ -3733,12 +3737,12 @@
         }
       }
     },
-    "正在下载 iOS Simulator Runtime…": {
+    "正在下载 %@ Simulator Runtime…": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Downloading the iOS Simulator Runtime…"
+            "value": "Downloading the %@ Simulator Runtime…"
           }
         }
       }
@@ -5073,6 +5077,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Select a version to see its details."
+          }
+        }
+      }
+    },
+    "选择要下载的 Simulator Runtime 平台": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose which platform's Simulator Runtime to download"
           }
         }
       }

@@ -195,6 +195,37 @@ final class DiskUsageTests: XCTestCase {
         XCTAssertEqual(SimulatorRuntimeReclaim.unusedDays, 30)
     }
 
+    // MARK: - Runtime 删除后的那一行状态
+
+    /// The four branches, which used to live in `DiskCleanupStore` where nothing could
+    /// reach them without running real `simctl` commands. The distinction that matters is
+    /// "nothing was left to delete" (not an error) versus "the delete failed" (an error).
+    func testRuntimeRemovalSummaryDistinguishesTheFourOutcomes() {
+        let failed = RuntimeRemovalSummary.make(
+            removed: [],
+            alreadyGone: [],
+            failed: ["iOS 27.0 — No matching images found to delete"]
+        )
+        XCTAssertTrue(failed.isError, "有失败项就必须是错误")
+
+        let mixed = RuntimeRemovalSummary.make(removed: ["iOS 26.3"], alreadyGone: ["iOS 27.0"], failed: [])
+        XCTAssertFalse(mixed.isError)
+        XCTAssertTrue(mixed.message.contains("iOS 26.3"), "混合结果要同时提到清掉的和已经不在的")
+        XCTAssertTrue(mixed.message.contains("iOS 27.0"))
+
+        let removed = RuntimeRemovalSummary.make(removed: ["iOS 26.3"], alreadyGone: [], failed: [])
+        XCTAssertFalse(removed.isError)
+        XCTAssertTrue(removed.message.contains("iOS 26.3"))
+
+        let gone = RuntimeRemovalSummary.make(removed: [], alreadyGone: ["iOS 27.0"], failed: [])
+        XCTAssertFalse(gone.isError, "东西本来就没了不是失败")
+        XCTAssertTrue(gone.message.contains("iOS 27.0"))
+
+        let nothing = RuntimeRemovalSummary.make(removed: [], alreadyGone: [], failed: [])
+        XCTAssertFalse(nothing.isError)
+        XCTAssertEqual(nothing.message, String(localized: "没有需要清理的 Runtime。"))
+    }
+
     /// The predicate the delete path uses to tell "nothing matched" from a real
     /// failure. Getting it wrong in either direction is user-visible: too narrow and
     /// an already-removed runtime is reported as 清理失败, too wide and a genuine

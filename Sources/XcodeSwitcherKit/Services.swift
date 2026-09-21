@@ -638,13 +638,18 @@ public enum XcodeTooling {
         )
     }
 
-    public static func downloadIOSRuntime(
-        for installation: XcodeInstallation,
+    /// Downloads the Simulator runtime for one platform.
+    ///
+    /// `-downloadPlatform` takes exactly `iOS|watchOS|tvOS|visionOS`; each is a separate
+    /// multi-gigabyte download, so this stays one platform per call and the UI picks.
+    public static func downloadRuntime(
+        for platform: SimulatorPlatform,
+        installation: XcodeInstallation,
         progress: (@Sendable (String) -> Void)? = nil
     ) -> ProcessResult {
         ProcessRunner.run(
             executable: "/usr/bin/xcodebuild",
-            arguments: ["-downloadPlatform", "iOS"],
+            arguments: ["-downloadPlatform", platform.rawValue],
             environment: ["DEVELOPER_DIR": installation.developerURL.path],
             timeout: 7_200,
             progress: progress

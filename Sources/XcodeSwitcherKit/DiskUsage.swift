@@ -135,6 +135,48 @@ public enum DiskUsageReporter {
     }
 }
 
+/// The one status line a runtime removal produces, as a pure function.
+///
+/// It lives here rather than in `DiskCleanupStore` because the store can only be
+/// exercised by running real `simctl` commands, so the four branches below — and the
+/// difference between "nothing was left to delete" and "the delete failed" — had no
+/// test at all. `audit_unlocalized_strings.py` enforced the wording; nothing enforced
+/// the logic.
+public enum RuntimeRemovalSummary {
+    /// - Parameters:
+    ///   - removed: labels that are gone now.
+    ///   - alreadyGone: labels whose image no longer existed, which is an outcome rather
+    ///     than a failure — the usual reason a row looked clickable.
+    ///   - failed: `label — simctl 的原话` entries.
+    public static func make(
+        removed: [String],
+        alreadyGone: [String],
+        failed: [String]
+    ) -> (message: String, isError: Bool) {
+        if !failed.isEmpty {
+            return (String(localized: "清理失败：\(failed.joined(separator: "、"))"), true)
+        }
+        if !removed.isEmpty, !alreadyGone.isEmpty {
+            return (
+                String(
+                    localized: "已清理 \(removed.count) 个 Runtime：\(removed.joined(separator: "、"))；另有 \(alreadyGone.joined(separator: "、")) 已经不存在。"
+                ),
+                false
+            )
+        }
+        if !removed.isEmpty {
+            return (
+                String(localized: "已清理 \(removed.count) 个 Runtime：\(removed.joined(separator: "、"))。"),
+                false
+            )
+        }
+        if !alreadyGone.isEmpty {
+            return (String(localized: "\(alreadyGone.joined(separator: "、")) 已经不存在，列表已刷新。"), false)
+        }
+        return (String(localized: "没有需要清理的 Runtime。"), false)
+    }
+}
+
 /// The bulk reclaim operations `simctl runtime delete` accepts.
 ///
 /// Which images qualify is left entirely to `simctl`, on purpose. Its `--outdated`

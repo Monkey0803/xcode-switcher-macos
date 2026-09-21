@@ -376,34 +376,45 @@ final class InstallationStore: ObservableObject {
         searchPathsDidChange()
     }
 
-    func hasAvailableRuntime(for installation: XcodeInstallation) -> Bool {
+    /// Whether this installation already has an available runtime for `platform`.
+    ///
+    /// For iOS the installed runtime is additionally checked against the iPhoneOS SDK
+    /// version, as before. For the other platforms the SDK version of the *iOS* platform
+    /// says nothing about them, so "any available runtime of this platform" is the
+    /// honest answer.
+    func hasAvailableRuntime(for installation: XcodeInstallation, platform: SimulatorPlatform = .iOS) -> Bool {
         guard let runtimes = runtimesByID[installation.id] else { return false }
-        if let sdkVersion = detailsByID[installation.id]?.sdkVersion,
-           !sdkVersion.isEmpty,
-           sdkVersion != XcodeDetails.unknownValue {
-            return runtimes.contains { $0.isAvailable && $0.version == sdkVersion }
+        let matching = runtimes.filter { $0.isAvailable && platform.owns(runtimeIdentifier: $0.id) }
+        guard platform == .iOS,
+              let sdkVersion = detailsByID[installation.id]?.sdkVersion,
+              !sdkVersion.isEmpty,
+              sdkVersion != XcodeDetails.unknownValue else {
+            return !matching.isEmpty
         }
-        return runtimes.contains(where: { $0.isAvailable })
+        return matching.contains { $0.version == sdkVersion }
     }
 
-    func downloadRuntime() {
+    func downloadRuntime(platform: SimulatorPlatform = .iOS) {
         guard let installation = selectedInstallation, !runtimeDownload.isDownloading else { return }
-        if hasAvailableRuntime(for: installation) {
-            status?.statusMessage = String(localized: "当前 Xcode 已有可用的 iOS Simulator Runtime。")
+        if hasAvailableRuntime(for: installation, platform: platform) {
+            status?.statusMessage = String(localized: "当前 Xcode 已有可用的 \(platform.displayName) Simulator Runtime。")
             status?.isError = false
             return
         }
         runtimeDownload.begin(String(localized: "正在准备下载…"))
-        status?.statusMessage = String(localized: "正在下载 iOS Simulator Runtime…")
+        status?.statusMessage = String(localized: "正在下载 \(platform.displayName) Simulator Runtime…")
+        AppLog.logger(.runtime).info(
+            "\(platform.rawValue, privacy: .public) runtime download requested for \(installation.id, privacy: .public)"
+        )
         runtimeDownloadTask = Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
-            let result = XcodeTooling.downloadIOSRuntime(for: installation) { output in
+            let result = XcodeTooling.downloadRuntime(for: platform, installation: installation) { output in
                 let message = output.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !message.isEmpty else { return }
                 Task { @MainActor in self.runtimeDownload.update(message) }
             }
             let runtimes = result.succeeded ? XcodeTooling.simulatorRuntimes(for: installation) : nil
-            await self.completeRuntimeDownload(result: result, runtimes: runtimes, installationID: installation.id)
+            await self.completeRuntimeDownload(result: result, runtimes: runtimes, installationID: installation.id, platform: platform)
         }
     }
 
@@ -544,20 +555,25 @@ final class InstallationStore: ObservableObject {
         owner?.persist()
     }
 
-    private func completeRuntimeDownload(result: ProcessResult, runtimes: [SimulatorRuntime]?, installationID: String) {
+    private func completeRuntimeDownload(
+        result: ProcessResult,
+        runtimes: [SimulatorRuntime]?,
+        installationID: String,
+        platform: SimulatorPlatform
+    ) {
         runtimeDownloadTask = nil
         status?.isError = !result.succeeded && !result.cancelled
         let downloadLog = AppLog.logger(.runtime)
         if result.succeeded {
-            downloadLog.notice("iOS runtime download finished for \(installationID, privacy: .public)")
-            status?.statusMessage = String(localized: "iOS Simulator Runtime 下载命令已完成。")
+            downloadLog.notice("\(platform.rawValue, privacy: .public) runtime download finished for \(installationID, privacy: .public)")
+            status?.statusMessage = String(localized: "\(platform.displayName) Simulator Runtime 下载命令已完成。")
             runtimeDownload.finish(String(localized: "下载完成"))
         } else if result.cancelled {
-            downloadLog.notice("iOS runtime download cancelled for \(installationID, privacy: .public)")
-            status?.statusMessage = String(localized: "已取消 iOS Simulator Runtime 下载。")
+            downloadLog.notice("\(platform.rawValue, privacy: .public) runtime download cancelled for \(installationID, privacy: .public)")
+            status?.statusMessage = String(localized: "已取消 \(platform.displayName) Simulator Runtime 下载。")
             runtimeDownload.finish(String(localized: "已取消"))
         } else {
-            downloadLog.error("iOS runtime download failed for \(installationID, privacy: .public): \(result.failureDescription, privacy: .public)")
+            downloadLog.error("\(platform.rawValue, privacy: .public) runtime download failed for \(installationID, privacy: .public): \(result.failureDescription, privacy: .public)")
             status?.statusMessage = String(localized: "下载失败：\(result.failureDescription)")
             runtimeDownload.finish(result.failureDescription)
         }

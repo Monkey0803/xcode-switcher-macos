@@ -1206,6 +1206,14 @@ struct RuntimeSectionView: View {
     @EnvironmentObject private var model: XcodeViewModel
     let installation: XcodeInstallation
     @ObservedObject var download: RuntimeDownloadState
+    /// Which platform the download button acts on. iOS is the common case and stays the
+    /// default; the other three are one `-downloadPlatform` call each, so they share the
+    /// same button rather than growing one button per platform.
+    @State private var platform: SimulatorPlatform = .iOS
+
+    private var isPlatformInstalled: Bool {
+        model.hasAvailableRuntime(for: installation, platform: platform)
+    }
 
     var body: some View {
         GroupBox("Simulator Runtime") {
@@ -1236,11 +1244,20 @@ struct RuntimeSectionView: View {
                 .foregroundStyle(.secondary)
         }
         HStack {
-            Button(model.hasAvailableRuntime(for: installation) ? "Runtime 已安装" : "下载 iOS Runtime") {
-                model.downloadRuntime()
+            Picker("Runtime 平台", selection: $platform) {
+                ForEach(SimulatorPlatform.allCases) { candidate in
+                    Text(candidate.displayName).tag(candidate)
+                }
+            }
+            .labelsHidden()
+            .fixedSize()
+            .help("选择要下载的 Simulator Runtime 平台")
+            .disabled(download.isDownloading)
+            Button(isPlatformInstalled ? String(localized: "Runtime 已安装") : String(localized: "下载 \(platform.displayName) Runtime")) {
+                model.downloadRuntime(platform: platform)
             }
             .accessibilityIdentifier("download-runtime-button-\(installation.id)")
-            .disabled(download.isDownloading || model.hasAvailableRuntime(for: installation))
+            .disabled(download.isDownloading || isPlatformInstalled)
             if download.isDownloading {
                 Button("取消") { model.cancelRuntimeDownload() }
             }

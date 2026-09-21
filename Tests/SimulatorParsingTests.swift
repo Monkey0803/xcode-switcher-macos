@@ -71,4 +71,23 @@ final class SimulatorParsingTests: XCTestCase {
         XCTAssertEqual(XcodeTooling.deletionReason(result), result.failureDescription)
         XCTAssertFalse(result.failureDescription.isEmpty)
     }
+
+    /// The platform decides two things: which `-downloadPlatform` value is passed, and
+    /// whether an installed runtime counts as "this platform already has one". visionOS
+    /// is the case worth pinning down — its runtime identifiers use Apple's `xrOS`
+    /// spelling, while the download name is `visionOS`.
+    func testPlatformsRecogniseOnlyTheirOwnRuntimes() {
+        XCTAssertEqual(SimulatorPlatform.allCases.map(\.rawValue), ["iOS", "watchOS", "tvOS", "visionOS"])
+
+        XCTAssertTrue(SimulatorPlatform.iOS.owns(runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.iOS-26-3"))
+        XCTAssertTrue(SimulatorPlatform.watchOS.owns(runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.watchOS-26-3"))
+        XCTAssertTrue(SimulatorPlatform.tvOS.owns(runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.tvOS-26-3"))
+        XCTAssertTrue(SimulatorPlatform.visionOS.owns(runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.xrOS-26-0"))
+        XCTAssertTrue(SimulatorPlatform.visionOS.owns(runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.visionOS-26-0"))
+
+        // `watchOS`/`tvOS` must not be read as iOS: neither spelling contains "ios".
+        XCTAssertFalse(SimulatorPlatform.iOS.owns(runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.watchOS-26-3"))
+        XCTAssertFalse(SimulatorPlatform.iOS.owns(runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.tvOS-26-3"))
+        XCTAssertFalse(SimulatorPlatform.watchOS.owns(runtimeIdentifier: "com.apple.CoreSimulator.SimRuntime.iOS-26-3"))
+    }
 }

@@ -185,6 +185,39 @@ public struct SimulatorDevice: Identifiable, Hashable, Sendable {
     public var isBooted: Bool { state.caseInsensitiveCompare("Booted") == .orderedSame }
 }
 
+/// The platforms `xcodebuild -downloadPlatform` accepts, verified against
+/// `xcodebuild -help` on 2026-09-21: `iOS|watchOS|tvOS|visionOS`.
+///
+/// The download name is not always how the installed runtime identifies itself:
+/// visionOS runtimes are spelled `xrOS`
+/// (`com.apple.CoreSimulator.SimRuntime.xrOS-26-0`), so both spellings are matched when
+/// asking whether this platform already has a runtime.
+public enum SimulatorPlatform: String, CaseIterable, Identifiable, Sendable {
+    case iOS
+    case watchOS
+    case tvOS
+    case visionOS
+
+    public var id: String { rawValue }
+
+    /// The platform's name, which is also what `-downloadPlatform` takes. Apple's
+    /// platform names are not translated.
+    public var displayName: String { rawValue }
+
+    /// Substrings that identify this platform inside a runtime identifier.
+    var runtimeIdentifierFragments: [String] {
+        switch self {
+        case .iOS, .watchOS, .tvOS: return [rawValue]
+        case .visionOS: return ["visionOS", "xrOS"]
+        }
+    }
+
+    /// Whether an installed runtime belongs to this platform.
+    public func owns(runtimeIdentifier: String) -> Bool {
+        runtimeIdentifierFragments.contains { runtimeIdentifier.localizedCaseInsensitiveContains($0) }
+    }
+}
+
 public struct XcodeDiagnostic: Identifiable, Sendable {
     public let id: String
     public let title: String

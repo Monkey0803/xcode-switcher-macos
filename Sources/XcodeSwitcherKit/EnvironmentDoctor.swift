@@ -79,7 +79,7 @@ public enum EnvironmentDoctor {
                 : String(localized: "已安装 \(availableRuntimes.count) 个可用 Runtime：\(availableRuntimes.map { "\($0.name) \($0.version)" }.joined(separator: "、"))"),
             severity: availableRuntimes.isEmpty ? .warning : .healthy,
             remediation: availableRuntimes.isEmpty
-                ? String(localized: "在 App 中下载 iOS Runtime，或打开 Xcode Settings。")
+                ? String(localized: "在 App 中下载 Simulator Runtime，或打开 Xcode Settings。")
                 : nil
         ))
 

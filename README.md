@@ -70,6 +70,15 @@ cd xcode-switcher-macos && ./build_app.sh
 - 支持登录时启动、仅在菜单栏运行；正式签名构建使用 Sparkle 2 自动更新，直接分发构建可检查 GitHub Releases 并跳转下载。
 - App 与 CLI 均仅面向 Apple Silicon（`arm64`）构建，并提供本地直接分发 ZIP/DMG，以及可选的 Developer ID 签名、公证、DMG 与 appcast 发布脚本。
 
+## 已知取舍
+
+有些能力是**刻意不做**的，写在这里免得每次都被重新提起；每条的完整理由与将来若重开的前置条件都在链接的决策文档里。
+
+- **不在应用内下载或安装 Xcode**：版本列表只到「打开 Apple 下载页 / 复制直链」为止。直链 `.xip` 需要开发者会话 cookie，应用内实现它等于索取 Apple ID 凭据，而这与「ad-hoc 签名、未公证」的分发形态不相称。见 [2026-09-21-no-in-app-xcode-download.md](docs/superpowers/plans/2026-09-21-no-in-app-xcode-download.md)。
+- **不做 App Intents / Shortcuts**：前置是把 `XcodeInstallation.id` 从每台机器不同的路径换成跨设备稳定标识，那会波及所有以安装 ID 为键的持久化数据；而意图能表达的动作（切换、按项目打开）CLI 已经覆盖，Shortcuts 用「运行 Shell 脚本」调用 `xcodeswitcher` 即可。见 [2026-09-21-no-app-intents.md](docs/superpowers/plans/2026-09-21-no-app-intents.md)。
+- **不做正式签名与公证分发**：`build_release.sh` 保留可用，但需要 Developer ID 与公证凭据，不是本项目的发布路径；GitHub 上的产物是 ad-hoc 签名，首次启动需要手动放行一次。
+- **不迁移提权方式**：系统级切换仍走自 macOS 10.7 起废弃但可用的 `AuthorizationExecuteWithPrivileges`。换成 `SMAppService` 特权 helper 需要公证（含 LaunchDaemon 的应用必须被公证），而本项目没有 Developer ID。理由已写在代码注释里。
+
 ## 构建与运行
 
 > 构建需要 **Xcode 26 或更新**（macOS 26 SDK）：Liquid Glass 适配用到的 `NSGlassEffectView` 是 macOS 26 API，`#available` 无法让旧 SDK 通过编译。「最低支持 macOS 15」指的是运行时。

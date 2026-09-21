@@ -2,6 +2,10 @@
 
 ## 未发布
 
+### 新增
+
+- **Simulator Runtime 下载支持四个平台**：此前只下载 iOS，现在可选 iOS / watchOS / tvOS / visionOS（模拟器页新增平台选择器，「Runtime 已安装」按所选平台判断）。visionOS 的运行时标识符用 Apple 的 `xrOS` 拼写，与下载名 `visionOS` 不同，两种拼写都会匹配；非 iOS 平台不再拿 iPhoneOS SDK 版本去比对「是否已安装」。
+
 ### 修复
 
 - **Xcode 27 / macOS 27 下无法构建与测试**：`swift build`、`swift test`（因而 `run_smoke_test.sh`）在 Xcode 27 上编译 CLI 目标时报 `unable to open dependencies file …/CLIEntryPoint.d`。根因是 `Package.swift` 里两个 SwiftPM **产品**名只差大小写——app 的 `XcodeSwitcher` 与 CLI 的 `xcodeswitcher`；新版 Swift Build 后端按 `<产品名>-p.build` 建立目录，而 APFS 默认大小写不敏感，两者塌进同一个目录（实测同一 inode），互相覆盖文件列表与 output map。app 产品改名 `XcodeSwitcherApp`（与 `CFBundleExecutable` 一致）后修复；目标名早就为此改过（`xcodeswitcher-cli`），产品名漏了。Xcode 27.1 与 26.3 下均实测 `swift build` 与 `run_smoke_test.sh` 通过。注意这不等于 formula 支持 macOS 27——那条还卡在 Homebrew 沙箱的 SDK 27 `@State` 宏问题上。
@@ -12,6 +16,7 @@
 
 - **工程**：新增 `Scripts/sync_tap_repo.sh`，把 `Casks/` 与 `Formula/` 同步进 Homebrew tap 仓库（并改掉 tap README 里的两处版本引用），打印 diff 与提交/推送命令——推送仍由人做，且必须用 tap 仓库要求的 noreply 提交身份（用本机邮箱会被 GitHub 拒收）。此前这一步完全靠记忆：v2.0.0 发布时就没做，于是 `brew install --cask xcode-switcher` 在两个版本里一直提供 1.5.1，且那个 cask 还写着 `depends_on macos: :ventura`。
 - **工程**：新增应用日志（`AppLog`，subsystem `com.yostar.xcodeswitcher`，按领域分为 launch / switching / cleanup / runtime / release / projects / environment / settings）。每次启动先记「哪个构建、哪个系统、哪个开发者目录」，切换、清理目录、删除 Runtime、Runtime 下载与发布索引加载各记一条——界面上这些失败只有一行状态消息，此前排查只能读代码并现场复现。取证方式见 `AGENTS.md` 的「Diagnosing from the log」。
+- **工程**：删除 Runtime 后那行状态的四条分支（有失败 / 混合 / 仅清掉 / 仅已不存在）抽成 Kit 的 `RuntimeRemovalSummary`，此前它们只存在于 `DiskCleanupStore`，不跑真实 `simctl` 就无法触达、因此没有测试；混合情形改为列出已经不存在的那几个名字，不再只给个数。
 
 ## 2.1.0 - 2026-09-21
 

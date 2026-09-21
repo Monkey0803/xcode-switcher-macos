@@ -236,10 +236,10 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     }
     func addSearchPath() { installs.addSearchPath() }
     func removeSearchPath(_ path: String) { installs.removeSearchPath(path) }
-    func hasAvailableRuntime(for installation: XcodeInstallation) -> Bool {
-        installs.hasAvailableRuntime(for: installation)
+    func hasAvailableRuntime(for installation: XcodeInstallation, platform: SimulatorPlatform = .iOS) -> Bool {
+        installs.hasAvailableRuntime(for: installation, platform: platform)
     }
-    func downloadRuntime() { installs.downloadRuntime() }
+    func downloadRuntime(platform: SimulatorPlatform = .iOS) { installs.downloadRuntime(platform: platform) }
     func cancelRuntimeDownload() { installs.cancelRuntimeDownload() }
     func simulatorDevices(for installation: XcodeInstallation) -> [SimulatorDevice] {
         installs.simulatorDevices(for: installation)

@@ -334,28 +334,13 @@ final class DiskCleanupStore: ObservableObject {
         if !report.failed.isEmpty {
             runtimeLog.error("failed: \(report.failed.joined(separator: " | "), privacy: .public)")
         }
-        if !report.failed.isEmpty {
-            status?.isError = true
-            status?.statusMessage = String(localized: "清理失败：\(report.failed.joined(separator: "、"))")
-        } else if !report.removed.isEmpty, !report.alreadyGone.isEmpty {
-            status?.isError = false
-            status?.statusMessage = String(
-                localized: "已清理 \(report.removed.count) 个 Runtime：\(report.removed.joined(separator: "、"))；另有 \(report.alreadyGone.count) 个已经不存在。"
-            )
-        } else if !report.removed.isEmpty {
-            status?.isError = false
-            status?.statusMessage = String(
-                localized: "已清理 \(report.removed.count) 个 Runtime：\(report.removed.joined(separator: "、"))。"
-            )
-        } else if !report.alreadyGone.isEmpty {
-            status?.isError = false
-            status?.statusMessage = String(
-                localized: "\(report.alreadyGone.joined(separator: "、")) 已经不存在，列表已刷新。"
-            )
-        } else {
-            status?.isError = false
-            status?.statusMessage = String(localized: "没有需要清理的 Runtime。")
-        }
+        let summary = RuntimeRemovalSummary.make(
+            removed: report.removed,
+            alreadyGone: report.alreadyGone,
+            failed: report.failed
+        )
+        status?.isError = summary.isError
+        status?.statusMessage = summary.message
         // Both the measured sizes and the installed-runtime list have changed.
         loadRuntimeSizes(for: installation, force: true)
         reloadInstalledRuntimes(installation)
