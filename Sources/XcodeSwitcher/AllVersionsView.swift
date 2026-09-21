@@ -266,9 +266,7 @@ struct AllVersionsView: View {
                 if let notes = release.notesURL {
                     Link("发行说明", destination: notes).font(.subheadline)
                 }
-                if let download = release.downloadURL {
-                    Link("下载", destination: download).font(.subheadline)
-                }
+                DownloadLink(release: release)
             }
         }
         .padding(.vertical, 3)
@@ -289,6 +287,31 @@ struct AllVersionsView: View {
 /// Everything comes from the index; when the selected release is also installed here,
 /// the bundle's own numbers are shown alongside so the two can be compared, and the
 /// main window can be pointed at that installation.
+/// The download affordance, the same in a row and in the facts sidebar.
+///
+/// It opens Apple's downloads page rather than the raw `.xip`: that URL needs a developer
+/// session cookie, and without one Apple answers with a redirect to `/unauthorized/` — which
+/// is what a direct link looked like to anyone not already signed in. The direct link stays
+/// on the context menu, for download managers and scripts.
+private struct DownloadLink: View {
+    let release: XcodeReleaseInfo
+
+    var body: some View {
+        if let page = release.downloadsPageURL {
+            Link("下载", destination: page)
+                .font(.subheadline)
+                .help("在 Apple 开发者网站下载：需要登录并接受许可")
+                .contextMenu {
+                    if let direct = release.downloadURL {
+                        Button("复制直链") {
+                            NSPasteboard.general.replaceContents(with: direct.absoluteString)
+                        }
+                    }
+                }
+        }
+    }
+}
+
 private struct ReleaseInfoSidebar: View {
     @EnvironmentObject private var model: XcodeViewModel
     let release: XcodeReleaseInfo?
@@ -391,9 +414,7 @@ private struct ReleaseInfoSidebar: View {
                 if let notes = release.notesURL {
                     Link("发行说明", destination: notes).font(.subheadline)
                 }
-                if let download = release.downloadURL {
-                    Link("下载", destination: download).font(.subheadline)
-                }
+                DownloadLink(release: release)
             }
         }
     }

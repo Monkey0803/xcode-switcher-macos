@@ -609,16 +609,16 @@
     },
     "使用的是 %@，正在体检的是 %@。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "使用的是 %1$@，正在体检的是 %2$@。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "It uses %@; this check is inspecting %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "使用的是 %1$@，正在体检的是 %2$@。"
           }
         }
       }
@@ -1177,6 +1177,16 @@
         }
       }
     },
+    "在 Apple 开发者网站下载：需要登录并接受许可": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download from Apple's developer site: signing in and accepting the license are required."
+          }
+        }
+      }
+    },
     "在 Finder 中显示": {
       "localizations": {
         "en": {
@@ -1283,6 +1293,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy Report"
+          }
+        }
+      }
+    },
+    "复制直链": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Direct Link"
           }
         }
       }
@@ -4051,16 +4071,16 @@
     },
     "终端里 xcodebuild 用的是 %@，正在体检的是 %@。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "终端里 xcodebuild 用的是 %1$@，正在体检的是 %2$@。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "The terminal's xcodebuild uses %@; this check is inspecting %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "终端里 xcodebuild 用的是 %1$@，正在体检的是 %2$@。"
           }
         }
       }

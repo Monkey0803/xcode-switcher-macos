@@ -168,6 +168,39 @@ extension XcodeReleaseInfo {
         return .runs
     }
 
+    /// The query Apple's downloads page expects in `?q=`.
+    ///
+    /// Apple titles these entries "Xcode 27.1 beta 1" and "Xcode 26.3", so the channel word
+    /// only appears for pre-releases — and it is deliberately **not** the localized
+    /// `Channel.label`, which is display text (「正式版」) that would find nothing there.
+    var downloadsPageQuery: String {
+        switch channel {
+        case .release:
+            return "Xcode \(version)"
+        case .goldenMaster(let seed):
+            return seed.map { "Xcode \(version) GM seed \($0)" } ?? "Xcode \(version) GM"
+        case .releaseCandidate(let number):
+            return "Xcode \(version) RC \(number)"
+        case .beta(let number):
+            return "Xcode \(version) beta \(number)"
+        case .developerPreview(let number):
+            return "Xcode \(version) DP \(number)"
+        }
+    }
+
+    /// The download page that works for a person: it signs them in and asks for the license,
+    /// then offers the file.
+    ///
+    /// `downloadURL` is the raw asset on `download.developer.apple.com`, which needs a
+    /// developer session cookie this app cannot supply; without one Apple does not return an
+    /// error but redirects to `/unauthorized/`. Verified 2026-09-21 against the real URL —
+    /// `HTTP/2 302, location: https://developer.apple.com/unauthorized/`.
+    var downloadsPageURL: URL? {
+        var components = URLComponents(string: "https://developer.apple.com/download/all/")
+        components?.queryItems = [URLQueryItem(name: "q", value: downloadsPageQuery)]
+        return components?.url
+    }
+
     /// The running macOS written the way the index writes it ("15.6"), so a requirement
     /// and this Mac can be read side by side without reformatting either.
     static var runningOSDescription: String {

@@ -557,13 +557,51 @@ final class XcodeReleaseInfoTests: XCTestCase {
     private func makeRelease(
         version: String = "26.6",
         build: String = "17F113",
+        channel: XcodeReleaseInfo.Channel = .release,
         minimumMacOS: String? = nil,
         architectures: [String] = ["arm64"]
     ) -> XcodeReleaseInfo {
         XcodeReleaseInfo(
-            name: "Xcode", version: version, build: build, channel: .release,
+            name: "Xcode", version: version, build: build, channel: channel,
             releaseDate: nil, minimumMacOS: minimumMacOS, sdks: [], swift: nil, clang: nil,
             notesURL: nil, downloadURL: nil, downloadArchitectures: architectures
         )
+    }
+
+    // MARK: - 下载页链接
+
+    func testDownloadsPageQueryMatchesApplesTitles() {
+        XCTAssertEqual(makeRelease(version: "27.1", channel: .beta(1)).downloadsPageQuery, "Xcode 27.1 beta 1")
+        XCTAssertEqual(makeRelease(version: "26.3", channel: .release).downloadsPageQuery, "Xcode 26.3")
+        XCTAssertEqual(makeRelease(version: "26.0", channel: .releaseCandidate(2)).downloadsPageQuery, "Xcode 26.0 RC 2")
+        XCTAssertEqual(makeRelease(version: "26.0", channel: .goldenMaster(seed: 1)).downloadsPageQuery, "Xcode 26.0 GM seed 1")
+        XCTAssertEqual(makeRelease(version: "26.0", channel: .goldenMaster(seed: nil)).downloadsPageQuery, "Xcode 26.0 GM")
+    }
+
+    func testDownloadsPageQueryDoesNotUseTheDisplayLabel() {
+        let release = makeRelease(version: "26.3", channel: .release)
+        XCTAssertFalse(
+            release.downloadsPageQuery.contains(release.channel.label),
+            "查询词要用 Apple 的英文标题，不能用界面标签（正式版）——那样在 Apple 站上搜不到"
+        )
+    }
+
+    func testDownloadsPageURLCarriesTheQuery() throws {
+        let url = try XCTUnwrap(makeRelease(version: "27.1", channel: .beta(1)).downloadsPageURL)
+
+        XCTAssertEqual(url.host, "developer.apple.com")
+        // `URL.path` 会去掉结尾斜杠，真正被打开的是 absoluteString，所以两处都盯着。
+        XCTAssertEqual(url.path, "/download/all")
+        XCTAssertTrue(url.absoluteString.hasPrefix("https://developer.apple.com/download/all/"))
+        XCTAssertEqual(url.query, "q=Xcode%2027.1%20beta%201")
+    }
+
+    func testDownloadsPageIsNotTheRawAssetURL() {
+        // 直链在 developer.apple.com 的下载主机上，需要开发者会话 cookie；未登录时
+        // Apple 不报错而是 302 到 /unauthorized/，所以人点的那条要换成下载页。
+        let release = makeRelease(version: "27.1", channel: .beta(1))
+        let page = release.downloadsPageURL?.absoluteString ?? ""
+        XCTAssertFalse(page.contains("download.developer.apple.com"))
+        XCTAssertTrue(page.hasPrefix("https://developer.apple.com/download/all/"))
     }
 }
