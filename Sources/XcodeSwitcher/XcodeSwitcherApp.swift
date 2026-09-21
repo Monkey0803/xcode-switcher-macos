@@ -30,7 +30,7 @@ struct XcodeSwitcherApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     static weak var shared: AppDelegate?
-    let model = XcodeViewModel()
+    let model: XcodeViewModel
     private var statusItem: NSStatusItem!
     private let menu = NSMenu()
     private var settingsWindow: NSWindow?
@@ -44,6 +44,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// not depend on user-visible, localized strings.
     private static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherMainWindow")
     private static let settingsWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherSettingsWindow")
+    private static let uiTestingEnvironmentKey = "XCODE_SWITCHER_UI_TESTING"
+    private static let uiTestingDefaultsSuite = "com.yostar.xcodeswitcher.uitests"
+
+    private static var isRunningUITests: Bool {
+        ProcessInfo.processInfo.environment[uiTestingEnvironmentKey] == "1"
+    }
 
     /// "Xcode Switcher 2.1.0 (8)", for the launch line of the log.
     private static var versionDescription: String {
@@ -63,8 +69,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     override init() {
+        model = Self.makeModel()
         super.init()
         Self.shared = self
+    }
+
+    /// UI tests must exercise the shipped application process, while still
+    /// avoiding the user's configuration, language choice, login item, global
+    /// shortcut, and update service. The test process opts into this mode with
+    /// an environment variable that production launches never set.
+    private static func makeModel() -> XcodeViewModel {
+        guard isRunningUITests else { return XcodeViewModel() }
+
+        let defaults = UserDefaults(suiteName: uiTestingDefaultsSuite)!
+        defaults.removePersistentDomain(forName: uiTestingDefaultsSuite)
+        let configurationURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("XcodeSwitcherUITests-\(ProcessInfo.processInfo.processIdentifier).json")
+        return XcodeViewModel(
+            store: AppConfigurationStore(fileURL: configurationURL),
+            languageDefaults: defaults,
+            configuresSystemServices: false
+        )
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -81,7 +106,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
         statusItem.menu = menu
-        model.refresh()
+        if !Self.isRunningUITests {
+            model.refresh()
+        }
         rebuildMenu()
         // Keep the version in the menu bar current even when it changes outside
         // this app, for example after `xcode-select --switch` in a terminal.
@@ -90,7 +117,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         updateStatusItemTitle()
         model.onSearchPathsChanged = { [weak self] in self?.startWatchingSearchPaths() }
-        startWatchingSearchPaths()
+        if !Self.isRunningUITests {
+            startWatchingSearchPaths()
+        }
         applyMenuBarOnly(model.configuration.menuBarOnly)
     }
 

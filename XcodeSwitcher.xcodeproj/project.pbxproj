@@ -591,6 +591,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>7644CAF9C8FF7FE999A35516</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>XcodeSwitcherUITests.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>02DB7A12A374000CF03441C2</key>
 		<dict>
 			<key>isa</key>
@@ -601,6 +612,19 @@
 			<string>0</string>
 			<key>path</key>
 			<string>XcodeSwitcherTests.xctest</string>
+			<key>sourceTree</key>
+			<string>BUILT_PRODUCTS_DIR</string>
+		</dict>
+		<key>E859077B87115C04221AF4D2</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>explicitFileType</key>
+			<string>wrapper.cfbundle</string>
+			<key>includeInIndex</key>
+			<string>0</string>
+			<key>path</key>
+			<string>XcodeSwitcherUITests.xctest</string>
 			<key>sourceTree</key>
 			<string>BUILT_PRODUCTS_DIR</string>
 		</dict>
@@ -1094,6 +1118,13 @@
 			<key>fileRef</key>
 			<string>4DE67949251C57619C3CB4A6</string>
 		</dict>
+		<key>7803BB7B350A7AD0B8165C8F</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>7644CAF9C8FF7FE999A35516</string>
+		</dict>
 		<key>7334445A4762D28B5DB6C5D5</key>
 		<dict>
 			<key>isa</key>
@@ -1340,6 +1371,31 @@
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<string>0</string>
 		</dict>
+		<key>62DE9E551681C8BDED7A2BA2</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXSourcesBuildPhase</string>
+			<key>buildActionMask</key>
+			<string>2147483647</string>
+			<key>files</key>
+			<array>
+				<string>7803BB7B350A7AD0B8165C8F</string>
+			</array>
+			<key>runOnlyForDeploymentPostprocessing</key>
+			<string>0</string>
+		</dict>
+		<key>57F934F361960FE8FB641B36</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFrameworksBuildPhase</string>
+			<key>buildActionMask</key>
+			<string>2147483647</string>
+			<key>files</key>
+			<array>
+			</array>
+			<key>runOnlyForDeploymentPostprocessing</key>
+			<string>0</string>
+		</dict>
 		<key>3171E301758B47CEACC4039B</key>
 		<dict>
 			<key>isa</key>
@@ -1570,6 +1626,46 @@
 			<key>name</key>
 			<string>Release</string>
 		</dict>
+		<key>127C72A337AD93DFD63B7F91</key>
+		<dict>
+			<key>isa</key>
+			<string>XCBuildConfiguration</string>
+			<key>buildSettings</key>
+			<dict>
+				<key>ENABLE_HARDENED_RUNTIME</key>
+				<string>NO</string>
+				<key>GENERATE_INFOPLIST_FILE</key>
+				<string>YES</string>
+				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
+				<string>com.yostar.xcodeswitcher.uitests</string>
+				<key>PRODUCT_NAME</key>
+				<string>XcodeSwitcherUITests</string>
+				<key>TEST_TARGET_NAME</key>
+				<string>XcodeSwitcher</string>
+			</dict>
+			<key>name</key>
+			<string>Debug</string>
+		</dict>
+		<key>12A1E06FE8115AEB8492A8CE</key>
+		<dict>
+			<key>isa</key>
+			<string>XCBuildConfiguration</string>
+			<key>buildSettings</key>
+			<dict>
+				<key>ENABLE_HARDENED_RUNTIME</key>
+				<string>NO</string>
+				<key>GENERATE_INFOPLIST_FILE</key>
+				<string>YES</string>
+				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
+				<string>com.yostar.xcodeswitcher.uitests</string>
+				<key>PRODUCT_NAME</key>
+				<string>XcodeSwitcherUITests</string>
+				<key>TEST_TARGET_NAME</key>
+				<string>XcodeSwitcher</string>
+			</dict>
+			<key>name</key>
+			<string>Release</string>
+		</dict>
 		<key>733523134FA715B4149C3664</key>
 		<dict>
 			<key>isa</key>
@@ -1716,6 +1812,20 @@
 			<key>defaultConfigurationName</key>
 			<string>Release</string>
 		</dict>
+		<key>ABA6A75556DCF50C711B4F3A</key>
+		<dict>
+			<key>isa</key>
+			<string>XCConfigurationList</string>
+			<key>buildConfigurations</key>
+			<array>
+				<string>127C72A337AD93DFD63B7F91</string>
+				<string>12A1E06FE8115AEB8492A8CE</string>
+			</array>
+			<key>defaultConfigurationIsVisible</key>
+			<string>0</string>
+			<key>defaultConfigurationName</key>
+			<string>Release</string>
+		</dict>
 		<key>A48233495F3F75CE00DFA0A8</key>
 		<dict>
 			<key>isa</key>
@@ -1832,6 +1942,33 @@
 			<string>02DB7A12A374000CF03441C2</string>
 			<key>productType</key>
 			<string>com.apple.product-type.bundle.unit-test</string>
+		</dict>
+		<key>CB09A737ED52EAF8F1EFE63B</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXNativeTarget</string>
+			<key>buildConfigurationList</key>
+			<string>ABA6A75556DCF50C711B4F3A</string>
+			<key>buildPhases</key>
+			<array>
+				<string>62DE9E551681C8BDED7A2BA2</string>
+				<string>57F934F361960FE8FB641B36</string>
+			</array>
+			<key>buildRules</key>
+			<array>
+			</array>
+			<key>dependencies</key>
+			<array>
+				<string>7C3463FDDFC227D4B05379DB</string>
+			</array>
+			<key>name</key>
+			<string>XcodeSwitcherUITests</string>
+			<key>productName</key>
+			<string>XcodeSwitcherUITests</string>
+			<key>productReference</key>
+			<string>E859077B87115C04221AF4D2</string>
+			<key>productType</key>
+			<string>com.apple.product-type.bundle.ui-testing</string>
 		</dict>
 		<key>B4414B8BBDDC1BB24A0BE815</key>
 		<dict>
@@ -1958,6 +2095,19 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>C98EF6A7766EF4CEDB185793</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXGroup</string>
+			<key>children</key>
+			<array>
+				<string>7644CAF9C8FF7FE999A35516</string>
+			</array>
+			<key>path</key>
+			<string>UITests</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>31A5E41A9BD04E385DB196E5</key>
 		<dict>
 			<key>isa</key>
@@ -1967,6 +2117,7 @@
 				<string>2DDA71609E03108BCC14D346</string>
 				<string>6D9C953A5AC303B892F3D859</string>
 				<string>02DB7A12A374000CF03441C2</string>
+				<string>E859077B87115C04221AF4D2</string>
 			</array>
 			<key>name</key>
 			<string>Products</string>
@@ -1983,6 +2134,7 @@
 				<string>39A5B0C87020D1B4C992CFC6</string>
 				<string>08DE04CDE866FBD543ADABDD</string>
 				<string>6AE4BF922F48C888DAF52409</string>
+				<string>C98EF6A7766EF4CEDB185793</string>
 				<string>7FEB43EDA449E96DA6924E44</string>
 				<string>87B010AD78E5FB6D8E0E6905</string>
 				<string>31A5E41A9BD04E385DB196E5</string>
@@ -2035,6 +2187,7 @@
 				<string>520C4A33D0C9ECA5D2D058F3</string>
 				<string>B84FE525FF015DB4D5B12276</string>
 				<string>04EA9A5EC74C4E381470739C</string>
+				<string>CB09A737ED52EAF8F1EFE63B</string>
 			</array>
 		</dict>
 	</dict>

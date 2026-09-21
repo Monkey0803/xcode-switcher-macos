@@ -72,8 +72,11 @@ CLI_OWN_SOURCES = ["CLIEntryPoint.swift"]
 
 TEST_TARGET = "XcodeSwitcherTests"
 TEST_PRODUCT = "XcodeSwitcherTests.xctest"
+UI_TEST_TARGET = "XcodeSwitcherUITests"
+UI_TEST_PRODUCT = "XcodeSwitcherUITests.xctest"
 
 TEST_SOURCES = swift_sources("Tests")
+UI_TEST_SOURCES = swift_sources("UITests")
 
 
 def oid(*parts: str) -> str:
@@ -124,6 +127,7 @@ def build_objects() -> tuple[dict, str]:
     resources_group = oid("group", "Resources")
     scripts_group = oid("group", "Scripts")
     tests_group = oid("group", "Tests")
+    ui_tests_group = oid("group", "UITests")
     products_group = oid("group", "Products")
     main_group = oid("group", "main")
 
@@ -228,6 +232,17 @@ def build_objects() -> tuple[dict, str]:
                 "sourceTree": "<group>",
             },
         )
+    ui_test_source_refs: dict[str, str] = {}
+    for name in UI_TEST_SOURCES:
+        ui_test_source_refs[name] = add(
+            oid("file", "UITests", name),
+            {
+                "isa": "PBXFileReference",
+                "lastKnownFileType": "sourcecode.swift",
+                "path": name,
+                "sourceTree": "<group>",
+            },
+        )
     tests_product_ref = add(
         oid("file", "product", TEST_PRODUCT),
         {
@@ -235,6 +250,16 @@ def build_objects() -> tuple[dict, str]:
             "explicitFileType": "wrapper.cfbundle",
             "includeInIndex": "0",
             "path": TEST_PRODUCT,
+            "sourceTree": "BUILT_PRODUCTS_DIR",
+        },
+    )
+    ui_tests_product_ref = add(
+        oid("file", "product", UI_TEST_PRODUCT),
+        {
+            "isa": "PBXFileReference",
+            "explicitFileType": "wrapper.cfbundle",
+            "includeInIndex": "0",
+            "path": UI_TEST_PRODUCT,
             "sourceTree": "BUILT_PRODUCTS_DIR",
         },
     )
@@ -388,6 +413,8 @@ def build_objects() -> tuple[dict, str]:
     tests_sources_phase = oid("phase", TEST_TARGET, "sources")
     tests_frameworks_phase = oid("phase", TEST_TARGET, "frameworks")
     tests_resources_phase = oid("phase", TEST_TARGET, "resources")
+    ui_tests_sources_phase = oid("phase", UI_TEST_TARGET, "sources")
+    ui_tests_frameworks_phase = oid("phase", UI_TEST_TARGET, "frameworks")
     cli_sources_phase = oid("phase", CLI_TARGET, "sources")
     cli_frameworks_phase = oid("phase", CLI_TARGET, "frameworks")
 
@@ -431,6 +458,15 @@ def build_objects() -> tuple[dict, str]:
             add(
                 oid("buildFile", TEST_TARGET, name),
                 {"isa": "PBXBuildFile", "fileRef": test_source_refs[name]},
+            )
+        )
+
+    ui_test_source_build_files = []
+    for name in UI_TEST_SOURCES:
+        ui_test_source_build_files.append(
+            add(
+                oid("buildFile", UI_TEST_TARGET, name),
+                {"isa": "PBXBuildFile", "fileRef": ui_test_source_refs[name]},
             )
         )
 
@@ -566,6 +602,24 @@ def build_objects() -> tuple[dict, str]:
             "runOnlyForDeploymentPostprocessing": "0",
         },
     )
+    add(
+        ui_tests_sources_phase,
+        {
+            "isa": "PBXSourcesBuildPhase",
+            "buildActionMask": MAX_BUILD_ACTION_MASK,
+            "files": ui_test_source_build_files,
+            "runOnlyForDeploymentPostprocessing": "0",
+        },
+    )
+    add(
+        ui_tests_frameworks_phase,
+        {
+            "isa": "PBXFrameworksBuildPhase",
+            "buildActionMask": MAX_BUILD_ACTION_MASK,
+            "files": [],
+            "runOnlyForDeploymentPostprocessing": "0",
+        },
+    )
 
     # ----------------------------------------------------------- build configs
     def configuration(name: str, settings: dict) -> str:
@@ -676,6 +730,19 @@ def build_objects() -> tuple[dict, str]:
     tests_debug = configuration("Debug", test_settings)
     tests_release = configuration("Release", dict(test_settings))
 
+    ui_test_settings = {
+        # Xcode runs macOS UI tests by loading this bundle into its generated
+        # XCTest runner. The app's hardened runtime setting would make an
+        # ad-hoc runner reject that injected bundle before any test begins.
+        "ENABLE_HARDENED_RUNTIME": "NO",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_IDENTIFIER + ".uitests",
+        "PRODUCT_NAME": UI_TEST_TARGET,
+        "TEST_TARGET_NAME": APP_TARGET,
+    }
+    ui_tests_debug = configuration("Debug", ui_test_settings)
+    ui_tests_release = configuration("Release", dict(ui_test_settings))
+
     cli_settings = {
         "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_IDENTIFIER + ".cli",
         "PRODUCT_NAME": CLI_PRODUCT,
@@ -748,6 +815,15 @@ def build_objects() -> tuple[dict, str]:
             "defaultConfigurationName": "Release",
         },
     )
+    ui_tests_config_list = add(
+        oid("configList", UI_TEST_TARGET),
+        {
+            "isa": "XCConfigurationList",
+            "buildConfigurations": [ui_tests_debug, ui_tests_release],
+            "defaultConfigurationIsVisible": "0",
+            "defaultConfigurationName": "Release",
+        },
+    )
 
     # ----------------------------------------------------------------- targets
     app_target = add(
@@ -815,6 +891,20 @@ def build_objects() -> tuple[dict, str]:
             "productType": "com.apple.product-type.bundle.unit-test",
         },
     )
+    ui_tests_target = add(
+        oid("target", UI_TEST_TARGET),
+        {
+            "isa": "PBXNativeTarget",
+            "buildConfigurationList": ui_tests_config_list,
+            "buildPhases": [ui_tests_sources_phase, ui_tests_frameworks_phase],
+            "buildRules": [],
+            "dependencies": [app_dependency],
+            "name": UI_TEST_TARGET,
+            "productName": UI_TEST_TARGET,
+            "productReference": ui_tests_product_ref,
+            "productType": "com.apple.product-type.bundle.ui-testing",
+        },
+    )
 
     # ------------------------------------------------------------------ groups
     add(
@@ -872,10 +962,19 @@ def build_objects() -> tuple[dict, str]:
         },
     )
     add(
+        ui_tests_group,
+        {
+            "isa": "PBXGroup",
+            "children": [ui_test_source_refs[name] for name in UI_TEST_SOURCES],
+            "path": "UITests",
+            "sourceTree": "<group>",
+        },
+    )
+    add(
         products_group,
         {
             "isa": "PBXGroup",
-            "children": [app_product_ref, cli_product_ref, tests_product_ref],
+            "children": [app_product_ref, cli_product_ref, tests_product_ref, ui_tests_product_ref],
             "name": "Products",
             "sourceTree": "<group>",
         },
@@ -889,6 +988,7 @@ def build_objects() -> tuple[dict, str]:
                 sources_group,
                 cli_sources_group,
                 tests_group,
+                ui_tests_group,
                 resources_group,
                 scripts_group,
                 products_group,
@@ -916,7 +1016,7 @@ def build_objects() -> tuple[dict, str]:
             "productRefGroup": products_group,
             "projectDirPath": "",
             "projectRoot": "",
-            "targets": [app_target, cli_target, kit_target, tests_target],
+            "targets": [app_target, cli_target, kit_target, tests_target, ui_tests_target],
         },
     )
 
@@ -928,7 +1028,7 @@ def scheme_xml(
     target_name: str,
     product: str,
     is_app: bool,
-    test_target_id: str | None = None,
+    test_targets: list[tuple[str, str, str]] | None = None,
 ) -> str:
     buildable = (
         f'            <BuildableReference\n'
@@ -957,21 +1057,21 @@ def scheme_xml(
         else ""
     )
     testables = ""
-    test_build_entry = ""
-    if test_target_id is not None:
-        testables = (
+    test_build_entries = ""
+    for test_target_id, test_target_name, test_product in test_targets or []:
+        testables += (
             '         <TestableReference\n'
             '            skipped = "NO">\n'
             '            <BuildableReference\n'
             '               BuildableIdentifier = "primary"\n'
             f'               BlueprintIdentifier = "{test_target_id}"\n'
-            f'               BuildableName = "{TEST_PRODUCT}"\n'
-            f'               BlueprintName = "{TEST_TARGET}"\n'
+            f'               BuildableName = "{test_product}"\n'
+            f'               BlueprintName = "{test_target_name}"\n'
             f'               ReferencedContainer = "container:{PROJECT_NAME}.xcodeproj">\n'
             '            </BuildableReference>\n'
             '         </TestableReference>\n'
         )
-        test_build_entry = (
+        test_build_entries += (
             '         <BuildActionEntry\n'
             '            buildForTesting = "YES"\n'
             '            buildForRunning = "NO"\n'
@@ -981,8 +1081,8 @@ def scheme_xml(
             '            <BuildableReference\n'
             '               BuildableIdentifier = "primary"\n'
             f'               BlueprintIdentifier = "{test_target_id}"\n'
-            f'               BuildableName = "{TEST_PRODUCT}"\n'
-            f'               BlueprintName = "{TEST_TARGET}"\n'
+            f'               BuildableName = "{test_product}"\n'
+            f'               BlueprintName = "{test_target_name}"\n'
             f'               ReferencedContainer = "container:{PROJECT_NAME}.xcodeproj">\n'
             '            </BuildableReference>\n'
             '         </BuildActionEntry>\n'
@@ -1004,7 +1104,7 @@ def scheme_xml(
         '            buildForAnalyzing = "YES">\n'
         f'{buildable}'
         '         </BuildActionEntry>\n'
-        f'{test_build_entry}'
+        f'{test_build_entries}'
         '      </BuildActionEntries>\n'
         '   </BuildAction>\n'
         '   <TestAction\n'
@@ -1090,7 +1190,10 @@ def main() -> None:
             APP_TARGET,
             APP_PRODUCT,
             True,
-            test_target_id=oid("target", TEST_TARGET),
+            test_targets=[
+                (oid("target", TEST_TARGET), TEST_TARGET, TEST_PRODUCT),
+                (oid("target", UI_TEST_TARGET), UI_TEST_TARGET, UI_TEST_PRODUCT),
+            ],
         ),
         encoding="utf-8",
     )

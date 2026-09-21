@@ -34,6 +34,20 @@
                ReferencedContainer = "container:XcodeSwitcher.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CB09A737ED52EAF8F1EFE63B"
+               BuildableName = "XcodeSwitcherUITests.xctest"
+               BlueprintName = "XcodeSwitcherUITests"
+               ReferencedContainer = "container:XcodeSwitcher.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -49,6 +63,16 @@
                BlueprintIdentifier = "04EA9A5EC74C4E381470739C"
                BuildableName = "XcodeSwitcherTests.xctest"
                BlueprintName = "XcodeSwitcherTests"
+               ReferencedContainer = "container:XcodeSwitcher.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CB09A737ED52EAF8F1EFE63B"
+               BuildableName = "XcodeSwitcherUITests.xctest"
+               BlueprintName = "XcodeSwitcherUITests"
                ReferencedContainer = "container:XcodeSwitcher.xcodeproj">
             </BuildableReference>
          </TestableReference>
