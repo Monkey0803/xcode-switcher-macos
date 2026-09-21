@@ -76,6 +76,7 @@ cd xcode-switcher-macos && ./build_app.sh
 
 - **不在应用内下载或安装 Xcode**：版本列表只到「打开 Apple 下载页 / 复制直链」为止。直链 `.xip` 需要开发者会话 cookie，应用内实现它等于索取 Apple ID 凭据，而这与「ad-hoc 签名、未公证」的分发形态不相称。见 [2026-09-21-no-in-app-xcode-download.md](docs/superpowers/plans/2026-09-21-no-in-app-xcode-download.md)。
 - **不做 App Intents / Shortcuts**：前置是把 `XcodeInstallation.id` 从每台机器不同的路径换成跨设备稳定标识，那会波及所有以安装 ID 为键的持久化数据；而意图能表达的动作（切换、按项目打开）CLI 已经覆盖，Shortcuts 用「运行 Shell 脚本」调用 `xcodeswitcher` 即可。见 [2026-09-21-no-app-intents.md](docs/superpowers/plans/2026-09-21-no-app-intents.md)。
+- **不集成 Xcode Cloud**：它的对象是 App Store Connect 里的应用记录，而本项目不发布到 Mac App Store；应用管的是本机上的 Xcode，与 CI 服务状态无关。本仓库的 CI 也不迁过去：现有 GitHub Actions 免费、可复现、零凭据依赖。见 [2026-09-21-no-xcode-cloud.md](docs/superpowers/plans/2026-09-21-no-xcode-cloud.md)。
 - **不做正式签名与公证分发**：`build_release.sh` 保留可用，但需要 Developer ID 与公证凭据，不是本项目的发布路径；GitHub 上的产物是 ad-hoc 签名，首次启动需要手动放行一次。
 - **不迁移提权方式**：系统级切换仍走自 macOS 10.7 起废弃但可用的 `AuthorizationExecuteWithPrivileges`。换成 `SMAppService` 特权 helper 需要公证（含 LaunchDaemon 的应用必须被公证），而本项目没有 Developer ID。理由已写在代码注释里。
 

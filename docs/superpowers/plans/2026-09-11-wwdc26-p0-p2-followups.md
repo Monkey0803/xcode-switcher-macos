@@ -189,4 +189,13 @@ Entity 标识；换稳定标识要连带处理 `AppConfiguration` 里所有以�
 系统是否认这些意图——结论与提权迁移一律。全文与「将来若重开的前置条件」见
 [2026-09-21-no-app-intents.md](2026-09-21-no-app-intents.md)。
 
-同节里的 **Xcode Cloud** 仍未定，不在此结论范围内。
+同节里的 **Xcode Cloud** 另有结论，见下一节。
+
+### Xcode Cloud —— 不做
+
+也是「形态较大的新能力」里的一项，同样给出结论：**两层含义都不做**——应用不集成 Xcode Cloud
+（它的对象是 App Store Connect 里的应用记录，而本项目不发布到 Mac App Store，没有也不打算有
+应用记录），本仓库也不把 CI 迁过去（现有 GitHub Actions 两个 job 免费、可复现、零凭据依赖，
+发布由推送 tag 触发；Xcode Cloud 要应用记录、按计算时间计费，且不会自动把产物发布成 GitHub
+Release）。仓库里从未有过 `ci_scripts/`，不是半途而废。全文见
+[2026-09-21-no-xcode-cloud.md](2026-09-21-no-xcode-cloud.md)。
