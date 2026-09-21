@@ -22,34 +22,35 @@ if [[ ! -f "$catalog" ]]; then
   exit 1
 fi
 
-stringsdata=()
-while IFS= read -r file; do
-  stringsdata+=("$file")
+candidates=()
+while IFS= read -r candidate; do
+  candidates+=("$candidate")
 done < <(/usr/bin/find "$derived_data" \
   \( -path "*/XcodeSwitcher.build/*/XcodeSwitcher.build/Objects-normal/*" \
   -o -path "*/XcodeSwitcher.build/*/XcodeSwitcherKit.build/Objects-normal/*" \
   -o -path "*/XcodeSwitcher.build/*/xcodeswitcher-cli.build/Objects-normal/*" \) \
-  -name "*.stringsdata" -type f 2>/dev/null | sort | while IFS= read -r candidate; do
-    # A .stringsdata left by an earlier build of a file that has since changed would
-    # resurrect keys that no longer exist, or — right after they are removed — strip
-    # keys that still do. Its source is always older than a current extraction, so
-    # compare the two and skip the stale one loudly.
-    base="${candidate##*/}"
-    base="${base%.stringsdata}"
-    source="$(/usr/bin/find "$script_dir/Sources" "$script_dir/SourcesCLI" -name "$base.swift" -type f 2>/dev/null | head -1)"
-    if [[ -z "$source" ]]; then
-      printf 'skipping %s: its source no longer exists\n' "$base" >&2
-      continue
-    fi
-    if [[ "$(/usr/bin/stat -f %m "$candidate")" -lt "$(/usr/bin/stat -f %m "$source")" ]]; then
-      printf 'skipping stale %s.stringsdata (source is newer; rebuild the app target)\n' "$base" >&2
-      continue
-    fi
-    printf '%s\n' "$candidate"
-  done)
+  -name "*.stringsdata" -type f 2>/dev/null | sort)
+
+if [[ ${#candidates[@]} -eq 0 ]]; then
+  printf '错误：%s 下没有找到 app target 的 .stringsdata，请先构建 app target。\n' "$derived_data" >&2
+  exit 1
+fi
+
+# A .stringsdata left by an earlier build of a file that has since changed would
+# resurrect keys that no longer exist, or — right after they are removed — strip keys
+# that still do, so stale ones are skipped loudly. Whether one *is* stale is a content
+# question, not an mtime one: a file whose extracted strings did not change is reused
+# from the build cache without being rewritten, so its mtime goes stale while its
+# content stays correct, and a `git checkout`/`stash`/`cp` moves the source's mtime the
+# other way without changing anything. Scripts/stringsdata_freshness.py reports which
+# files still line up and explains every one it drops.
+stringsdata=()
+while IFS= read -r file; do
+  stringsdata+=("$file")
+done < <(/usr/bin/python3 "$script_dir/Scripts/stringsdata_freshness.py" "${candidates[@]}")
 
 if [[ ${#stringsdata[@]} -eq 0 ]]; then
-  printf '错误：%s 下没有找到 app target 的 .stringsdata，请先构建 app target。\n' "$derived_data" >&2
+  printf '错误：所有 .stringsdata 都与源码对不上，请重新构建 app target。\n' >&2
   exit 1
 fi
 

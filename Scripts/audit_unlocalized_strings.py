@@ -41,10 +41,15 @@ rather than silently applied.
 from __future__ import annotations
 
 import bisect
-import json
 import pathlib
 import re
 import sys
+
+# The freshness judgment below is shared with sync_string_catalog.sh through this
+# module, so the two gates cannot drift into disagreeing about the same data.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+import stringsdata_freshness  # noqa: E402  (path set up above)
 
 CJK = re.compile(r"[\u3400-\u9fff]")
 WAIVER = re.compile(r"unlocalized-audit:ok\s*[:：]\s*(\S.*)")
@@ -57,19 +62,11 @@ def extracted_positions(derived_data: pathlib.Path) -> dict[str, set[tuple[int, 
     for path in sorted(derived_data.rglob("*.stringsdata")):
         if "ExtractedAppShortcutsMetadata" in path.name:
             continue
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        loaded = stringsdata_freshness.load(path)
+        if loaded is None:
             continue
-        source = data.get("source")
-        if not source:
-            continue
-        keys = positions.setdefault(str(pathlib.Path(source).resolve()), set())
-        for entry in data.get("tables", {}).get("Localizable", []):
-            location = entry.get("location") or {}
-            line, column = location.get("startingLine"), location.get("startingColumn")
-            if line and column:
-                keys.add((line, column))
+        source, keys = loaded
+        positions.setdefault(str(source), set()).update(keys)
     return positions
 
 
@@ -207,23 +204,11 @@ def string_literals(text: str) -> list[tuple[int, int, str]]:
 def positions_still_land_on_quotes(path: pathlib.Path, keys: set[tuple[int, int]]) -> bool:
     """Whether every recorded literal position still points at a `"` in the source.
 
-    An empty set is fine — the file was compiled and simply has nothing localizable.
     A file that no `.stringsdata` mentions is *not* fine (see `main`), which is why the
-    caller passes `None` for that case instead of an empty set here.
+    caller passes `None` for that case rather than an empty set — an empty set means the
+    file was compiled and simply has nothing localizable.
     """
-    if not keys:
-        return True
-    try:
-        lines = path.read_bytes().split(b"\n")
-    except OSError:
-        return False
-    for line, column in keys:
-        if not 1 <= line <= len(lines):
-            return False
-        raw = lines[line - 1]
-        if column - 1 >= len(raw) or raw[column - 1:column] != b'"':
-            return False
-    return True
+    return stringsdata_freshness.positions_land_on_quotes(path, keys)
 
 
 def line_waiver(path: pathlib.Path, line: int) -> str | None:

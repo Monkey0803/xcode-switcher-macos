@@ -150,26 +150,43 @@ this repository has no UI test target, so nothing exercises that path.
 
 ## `sync_string_catalog.sh` and stale `.stringsdata`
 
-`Scripts/sync_string_catalog.sh` decides a `.stringsdata` is stale by **mtime** and
-skips it with a warning (`skipping stale <File>.stringsdata (source is newer; rebuild
-the app target)`). That comparison produces a false alarm in **two** situations, both
-verified 2026-09-18:
+`Scripts/sync_string_catalog.sh` skips a `.stringsdata` that no longer belongs to its
+source and says so loudly (`skipping stale <File>.stringsdata (its recorded locations no
+longer line up with the source; rebuild the app target)`). Merging a stale one would
+resurrect keys that no longer exist, or — right after they are removed — strip keys that
+still do.
+
+**The decision is a content one, not an mtime one**, and that matters because mtime
+produced a false alarm in two situations, both verified 2026-09-18:
 
 - The source's content is unchanged but its mtime moved — a `cp` of an identical file,
-  a `git checkout` restoring the same content, a `touch` — so it is not recompiled.
+  a `git checkout`/`stash` restoring the same content, a `touch` — so it is not
+  recompiled.
 - The source *did* change but its **extracted strings** did not (an edit that touches
   no string literal, e.g. renaming an enum case). The file is recompiled — its `.o`,
   `.d` and `.dia` all get fresh mtimes — while the `.stringsdata` output is reused from
-  the build cache **without being rewritten**, so it keeps an old mtime. Observed:
-  `ReleaseStore.o/.d/.dia` at 13:41:30 next to `ReleaseStore.stringsdata` still at
-  12:27:11, after an edit that only changed a case label.
+  the build cache **without being rewritten**, so it keeps an old mtime.
 
-Either way the file's *content* is correct and only its mtime is old. What follows is a
-false alarm that fails the catalog gate: every string that file contributes gets marked
-`"extractionState": "stale"`, and `verify_string_catalog.sh` treats stale as a hard
-error, so the gate goes red with the strings themselves perfectly fine.
+Under the old mtime comparison, either case marked every string that file contributes as
+`"extractionState": "stale"`, and `verify_string_catalog.sh` treats stale as a hard error
+— the gate went red with the strings themselves perfectly fine. It did so twice on
+2026-09-21 alone (204 keys once), which is why the comparison was replaced. The judgment
+now lives in `Scripts/stringsdata_freshness.py`, shared with
+`audit_unlocalized_strings.py` so the two gates cannot drift: a `.stringsdata` records
+each key's `startingLine`/`startingColumn` (the column points at the literal's opening
+quote, in **UTF-8 bytes**), and a file whose recorded positions all still land on a quote
+still lines up with its source. Run it by hand when a sync looks wrong:
 
-Delete that file's **whole artifact set** (not just the `.stringsdata`) and rebuild:
+```bash
+./Scripts/stringsdata_freshness.py build/DerivedData/…/ReleaseStore.stringsdata
+# 0 = current；1 = 有文件被跳过（原因在 stderr）；2 = 没给参数
+```
+
+The ordering in CI is what makes the gate sound: the build runs first, so a source edit
+that *did* change the extraction was already recompiled and re-extracted.
+
+When a file really is out of date (or `sync` says it is), delete its **whole artifact
+set** — not just the `.stringsdata` — and rebuild:
 
 ```bash
 find build/DerivedData/Build/Intermediates.noindex -name "ReleaseStore.*" -delete
@@ -219,8 +236,9 @@ Three things about that data, each of which produced a round of false results:
 - **mtime cannot be used as a freshness test.** A source whose *extracted strings* did
   not change gets its `.stringsdata` reused without being rewritten, so the file keeps
   an old mtime while staying perfectly correct — the same trap `sync` documents above.
-  The audit instead re-checks that every recorded position still lands on the literal's
-  opening quote, which catches the shifts that actually break the comparison.
+  The judgment lives in `Scripts/stringsdata_freshness.py`, shared with `sync`: every
+  recorded position must still land on the literal's opening quote, which catches the
+  shifts that actually break the comparison.
 - **The literal's own text excludes its interpolations.** In
   `"\(String(localized: "未知命令：\(command)"))\n\n\(Self.help)"` the Chinese belongs
   to the inner literal; a scanner that reports the outer one invents a problem. The

@@ -1,5 +1,11 @@
 # Changelog
 
+## 未发布
+
+### 修复
+
+- **`sync_string_catalog.sh` 不再因 mtime 误报陈旧**：它原先按 mtime 判断 `.stringsdata` 是否过期，而「提取出的字符串没变」时构建系统会复用该文件（mtime 旧、内容正确），`git checkout`/`stash`/`cp` 也会只改 mtime 而不动内容——两种情况下该文件贡献的键都会被整批误标为 `"extractionState": "stale"`，目录门禁随之变红却没有任何真问题（本次会话中就发生了两次，其中一次误标 204 个键）。判断改为按内容：记录的位置是否仍落在字面量的起始引号上，实现抽到 `Scripts/stringsdata_freshness.py`，与 `audit_unlocalized_strings.py` 共用同一份判断，两个门禁不会各自漂移。
+
 ## 2.1.0 - 2026-09-21
 
 ### 新增
