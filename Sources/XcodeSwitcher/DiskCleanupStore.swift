@@ -188,7 +188,7 @@ final class DiskCleanupStore: ObservableObject {
                 let outcome = XcodeTooling.deleteSimulatorRuntimes([runtime.identifier], installation: installation)
                 return RuntimeRemovalReport(
                     removed: outcome.succeeded.isEmpty ? [] : [runtime.label],
-                    failed: outcome.failed.isEmpty ? [] : [runtime.label]
+                    failed: outcome.failures.map { "\(runtime.label) — \($0.reason)" }
                 )
             }.value
             self?.completeRuntimeRemoval(report, installation: installation)
@@ -276,7 +276,9 @@ final class DiskCleanupStore: ObservableObject {
                 )
                 return RuntimeRemovalReport(
                     removed: outcome.succeeded.compactMap { labels[$0] },
-                    failed: outcome.failed.map { labels[$0] ?? $0 }
+                    failed: outcome.failures.map { failure in
+                        "\(labels[failure.identifier] ?? failure.identifier) — \(failure.reason)"
+                    }
                 )
             }.value
             self?.completeRuntimeRemoval(report, installation: installation)
@@ -293,6 +295,9 @@ final class DiskCleanupStore: ObservableObject {
     /// runtimes instead of reporting the selector that was clicked.
     private struct RuntimeRemovalReport: Sendable {
         let removed: [String]
+        /// One `label — simctl 的原话` entry per failure. The reason is kept so the
+        /// status line can say *why* a runtime was not removed; naming it alone is
+        /// what left 「清理失败：iOS 27.0 (24A5380i)」 unanswerable.
         let failed: [String]
     }
 

@@ -11,6 +11,10 @@
 
 - 签名页的「未设置」判定改为对同一个本地化值比较：原先 `value == "未设置"` 在英文环境下会因为显示值变成译文而失效。
 
+### 修复
+
+- **删除 Simulator Runtime 失败时看不出原因**：状态栏此前只报「清理失败：iOS 27.0 (24A5380i)」——`XcodeTooling.deleteSimulatorRuntimes` 把 simctl 的 stderr 丢掉了，只回传标识符。现在失败项带上 simctl 的原话（多行折成一行，状态栏只有一行），例如「清理失败：iOS 27.0 (24A5380i) — No runtime disk images or bundles found matching '…'. Try 'runtime list'.」。最常见的那种失败——界面上那一行已经过期、镜像在别处被删掉或换掉——因此可以直接读出来。
+
 ## 2.0.0 - 2026-09-18
 
 ### 变更

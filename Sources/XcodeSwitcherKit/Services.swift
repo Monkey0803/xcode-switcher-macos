@@ -542,21 +542,39 @@ public enum XcodeTooling {
     /// silently ignores the second (verified with `--dry-run`). That is why a
     /// selector-based delete removed a single image per invocation, leaving the user
     /// to click 清理 once per runtime.
+    ///
+    /// Every failure carries simctl's own message. Returning the identifier alone is
+    /// what made the UI report a bare runtime name — 「清理失败：iOS 27.0 (24A5380i)」
+    /// — with no way to tell an image that is already gone from one that refused to
+    /// be deleted.
     public static func deleteSimulatorRuntimes(
         _ identifiers: [String],
         installation: XcodeInstallation
-    ) -> (succeeded: [String], failed: [String]) {
+    ) -> (succeeded: [String], failures: [(identifier: String, reason: String)]) {
         var succeeded: [String] = []
-        var failed: [String] = []
+        var failures: [(identifier: String, reason: String)] = []
         for identifier in identifiers {
             let result = deleteSimulatorRuntime(identifier, installation: installation)
             if result.succeeded {
                 succeeded.append(identifier)
             } else {
-                failed.append(identifier)
+                failures.append((identifier, deletionReason(result)))
             }
         }
-        return (succeeded, failed)
+        return (succeeded, failures)
+    }
+
+    /// `simctl`'s own message for a failed delete, flattened onto one line.
+    ///
+    /// A status bar has one line, and simctl's version of this failure is two
+    /// ("No runtime disk images or bundles found matching '…'. Try 'runtime list'."
+    /// followed by "No matching images found to delete"), so the newlines become
+    /// spaces rather than being truncated away.
+    static func deletionReason(_ result: ProcessResult) -> String {
+        result.failureDescription
+            .split(whereSeparator: \.isNewline)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
     }
 
     /// Bulk reclaim. With `dryRun` this is simctl's own preview, so the user is shown

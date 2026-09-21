@@ -42,4 +42,30 @@ final class SimulatorParsingTests: XCTestCase {
         XCTAssertTrue(XcodeTooling.parseSimulatorDeviceTypes(data: Data("not json".utf8)).isEmpty)
         XCTAssertTrue(XcodeTooling.parseSimulatorRuntimes(data: Data("{}".utf8)).isEmpty)
     }
+
+    /// Verified against the real `simctl`: deleting an identifier that no longer
+    /// resolves exits 2 and prints these two lines on stderr. They have to survive
+    /// as the *reason* for the failure — dropping them is what left the UI saying
+    /// only 「清理失败：iOS 27.0 (24A5380i)」.
+    func testDeletionReasonKeepsSimctlsMessageOnOneLine() {
+        let result = ProcessResult(
+            status: 2,
+            stdout: "",
+            stderr: "No runtime disk images or bundles found matching 'CF787131'. Try 'runtime list'.\nNo matching images found to delete\n"
+        )
+
+        XCTAssertEqual(
+            XcodeTooling.deletionReason(result),
+            "No runtime disk images or bundles found matching 'CF787131'. Try 'runtime list'. No matching images found to delete",
+            "状态栏只有一行，simctl 的两行要折成一行而不是被截掉"
+        )
+    }
+
+    func testDeletionReasonFallsBackWhenSimctlSaysNothing() {
+        let result = ProcessResult(status: 1, stdout: "", stderr: "")
+
+        // Compared against the same lookup rather than a literal: CI runs in an
+        // English environment, where `String(localized:)` returns the translation.
+        XCTAssertEqual(XcodeTooling.deletionReason(result), String(localized: "命令执行失败（退出码 1）。"))
+    }
 }
