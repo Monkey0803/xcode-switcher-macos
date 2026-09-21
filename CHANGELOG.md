@@ -8,6 +8,10 @@
 - **`sync_string_catalog.sh` 不再因 mtime 误报陈旧**：它原先按 mtime 判断 `.stringsdata` 是否过期，而「提取出的字符串没变」时构建系统会复用该文件（mtime 旧、内容正确），`git checkout`/`stash`/`cp` 也会只改 mtime 而不动内容——两种情况下该文件贡献的键都会被整批误标为 `"extractionState": "stale"`，目录门禁随之变红却没有任何真问题（本次会话中就发生了两次，其中一次误标 204 个键）。判断改为按内容：记录的位置是否仍落在字面量的起始引号上，实现抽到 `Scripts/stringsdata_freshness.py`，与 `audit_unlocalized_strings.py` 共用同一份判断，两个门禁不会各自漂移。
 - **`sync_string_catalog.sh` 不再打印生成文件的跳过噪声**：Swift 每个 target 都会写一份 `ExtractedAppShortcutsMetadata`（编译器元数据而非字符串键，没有对应源码），此前每次 sync 都会为它打印两行「its source no longer exists」。审计脚本本来就按名字忽略它，现在两处一致。
 
+### 变更
+
+- **工程**：新增 `Scripts/sync_tap_repo.sh`，把 `Casks/` 与 `Formula/` 同步进 Homebrew tap 仓库（并改掉 tap README 里的两处版本引用），打印 diff 与提交/推送命令——推送仍由人做，且必须用 tap 仓库要求的 noreply 提交身份（用本机邮箱会被 GitHub 拒收）。此前这一步完全靠记忆：v2.0.0 发布时就没做，于是 `brew install --cask xcode-switcher` 在两个版本里一直提供 1.5.1，且那个 cask 还写着 `depends_on macos: :ventura`。
+
 ## 2.1.0 - 2026-09-21
 
 ### 新增

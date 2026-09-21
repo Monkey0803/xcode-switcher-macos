@@ -105,6 +105,32 @@ That step was dropped in v1.5.1 and again in v1.6.0, so the README advertised 1.
 two releases after it shipped. `9fd8a3d` (v1.5.0) is the only one that got it right
 and is the model to copy.
 
+### The tap repository is a separate sync (`Scripts/sync_tap_repo.sh`)
+
+`Monkey0803/homebrew-xcode-switcher` is where `brew` actually reads those two files, and
+it is a **separate repository with no automation**. The two releases before v2.1.0 were
+never synced: `brew install --cask xcode-switcher` served 1.5.1 while this repository
+advertised 2.0.0, and that stale cask still declared `depends_on macos: :ventura` for an
+app that had required macOS 15 since 2.0.0.
+
+```bash
+./Scripts/sync_tap_repo.sh                # 默认用 ../homebrew-xcode-switcher（不存在则克隆）
+./Scripts/sync_tap_repo.sh <tap-path>
+```
+
+It copies `Casks/` and `Formula/`, rewrites the tap README's two version references,
+and prints the diff plus the remaining commands. It deliberately does **not** commit or
+push — pushing to a second public repository is a decision, not a side effect. Two
+things it encodes that were learned the hard way on 2026-09-21:
+
+- The tap's commits must use the `…+Monkey0803@users.noreply.github.com` identity. A
+  commit from this machine's own address is rejected with
+  `push declined due to email privacy restrictions`; the script prints the
+  `git -c user.name=… -c user.email=…` form.
+- Verify what the tap now says afterwards (the script prints the `gh api … contents/`
+  command). `brew` reads the tap, not this repository, so a green release here says
+  nothing about what users install.
+
 ## SwiftUI `@State` (SDK 27)
 
 SDK 27 turns `@State` into a macro, which changes what an initializer may do. In a
