@@ -2,7 +2,7 @@
 
 一个原生 macOS 应用，用于发现、诊断和切换本机安装的 Xcode，并为不同项目固定对应的开发环境。
 
-当前版本：`2.0.0`（仅支持 Apple Silicon，最低支持 macOS 15.0）。`v1.6.0` 为上一个公开稳定版本。
+当前版本：`2.1.0`（仅支持 Apple Silicon，最低支持 macOS 15.0）。`v2.0.0` 为上一个公开稳定版本。
 
 ## 下载与安装
 
@@ -45,12 +45,14 @@ cd xcode-switcher-macos && ./build_app.sh
 - 通过 Spotlight、标准应用目录和自定义目录发现多个 Xcode，支持搜索、收藏和版本别名。
 - 使用进程内复用的系统管理员授权执行 `xcode-select --switch`，同一次运行期间首次切换后可连续切换，切换后自动验证当前 Developer 路径。
 - 查看 Xcode 路径、iPhoneOS SDK、Swift 和当前 `xcode-select` 环境诊断。
-- 浏览索引中的全部 Xcode 版本（含本机未安装的）：「所有 Xcode 版本」窗口按渠道、安装状态、版本号或构建号筛选，按版本或发布日期排序，每行显示图标，未安装的给出发行说明与下载链接；数据来自 `xcodereleases.com` 的索引，刷新失败时改用上次缓存并标注缓存时间。主窗口左栏底部、状态栏菜单、详情页「版本与兼容」区与应用菜单 `⇧⌘V` 都能打开它。
+- 浏览索引中的全部 Xcode 版本（含本机未安装的）：「所有 Xcode 版本」窗口按渠道、安装状态、版本号、构建号或芯片（全部 / Apple Silicon / Intel）筛选，按版本或发布日期排序，每行显示图标，未安装的给出发行说明与下载链接；数据来自 `xcodereleases.com` 的索引，搜索框旁的按钮可手动刷新，刷新失败时改用上次缓存并标注缓存时间与失败原因。主窗口左栏底部、状态栏菜单、详情页「版本与兼容」区与应用菜单 `⇧⌘V` 都能打开它。
+- 版本列表判断本机能否运行：索引声明的 `requires` 与当前系统按点分数字比较，跑不了的条目行内标注「需要 macOS …」，并可按「隐藏本机无法运行的版本」过滤；只有 x86_64 下载的条目按「需要 Rosetta 2」提醒，而不是判定为跑不了。
+- 已安装的版本有更新时给出提示：索引里存在同一主版本、比本机更新、且本机跑得起来的正式版时，主窗口列表行显示「有新版 x.y」，详情页给出完整提示。只提示、不安装——应用不提供索引内下载，理由见 `docs/superpowers/plans/2026-09-21-no-in-app-xcode-download.md`。
 - 该窗口右侧显示所选版本的版本与兼容信息：构建号、发布日期与渠道、最低 macOS、架构、随附 SDK、编译器；所选版本本机已安装时，并列显示 bundle 自身的平台版本、iPhoneOS SDK 构建与其声明的最低 macOS，便于与索引数据对照，并可跳回主窗口查看该安装。
 - 主窗口与「所有 Xcode 版本」窗口都是可拖动的左右分栏，标题栏各有一个开关可一键折叠侧栏：主窗口折叠版本列表、详情页随即占满整宽，「所有 Xcode 版本」折叠右侧版本详情栏；开关只用图标，文字放在悬停提示与无障碍标签里。
 - 详情页按「概览 / 环境 / 版本与兼容 / 模拟器 / 磁盘清理」分类切换，不再是一条需要长距离滚动的列表；「版本与兼容」区汇总该安装的版本、构建、发布日期与渠道、最低 macOS、平台版本、iPhoneOS SDK 构建、安装路径、随附 SDK 与编译器。
 - 查看 Simulator Runtime 的占用与最近使用时间，可逐个删除，或按 simctl 的「已过时 / 30 天未使用 / 不可用」批量回收；也可启动 iOS Runtime 下载或打开所选 Xcode 的 Settings。哪些镜像符合条件由 `simctl` 判断，预览即其 `--dry-run` 输出。
-- 查看 Simulator 设备状态，并可启动、关闭、抹掉或删除设备；不再受当前 Xcode SDK 支持的设备可一次性清理（这类设备无法启动也无法抹掉，此前只能不断堆积）；切换 Xcode 后可回滚到最近使用版本。
+- 查看 Simulator 设备状态，并可启动、关闭、抹掉、删除、克隆、重命名或新建设备（新建时按所选运行系统过滤设备类型）；不再受当前 Xcode SDK 支持的设备可一次性清理（这类设备无法启动也无法抹掉，此前只能不断堆积）；切换 Xcode 后可回滚到最近使用版本。
 - 清理 Xcode 磁盘占用：DerivedData、Products、DeviceLogs、文档缓存与索引、CoreSimulator 缓存、包缓存、Archives 与 iOS DeviceSupport 子项，按「可安全清理 / 需谨慎清理」分级；谨慎项（归档、真机支持、包缓存）删除时移到废纸篓以便恢复。
 - 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode，一键切换并打开项目。
 - 自动读取项目或上级目录中的 `.xcode-version`、`.tool-versions`，匹配对应 Xcode；绑定版本或项目路径失效时会阻止误开并给出提示。
@@ -62,7 +64,7 @@ cd xcode-switcher-macos && ./build_app.sh
 - 签名管理页读取 Keychain 代码签名证书、Provisioning Profile，并支持按 Scheme、Configuration、Target 查看项目签名配置。
 - 证书支持导出公钥 `.cer` 并在 Finder 中显示；Profile 支持直接打开其 Finder 路径。
 - Runtime 下载显示命令进度，支持主动取消，并为外部命令设置超时保护。
-- 针对每个 Xcode 执行环境体检，检查安装路径、Command Line Tools、首次启动任务、License、iPhoneOS SDK、Simulator、Rosetta 与磁盘空间；报告支持复制和导出。
+- 针对每个 Xcode 执行环境体检，检查安装路径、Command Line Tools、首次启动任务、License、iPhoneOS SDK、Simulator、Rosetta 与磁盘空间，并经登录 shell 核对「终端里的 Xcode」与第三方工具（如 CocoaPods）实际使用的版本——「明明切了 Xcode，构建还是老 SDK」通常就出在这里；报告支持复制和导出。
 - 菜单栏“项目”子菜单可直接按项目配置匹配 Xcode 并打开，失效项目会禁用并提示原因。
 - 内置 `xcodeswitcher` CLI：列出/解析/诊断/切换 Xcode、按项目配置打开工程、统计各 Xcode 与 Runtime 的磁盘占用（`sizes`）、清理缓存（`clean`，默认仅预览、需 `--force` 才执行）、管理别名与项目绑定（`alias`/`pin`/`workspace`）、生成 shell 补全（`completions`）。
 - 支持登录时启动、仅在菜单栏运行；正式签名构建使用 Sparkle 2 自动更新，直接分发构建可检查 GitHub Releases 并跳转下载。
