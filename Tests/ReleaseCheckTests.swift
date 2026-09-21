@@ -14,13 +14,16 @@ final class ReleaseCheckTests: XCTestCase {
     }
 
     func testMapsReleaseErrorsToActionableMessages() {
+        // The expected values go through the same lookup as the production code:
+        // these messages are localized, so hard-coding the source text passed on a
+        // Chinese machine and failed on the English CI runner.
         XCTAssertEqual(
             UpdateService.userFacingError(URLError(.timedOut)),
-            "GitHub Releases 请求超时，请稍后重试。"
+            String(localized: "GitHub Releases 请求超时，请稍后重试。")
         )
         XCTAssertEqual(
             UpdateService.userFacingHTTPError(statusCode: 403),
-            "GitHub Releases 请求受到限流，请稍后重试。"
+            String(localized: "GitHub Releases 请求受到限流，请稍后重试。")
         )
     }
 

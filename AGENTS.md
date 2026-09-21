@@ -303,3 +303,31 @@ Read [TRANSLATION.md](TRANSLATION.md) before adding or changing translations in
 `Resources/Localizable.xcstrings`. It holds the glossary, the do-not-translate
 list, the tone guidance and the placeholder rules. After editing, run
 `./Scripts/sync_string_catalog.sh` and `./Scripts/verify_string_catalog.sh`.
+
+### Assertions must not hard-code localized text
+
+CI runs with an **English** locale while a developer machine is usually Chinese, so a
+test that compares a localized message against its source text passes locally and fails
+in CI. Reproduce CI's locale locally instead of guessing:
+
+```bash
+xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
+  -configuration Debug -derivedDataPath build/DerivedData test -testLanguage en
+```
+
+Two shapes are correct:
+
+- **Compare against the same lookup**, `String(localized: "…")`. The key has to be the
+  real one: spelling it with a value baked in (`…（退出码 1）。`) does not match the
+  generated key (`…（退出码 %d）。` — `status` is an `Int32`), and a lookup that misses
+  silently falls back to the source text, which is exactly the failure it was meant to
+  avoid.
+- **Compare against the same source of truth in code**, for example
+  `XcodeTooling.deletionReason(result) == result.failureDescription`, which involves no
+  lookup at all.
+
+Both failure modes have been paid for: `eb443b3` (a substring assertion on 「另一个」)
+and the CI run for `124b3cb` (two assertions on the newly localized GitHub Releases
+messages, plus that hand-written key). Note that `-testLanguage en` also catches the
+symmetric mistake — a fixture input that is a catalog key and would be translated under
+the developer's own locale.

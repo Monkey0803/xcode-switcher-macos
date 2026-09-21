@@ -64,8 +64,11 @@ final class SimulatorParsingTests: XCTestCase {
     func testDeletionReasonFallsBackWhenSimctlSaysNothing() {
         let result = ProcessResult(status: 1, stdout: "", stderr: "")
 
-        // Compared against the same lookup rather than a literal: CI runs in an
-        // English environment, where `String(localized:)` returns the translation.
-        XCTAssertEqual(XcodeTooling.deletionReason(result), String(localized: "命令执行失败（退出码 1）。"))
+        // The fallback is `failureDescription` itself, so compare against that rather
+        // than a translated literal: spelling the key with the exit code baked in
+        // (`…（退出码 1）。`) does not match the real key (`…（退出码 %lld）。`), and the
+        // lookup silently falls back to the source text.
+        XCTAssertEqual(XcodeTooling.deletionReason(result), result.failureDescription)
+        XCTAssertFalse(result.failureDescription.isEmpty)
     }
 }
