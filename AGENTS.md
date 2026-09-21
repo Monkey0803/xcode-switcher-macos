@@ -39,16 +39,46 @@ error: unable to open dependencies file (…/xcodeswitcher-p.build/Objects-norma
 ```
 
 It is **not** caused by the change at hand: the same failure reproduces on a clean
-tree (`git stash` the sources, `rm -rf .build/out`, rebuild). The same tree builds
-with `Build complete!` and zero errors when the toolchain is pinned:
+tree (`git stash` the sources, `rm -rf .build/out`, rebuild).
+
+**Root cause, located 2026-09-21 (not yet fixed):** two SwiftPM **product** names in
+`Package.swift` differ only by case — the app's `XcodeSwitcher` and the CLI's
+`xcodeswitcher`. The newer Swift Build back-end gives each product its own directory
+(`<product>-p.build`), and APFS is case-insensitive, so the two collapse into one:
+
+```bash
+ls -di .build/out/Intermediates.noindex/XcodeSwitcher.build/Debug/{XcodeSwitcher,xcodeswitcher}-p.build
+# 42461178 … 42461178   ← same inode; the directory holds the app target's objects and no CLI ones
+```
+
+The two products then clobber each other's file lists and output maps, and the CLI
+compile looks for a `.d` file that is not there. The **target** names already avoid
+this (`xcodeswitcher-cli`, with a comment in `Package.swift` explaining why) — the
+product names were missed.
+
+Renaming the app product to `XcodeSwitcherApp` (matching `CFBundleExecutable`) was
+verified to fix it end to end, with the CLI product still produced as `xcodeswitcher`:
+
+```
+swift build            → Build complete! (0 errors, Xcode 27.1, clean .build/out)
+./run_smoke_test.sh    → Smoke test passed  (Xcode 27.1 — it fails without the rename)
+```
+
+Until that lands, pin the toolchain to build and test locally:
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer ./run_smoke_test.sh
 ```
 
-CI runs on `macos-26`, so the gate stays green there. Do not read a red `swift test`
-on a machine whose active Xcode has been switched to 27 as a defect in the sources —
-check `xcode-select -p` first, then re-run with `DEVELOPER_DIR` pinned.
+CI runs on `macos-26` (Xcode 26.6), where the collision does not bite. Do not read a red
+`swift test` on a machine whose active Xcode has been switched to 27 as a defect in the
+sources — check `xcode-select -p` first.
+
+Consequence for distribution: `Formula/xcode-switcher.rb` carries
+`depends_on maximum_macos: :tahoe` precisely because Homebrew on macOS 27 requires
+Xcode 27, which is the toolchain that fails here. Lifting that cap is a **separate**
+question: it also depends on the Homebrew sandbox / SDK 27 `@State` macro problem
+recorded below.
 
 ## Release artifacts and the cask checksum
 

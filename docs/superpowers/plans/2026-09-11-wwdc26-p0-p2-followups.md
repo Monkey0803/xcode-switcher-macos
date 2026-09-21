@@ -171,7 +171,22 @@ App Intents / Shortcuts（310、240、295）、Liquid Glass 视觉适配（289�
 「`audit_unlocalized_strings.py` and the localization gate」一节；豁免条数会被打印出来，
 不会静默放过。
 
-顺带记一个仍未处理的隐患：`sync_string_catalog.sh` 判断 `.stringsdata` 是否陈旧仍按 mtime，
-于是「内容正确但 mtime 陈旧」的文件会被跳过，它贡献的键被整批误标 `stale`——本次就因此误标
-188 个键，按文档里的办法（删掉该文件整组产物再重建）恢复。审计脚本用的内容判据（记录的
-位置是否仍落在引号上）是更可靠的替代，将来若动 `sync` 可以从那里借。
+顺带记一个隐患（**当天已修**）：`sync_string_catalog.sh` 当时仍按 mtime 判断 `.stringsdata`
+是否陈旧，于是「内容正确但 mtime 陈旧」的文件会被跳过，它贡献的键被整批误标 `stale`——当天
+因此误标过 188 与 204 个键各一次，按文档里的办法（删掉该文件整组产物再重建）恢复。当天晚些
+时候提交 `718744e` 把它换成了审计脚本用的内容判据（记录的位置是否仍落在引号上），判断抽到
+`Scripts/stringsdata_freshness.py` 由两个门禁共用；`AGENTS.md` 对应的一节已改写。
+
+## 追加决定（2026-09-21 晚些时候）
+
+### App Intents / Shortcuts —— 不做
+
+该项此前只被列为「形态较大的新能力」之一，未给结论。**现在给出结论：不做。** 理由不是
+「不值得」，而是前置条件本身就是一次数据结构改造：`XcodeInstallation.id` 是
+`appURL.path`（`Sources/XcodeSwitcherKit/Models.swift:55`），per-device 值不能作为 App
+Entity 标识；换稳定标识要连带处理 `AppConfiguration` 里所有以安装 ID 为键的持久化数据与
+去重规则。加上意图能表达的动作已被 CLI 覆盖、ad-hoc 未公证的分发形态下无法端到端验证
+系统是否认这些意图——结论与提权迁移一律。全文与「将来若重开的前置条件」见
+[2026-09-21-no-app-intents.md](2026-09-21-no-app-intents.md)。
+
+同节里的 **Xcode Cloud** 仍未定，不在此结论范围内。
