@@ -188,6 +188,7 @@ final class DiskCleanupStore: ObservableObject {
                 let outcome = XcodeTooling.deleteSimulatorRuntimes([runtime.identifier], installation: installation)
                 return RuntimeRemovalReport(
                     removed: outcome.succeeded.isEmpty ? [] : [runtime.label],
+                    alreadyGone: outcome.alreadyGone.isEmpty ? [] : [runtime.label],
                     failed: outcome.failures.map { "\(runtime.label) — \($0.reason)" }
                 )
             }.value
@@ -258,11 +259,17 @@ final class DiskCleanupStore: ObservableObject {
                         dryRun: true
                     )
                     guard dryRun.succeeded || SimulatorRuntimeReclaim.matchedNothing(dryRun) else {
-                        return RuntimeRemovalReport(removed: [], failed: [dryRun.failureDescription])
+                        return RuntimeRemovalReport(
+                            removed: [],
+                            alreadyGone: [],
+                            failed: [dryRun.failureDescription]
+                        )
                     }
                     targets = SimulatorRuntimeReclaim.preview(of: dryRun.stdout, runtimes: runtimes).targets
                 }
-                guard !targets.isEmpty else { return RuntimeRemovalReport(removed: [], failed: []) }
+                guard !targets.isEmpty else {
+                    return RuntimeRemovalReport(removed: [], alreadyGone: [], failed: [])
+                }
 
                 // One `simctl` call per identifier: it accepts exactly one, and a
                 // selector deleted only a single image per click.
@@ -276,6 +283,7 @@ final class DiskCleanupStore: ObservableObject {
                 )
                 return RuntimeRemovalReport(
                     removed: outcome.succeeded.compactMap { labels[$0] },
+                    alreadyGone: outcome.alreadyGone.compactMap { labels[$0] ?? $0 },
                     failed: outcome.failures.map { failure in
                         "\(labels[failure.identifier] ?? failure.identifier) — \(failure.reason)"
                     }
@@ -295,6 +303,9 @@ final class DiskCleanupStore: ObservableObject {
     /// runtimes instead of reporting the selector that was clicked.
     private struct RuntimeRemovalReport: Sendable {
         let removed: [String]
+        /// Labels whose image no longer exists. Not a failure: there was nothing
+        /// left to delete, which is the usual reason a row looked clickable.
+        let alreadyGone: [String]
         /// One `label — simctl 的原话` entry per failure. The reason is kept so the
         /// status line can say *why* a runtime was not removed; naming it alone is
         /// what left 「清理失败：iOS 27.0 (24A5380i)」 unanswerable.
@@ -308,14 +319,24 @@ final class DiskCleanupStore: ObservableObject {
         if !report.failed.isEmpty {
             status?.isError = true
             status?.statusMessage = String(localized: "清理失败：\(report.failed.joined(separator: "、"))")
-        } else if report.removed.isEmpty {
+        } else if !report.removed.isEmpty, !report.alreadyGone.isEmpty {
             status?.isError = false
-            status?.statusMessage = String(localized: "没有需要清理的 Runtime。")
-        } else {
+            status?.statusMessage = String(
+                localized: "已清理 \(report.removed.count) 个 Runtime：\(report.removed.joined(separator: "、"))；另有 \(report.alreadyGone.count) 个已经不存在。"
+            )
+        } else if !report.removed.isEmpty {
             status?.isError = false
             status?.statusMessage = String(
                 localized: "已清理 \(report.removed.count) 个 Runtime：\(report.removed.joined(separator: "、"))。"
             )
+        } else if !report.alreadyGone.isEmpty {
+            status?.isError = false
+            status?.statusMessage = String(
+                localized: "\(report.alreadyGone.joined(separator: "、")) 已经不存在，列表已刷新。"
+            )
+        } else {
+            status?.isError = false
+            status?.statusMessage = String(localized: "没有需要清理的 Runtime。")
         }
         // Both the measured sizes and the installed-runtime list have changed.
         loadRuntimeSizes(for: installation, force: true)

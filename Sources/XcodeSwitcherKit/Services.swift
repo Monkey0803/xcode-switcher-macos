@@ -512,14 +512,40 @@ public enum XcodeTooling {
     public static func simulatorRuntimeSizes(
         for installation: XcodeInstallation
     ) -> [DiskUsageReporter.SimulatorRuntime] {
+        guard let json = simulatorRuntimeListJSON(for: installation) else { return [] }
+        return DiskUsageReporter.parseSimulatorRuntimes(json)
+    }
+
+    /// The identifiers `simctl` currently reports, or nil when the listing itself
+    /// failed.
+    ///
+    /// The two must be told apart before deleting: "the listing failed" is not "the
+    /// image is gone", and treating them alike would silently skip real deletions.
+    /// The raw keys are used rather than `parseSimulatorRuntimes`, which drops entries
+    /// it cannot display (no bundle path or no size) — an entry that is merely
+    /// unlistable is still something `simctl` can delete.
+    static func currentRuntimeIdentifiers(for installation: XcodeInstallation) -> Set<String>? {
+        guard let json = simulatorRuntimeListJSON(for: installation) else { return nil }
+        guard let data = json.data(using: .utf8),
+              let entries = try? JSONSerialization.jsonObject(with: data) as? [String: [String: Any]]
+        else { return nil }
+        var identifiers = Set(entries.keys)
+        for entry in entries.values {
+            if let identifier = entry["identifier"] as? String { identifiers.insert(identifier) }
+        }
+        return identifiers
+    }
+
+    /// Raw output of `simctl runtime list -j`, or nil when the call failed.
+    static func simulatorRuntimeListJSON(for installation: XcodeInstallation) -> String? {
         let result = ProcessRunner.run(
             executable: "/usr/bin/xcrun",
             arguments: ["simctl", "runtime", "list", "-j"],
             environment: ["DEVELOPER_DIR": installation.developerURL.path],
             timeout: 120
         )
-        guard result.succeeded else { return [] }
-        return DiskUsageReporter.parseSimulatorRuntimes(result.stdout)
+        guard result.succeeded else { return nil }
+        return result.stdout
     }
 
     /// Deletes one runtime image by the UUID `simctl runtime list -j` reports.
@@ -543,25 +569,43 @@ public enum XcodeTooling {
     /// selector-based delete removed a single image per invocation, leaving the user
     /// to click 清理 once per runtime.
     ///
-    /// Every failure carries simctl's own message. Returning the identifier alone is
-    /// what made the UI report a bare runtime name — 「清理失败：iOS 27.0 (24A5380i)」
-    /// — with no way to tell an image that is already gone from one that refused to
-    /// be deleted.
+    /// Three outcomes, because they are three different things to tell the user:
+    ///
+    /// - `succeeded`: gone.
+    /// - `alreadyGone`: the identifier no longer resolves. A row goes stale whenever
+    ///   the image is removed or replaced by Xcode or another tool while the app is
+    ///   open, and deleting it then makes `simctl` exit 2 with "No matching images
+    ///   found to delete" — an outcome, not a failure. The current list is re-read
+    ///   first so the doomed call is not even made, and the marker is checked again
+    ///   per identifier because a delete can still race with another tool.
+    /// - `failures`: anything else, with `simctl`'s own message. Returning the
+    ///   identifier alone is what made the UI report a bare runtime name —
+    ///   「清理失败：iOS 27.0 (24A5380i)」 — with nothing to explain it.
     public static func deleteSimulatorRuntimes(
         _ identifiers: [String],
         installation: XcodeInstallation
-    ) -> (succeeded: [String], failures: [(identifier: String, reason: String)]) {
+    ) -> (succeeded: [String], alreadyGone: [String], failures: [(identifier: String, reason: String)]) {
+        // nil means the listing failed; then nothing is assumed gone and every
+        // identifier is attempted as before.
+        let known = currentRuntimeIdentifiers(for: installation)
         var succeeded: [String] = []
+        var alreadyGone: [String] = []
         var failures: [(identifier: String, reason: String)] = []
         for identifier in identifiers {
+            if let known, !known.contains(identifier) {
+                alreadyGone.append(identifier)
+                continue
+            }
             let result = deleteSimulatorRuntime(identifier, installation: installation)
             if result.succeeded {
                 succeeded.append(identifier)
+            } else if SimulatorRuntimeReclaim.matchedNothing(result) {
+                alreadyGone.append(identifier)
             } else {
                 failures.append((identifier, deletionReason(result)))
             }
         }
-        return (succeeded, failures)
+        return (succeeded, alreadyGone, failures)
     }
 
     /// `simctl`'s own message for a failed delete, flattened onto one line.

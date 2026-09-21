@@ -14,6 +14,7 @@
 ### 修复
 
 - **删除 Simulator Runtime 失败时看不出原因**：状态栏此前只报「清理失败：iOS 27.0 (24A5380i)」——`XcodeTooling.deleteSimulatorRuntimes` 把 simctl 的 stderr 丢掉了，只回传标识符。现在失败项带上 simctl 的原话（多行折成一行，状态栏只有一行），例如「清理失败：iOS 27.0 (24A5380i) — No runtime disk images or bundles found matching '…'. Try 'runtime list'.」。最常见的那种失败——界面上那一行已经过期、镜像在别处被删掉或换掉——因此可以直接读出来。
+- **「这一项已经不存在」不再报成清理失败**：删除前先重读一次 `simctl runtime list -j`，标识符已经不在里面、或 simctl 仍回「No matching images found to delete」的，都算「已经不存在」而不是失败，状态栏改为「… 已经不存在，列表已刷新。」并照常刷新列表。重读失败（列表命令本身出错）时不做任何假设，仍照原样尝试删除——「列表读不到」不等于「东西没了」，混为一谈会静默漏删。
 
 ## 2.0.0 - 2026-09-18
 

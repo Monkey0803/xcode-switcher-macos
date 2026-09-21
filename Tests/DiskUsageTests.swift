@@ -195,6 +195,34 @@ final class DiskUsageTests: XCTestCase {
         XCTAssertEqual(SimulatorRuntimeReclaim.unusedDays, 30)
     }
 
+    /// The predicate the delete path uses to tell "nothing matched" from a real
+    /// failure. Getting it wrong in either direction is user-visible: too narrow and
+    /// an already-removed runtime is reported as 清理失败, too wide and a genuine
+    /// refusal is swallowed.
+    func testMatchedNothingIsRecognisedOnStderrNotOnSuccess() {
+        let gone = ProcessResult(
+            status: 2,
+            stdout: "",
+            stderr: "No runtime disk images or bundles found matching 'X'. Try 'runtime list'.\nNo matching images found to delete\n"
+        )
+        XCTAssertTrue(SimulatorRuntimeReclaim.matchedNothing(gone))
+
+        // The marker also appears on stdout for the selector-based form.
+        let selector = ProcessResult(status: 2, stdout: "No matching images found to delete\n", stderr: "")
+        XCTAssertTrue(SimulatorRuntimeReclaim.matchedNothing(selector))
+
+        XCTAssertFalse(
+            SimulatorRuntimeReclaim.matchedNothing(ProcessResult(status: 0, stdout: "", stderr: "")),
+            "成功不能算「没匹配到」"
+        )
+        XCTAssertFalse(
+            SimulatorRuntimeReclaim.matchedNothing(
+                ProcessResult(status: 1, stdout: "", stderr: "The runtime is in use.\n")
+            ),
+            "真正的拒绝不能被当成「已经没了」"
+        )
+    }
+
     func testCleanupCancellationIsOneShot() {
         let cancellation = XcodeCleanupCancellation()
         XCTAssertFalse(cancellation.isCancelled)
