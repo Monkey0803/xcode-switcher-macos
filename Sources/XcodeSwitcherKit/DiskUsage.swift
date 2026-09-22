@@ -25,6 +25,33 @@ public enum DiskUsageFormatter {
     }
 }
 
+/// The user-visible low-space threshold is deliberately a simple capacity check:
+/// it never scans the disk and never removes data. AppKit owns when the check runs;
+/// this type keeps the policy and filesystem read testable from the shared module.
+public enum DiskSpaceMonitor {
+    public static let defaultThresholdGB = 20
+    public static let minimumThresholdGB = 5
+    public static let maximumThresholdGB = 200
+
+    public static func normalizedThresholdGB(_ value: Int) -> Int {
+        min(max(value, minimumThresholdGB), maximumThresholdGB)
+    }
+
+    public static func isBelowWarningThreshold(availableBytes: Int64, thresholdGB: Int) -> Bool {
+        guard availableBytes >= 0 else { return false }
+        let thresholdBytes = Int64(normalizedThresholdGB(thresholdGB)) * 1_000_000_000
+        return availableBytes < thresholdBytes
+    }
+
+    public static func availableBytes(at url: URL) -> Int64? {
+        let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        guard let available = values?.volumeAvailableCapacityForImportantUsage, available >= 0 else {
+            return nil
+        }
+        return available
+    }
+}
+
 /// Measures how much disk an Xcode installation or a simulator runtime occupies.
 ///
 /// `du` rather than a `FileManager` walk: an Xcode bundle holds hundreds of
@@ -364,6 +391,14 @@ public struct XcodeCleanupEntry: Identifiable, Equatable, Sendable {
     public let bytes: Int64
     public let safety: XcodeCleanupSafety
     public let note: String
+
+    public init(path: String, label: String, bytes: Int64, safety: XcodeCleanupSafety, note: String) {
+        self.path = path
+        self.label = label
+        self.bytes = bytes
+        self.safety = safety
+        self.note = note
+    }
 
     public var id: String { path }
     public var displaySize: String { DiskUsageFormatter.humanReadable(bytes: bytes) }

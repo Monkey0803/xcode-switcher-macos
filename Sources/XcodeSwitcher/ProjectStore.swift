@@ -45,6 +45,7 @@ final class ProjectStore: ObservableObject {
     private struct ProjectSnapshot {
         let resolution: ProjectXcodeResolution
         let match: ProjectXcodeMatch?
+        let workspaceConflict: WorkspaceXcodeConflict?
         let isProjectPresent: Bool
         let computedAt: Date
     }
@@ -180,6 +181,10 @@ final class ProjectStore: ObservableObject {
         snapshot(for: profile).resolution.issueDescription
     }
 
+    func workspaceConflict(for profile: ProjectProfile) -> WorkspaceXcodeConflict? {
+        snapshot(for: profile).workspaceConflict
+    }
+
     /// Drops every cached project resolution. Called whenever the inputs a
     /// resolution depends on change, so the next read is fresh.
     func invalidateSnapshots() {
@@ -213,6 +218,11 @@ final class ProjectStore: ObservableObject {
                 aliases: aliases(),
                 localConfiguration: localConfiguration,
                 configurationURL: configurationURL
+            ),
+            workspaceConflict: WorkspaceXcodeConflictDetector.conflict(
+                in: profile.url,
+                installations: installations(),
+                aliases: aliases()
             ),
             isProjectPresent: FileManager.default.fileExists(atPath: profile.path),
             computedAt: Date()

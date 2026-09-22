@@ -2,6 +2,7 @@
 import AppKit
 import ServiceManagement
 import Sparkle
+import UserNotifications
 
 struct ReleaseCheckResult: Sendable, Equatable {
     let currentVersion: String
@@ -9,6 +10,50 @@ struct ReleaseCheckResult: Sendable, Equatable {
     let releaseURL: URL?
     let isUpdateAvailable: Bool
     let errorMessage: String?
+}
+
+/// Delivers opt-in notifications for Xcode releases discovered by the existing
+/// release index. A denied system permission leaves candidates unconsumed, so a
+/// later permission change can still produce the alert.
+@MainActor
+enum XcodeUpdateNotificationService {
+    static func deliver(_ candidates: [XcodeUpdateNotificationCandidate]) async -> [XcodeUpdateNotificationCandidate] {
+        guard !candidates.isEmpty else { return [] }
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        let authorized: Bool
+        switch settings.authorizationStatus {
+        case .authorized, .provisional:
+            authorized = true
+        case .notDetermined:
+            authorized = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+        case .denied, .ephemeral:
+            authorized = false
+        @unknown default:
+            authorized = false
+        }
+        guard authorized else { return [] }
+
+        var delivered: [XcodeUpdateNotificationCandidate] = []
+        for candidate in candidates {
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "发现新的 Xcode 版本")
+            content.body = String(localized: "\(candidate.installation.name) \(candidate.installation.version) 可更新到 Xcode \(candidate.release.version)。")
+            content.sound = .default
+            let request = UNNotificationRequest(
+                identifier: "com.yostar.xcodeswitcher.xcode-update.\(candidate.notificationKey)",
+                content: content,
+                trigger: nil
+            )
+            do {
+                try await center.add(request)
+                delivered.append(candidate)
+            } catch {
+                NSLog("Xcode update notification failed: %@", error.localizedDescription)
+            }
+        }
+        return delivered
+    }
 }
 
 @MainActor

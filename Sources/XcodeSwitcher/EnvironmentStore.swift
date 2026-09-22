@@ -16,6 +16,9 @@ final class EnvironmentStore: ObservableObject {
     /// Set by `XcodeViewModel` at construction.
     weak var status: (any StatusReporting)?
     var activeDeveloperPath: () -> String? = { nil }
+    var inspect: @Sendable (XcodeInstallation, String?) -> EnvironmentReport = { installation, activeDeveloperPath in
+        EnvironmentDoctor.inspect(installation: installation, activeDeveloperPath: activeDeveloperPath)
+    }
 
     private var tasks: [String: Task<Void, Never>] = [:]
 
@@ -31,11 +34,9 @@ final class EnvironmentStore: ObservableObject {
         status?.statusMessage = String(localized: "正在体检 Xcode \(installation.displayVersion)…")
         status?.isError = false
         let activePath = activeDeveloperPath()
+        let inspect = inspect
         tasks[installation.id] = Task.detached(priority: .userInitiated) { [weak self] in
-            let report = EnvironmentDoctor.inspect(
-                installation: installation,
-                activeDeveloperPath: activePath
-            )
+            let report = inspect(installation, activePath)
             guard !Task.isCancelled else {
                 await self?.completeEnvironmentDoctor(for: installation.id, report: nil)
                 return

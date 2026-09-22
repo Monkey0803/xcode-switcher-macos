@@ -242,7 +242,9 @@ struct ContentView: View {
                 NSApp.keyWindow?.makeFirstResponder(nil)
             }
         }
-        .task { model.refresh() }
+        .task {
+            if model.installations.isEmpty { model.refresh() }
+        }
         .onReceive(model.installationsPublisher) { installations in
             guard model.selectedInstallation == nil, let first = installations.first else { return }
             model.select(first)
@@ -330,6 +332,10 @@ struct XcodeDetailView: View {
             }
         }
         .navigationTitle(installation.name)
+        .onAppear { focusCleanupIfRequested() }
+        .onReceive(model.$cleanupFocusRequest.dropFirst()) { _ in
+            focusCleanupIfRequested()
+        }
     }
 
     private var header: some View {
@@ -356,10 +362,16 @@ struct XcodeDetailView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .accessibilityIdentifier("xcode-detail-category-picker")
         }
         .padding(.horizontal, 24)
         .padding(.top, 20)
         .padding(.bottom, 12)
+    }
+
+    private func focusCleanupIfRequested() {
+        guard model.cleanupFocusInstallationID == installation.id else { return }
+        category = .cleanup
     }
 
     @ViewBuilder
@@ -535,6 +547,7 @@ private struct CleanupEntryRow: View {
             Button("清理") { entryToRemove = entry }
                 .buttonStyle(.bordered)
                 .disabled(xcodeRunning || model.isRemovingCleanupEntry(entry))
+                .accessibilityIdentifier("cleanup-entry-button-\(entry.id)")
         }
         .padding(.vertical, 3)
     }
@@ -1388,6 +1401,15 @@ struct ProjectProfileRow: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .textSelection(.enabled)
+            } else if let conflict = model.workspaceConflict(for: profile) {
+                Label(
+                    "Workspace 中的项目要求多个 Xcode 版本：\(conflict.versions.joined(separator: "、"))",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .textSelection(.enabled)
+                .accessibilityIdentifier("workspace-xcode-conflict-\(profile.id.uuidString)")
             } else if selectedXcodeID.isEmpty, let match = model.automaticMatch(for: profile), match.isInstalled {
                 Label(
                     "根据 \(URL(fileURLWithPath: match.requirement.source).lastPathComponent) 自动匹配 Xcode \(match.requirement.normalizedVersion)",
@@ -1439,6 +1461,7 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .accessibilityIdentifier("settings-category-picker")
             .frame(width: 180)
             .padding(.bottom, 16)
 
@@ -1691,6 +1714,8 @@ final class ShortcutRecorderNSView: NSView {
 struct GeneralSettingsView: View {
     @EnvironmentObject private var model: XcodeViewModel
     @State private var isRecordingShortcut = false
+    @State private var diskSpaceWarningThresholdText = ""
+    @FocusState private var isEditingDiskSpaceWarningThreshold: Bool
 
     var body: some View {
         Form {
@@ -1731,6 +1756,14 @@ struct GeneralSettingsView: View {
                     set: { model.toggleAutomaticUpdateChecks($0) }
                 ))
                 .disabled(!model.isUpdateServiceAvailable)
+                Toggle("发现新的 Xcode 版本时通知", isOn: Binding(
+                    get: { model.configuration.xcodeUpdateNotificationsEnabled },
+                    set: { model.toggleXcodeUpdateNotifications($0) }
+                ))
+                .accessibilityIdentifier("xcode-update-notifications-toggle")
+                Text("使用发布索引检查已安装 Xcode 的同一主版本更新。首次启用时会请求通知权限。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 HStack {
                     Button("检查更新…") { model.checkForUpdates() }
                         .disabled(model.isCheckingRelease)
@@ -1739,6 +1772,45 @@ struct GeneralSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(model.isError ? Color.orange : Color.secondary)
                 }
+            }
+
+            Section("磁盘空间预警") {
+                Toggle("低空间时在菜单栏提示", isOn: Binding(
+                    get: { model.configuration.diskSpaceWarningEnabled },
+                    set: { model.toggleDiskSpaceWarning($0) }
+                ))
+                .accessibilityIdentifier("disk-space-warning-toggle")
+                if model.configuration.diskSpaceWarningEnabled {
+                    HStack(spacing: 8) {
+                        Text("可用空间低于")
+                        TextField("GB", text: $diskSpaceWarningThresholdText)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 56)
+                            .focused($isEditingDiskSpaceWarningThreshold)
+                            .onSubmit { commitDiskSpaceWarningThreshold() }
+                            .onChange(of: isEditingDiskSpaceWarningThreshold) { _, isEditing in
+                                if !isEditing { commitDiskSpaceWarningThreshold() }
+                            }
+                            .accessibilityIdentifier("disk-space-warning-threshold-input")
+                        Text("GB 时提示")
+                        Stepper(
+                            onIncrement: { adjustDiskSpaceWarningThreshold(by: 5) },
+                            onDecrement: { adjustDiskSpaceWarningThreshold(by: -5) },
+                            label: { EmptyView() }
+                        )
+                        .labelsHidden()
+                        .accessibilityLabel("调整磁盘空间预警阈值")
+                        .accessibilityIdentifier("disk-space-warning-threshold")
+                    }
+                    .onAppear { syncDiskSpaceWarningThresholdText() }
+                    .onChange(of: model.configuration.diskSpaceWarningThresholdGB) { _, _ in
+                        guard !isEditingDiskSpaceWarningThreshold else { return }
+                        syncDiskSpaceWarningThresholdText()
+                    }
+                }
+                Text("启动时及之后每 30 分钟检查一次。只显示清理建议，不会自动删除文件。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("快捷键") {
@@ -1831,6 +1903,25 @@ struct GeneralSettingsView: View {
         }
         .formStyle(.grouped)
         .padding(20)
+    }
+
+    private func syncDiskSpaceWarningThresholdText() {
+        diskSpaceWarningThresholdText = String(model.configuration.diskSpaceWarningThresholdGB)
+    }
+
+    private func commitDiskSpaceWarningThreshold() {
+        let threshold = Int(diskSpaceWarningThresholdText) ?? model.configuration.diskSpaceWarningThresholdGB
+        let normalized = DiskSpaceMonitor.normalizedThresholdGB(threshold)
+        diskSpaceWarningThresholdText = String(normalized)
+        model.updateDiskSpaceWarningThreshold(normalized)
+    }
+
+    private func adjustDiskSpaceWarningThreshold(by amount: Int) {
+        let threshold = DiskSpaceMonitor.normalizedThresholdGB(
+            model.configuration.diskSpaceWarningThresholdGB + amount
+        )
+        model.updateDiskSpaceWarningThreshold(threshold)
+        syncDiskSpaceWarningThresholdText()
     }
 }
 
@@ -1998,6 +2089,7 @@ struct SigningSettingsView: View {
             }
         }
     }
+
 }
 
 struct SigningReportView: View {

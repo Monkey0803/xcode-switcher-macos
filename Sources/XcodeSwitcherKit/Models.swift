@@ -52,6 +52,12 @@ public struct XcodeInstallation: Identifiable, Hashable, Sendable {
     public let version: String
     public let build: String
 
+    public init(appURL: URL, version: String, build: String) {
+        self.appURL = appURL
+        self.version = version
+        self.build = build
+    }
+
     public var id: String { appURL.path }
     public var name: String { appURL.deletingPathExtension().lastPathComponent }
     public var developerURL: URL { appURL.appendingPathComponent("Contents/Developer", isDirectory: true) }
@@ -99,7 +105,7 @@ public struct ProjectXcodeMatch: Equatable, Sendable {
 }
 
 public struct AppConfiguration: Codable {
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 4
 
     /// The on-disk schema. Missing values from pre-1.2.0 files are migrated
     /// to the current schema by `AppConfigurationStore`.
@@ -113,11 +119,16 @@ public struct AppConfiguration: Codable {
     public var launchAtLoginEnabled = false
     public var menuBarOnly = false
     public var automaticallyChecksForUpdates = true
+    public var diskSpaceWarningEnabled = true
+    public var diskSpaceWarningThresholdGB = 20
+    public var xcodeUpdateNotificationsEnabled = false
+    public var notifiedXcodeUpdateKeys: Set<String> = []
     public var activationHistory: [String] = []
 
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, customSearchPaths, favoriteIDs, xcodeAliases, projects, globalShortcutEnabled, globalShortcut
-        case launchAtLoginEnabled, menuBarOnly, automaticallyChecksForUpdates, activationHistory
+        case launchAtLoginEnabled, menuBarOnly, automaticallyChecksForUpdates, diskSpaceWarningEnabled, diskSpaceWarningThresholdGB
+        case xcodeUpdateNotificationsEnabled, notifiedXcodeUpdateKeys, activationHistory
     }
 
     public init() {}
@@ -134,11 +145,16 @@ public struct AppConfiguration: Codable {
         launchAtLoginEnabled = try container.decodeIfPresent(Bool.self, forKey: .launchAtLoginEnabled) ?? false
         menuBarOnly = try container.decodeIfPresent(Bool.self, forKey: .menuBarOnly) ?? false
         automaticallyChecksForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyChecksForUpdates) ?? true
+        diskSpaceWarningEnabled = try container.decodeIfPresent(Bool.self, forKey: .diskSpaceWarningEnabled) ?? true
+        diskSpaceWarningThresholdGB = try container.decodeIfPresent(Int.self, forKey: .diskSpaceWarningThresholdGB) ?? 20
+        xcodeUpdateNotificationsEnabled = try container.decodeIfPresent(Bool.self, forKey: .xcodeUpdateNotificationsEnabled) ?? false
+        notifiedXcodeUpdateKeys = try container.decodeIfPresent(Set<String>.self, forKey: .notifiedXcodeUpdateKeys) ?? []
         activationHistory = try container.decodeIfPresent([String].self, forKey: .activationHistory) ?? []
     }
 
     mutating func migrate() {
         schemaVersion = Self.currentSchemaVersion
+        diskSpaceWarningThresholdGB = DiskSpaceMonitor.normalizedThresholdGB(diskSpaceWarningThresholdGB)
         var seen = Set<String>()
         activationHistory = activationHistory.filter { seen.insert($0).inserted }.prefix(10).map { $0 }
     }
@@ -249,6 +265,14 @@ public struct EnvironmentCheck: Identifiable, Codable, Equatable, Sendable {
     public let detail: String
     public let severity: EnvironmentCheckSeverity
     public let remediation: String?
+
+    public init(id: String, title: String, detail: String, severity: EnvironmentCheckSeverity, remediation: String? = nil) {
+        self.id = id
+        self.title = title
+        self.detail = detail
+        self.severity = severity
+        self.remediation = remediation
+    }
 }
 
 public struct EnvironmentReport: Codable, Equatable, Sendable {
@@ -257,6 +281,20 @@ public struct EnvironmentReport: Codable, Equatable, Sendable {
     let version: String
     public let generatedAt: Date
     public let checks: [EnvironmentCheck]
+
+    public init(
+        installationID: String,
+        installationName: String,
+        version: String,
+        generatedAt: Date = Date(),
+        checks: [EnvironmentCheck]
+    ) {
+        self.installationID = installationID
+        self.installationName = installationName
+        self.version = version
+        self.generatedAt = generatedAt
+        self.checks = checks
+    }
 
     public var highestSeverity: EnvironmentCheckSeverity {
         checks.map(\.severity).max() ?? .informational

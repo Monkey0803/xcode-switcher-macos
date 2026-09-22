@@ -49,6 +49,13 @@ final class DiskCleanupStore: ObservableObject {
         cleanupRemovingPaths.contains(entry.path)
     }
 
+    /// Provides a non-destructive row for the shipped-app UI test. The test only
+    /// opens and cancels the confirmation dialog; it never runs the removal action.
+    func setCleanupEntriesForUITesting(_ entries: [XcodeCleanupEntry], for installation: XcodeInstallation) {
+        cleanupSharedEntries = entries
+        cleanupEntriesByID[installation.id] = entries
+    }
+
 
     func loadCleanupEntries(for installation: XcodeInstallation, force: Bool = false) {
         let id = installation.id

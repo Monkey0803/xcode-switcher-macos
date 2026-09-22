@@ -40,6 +40,7 @@ final class InstallationStore: ObservableObject {
     var searchPathsDidChange: () -> Void = {}
 
     private var refreshTask: Task<Void, Never>?
+    private var usesUITestFixture = false
     private var detailTasks: [String: Task<Void, Never>] = [:]
     private var runtimeDownloadTask: Task<Void, Never>?
     /// `NSWorkspace.icon(forFile:)` goes through LaunchServices, so the result is
@@ -114,6 +115,10 @@ final class InstallationStore: ObservableObject {
     }
 
     func refresh(silently: Bool = false) {
+        // The UI suite supplies deterministic installations. Ignore every refresh
+        // trigger (including status-menu callbacks) so a host Xcode cannot replace
+        // that fixture while a destructive confirmation path is under test.
+        guard !usesUITestFixture else { return }
         guard !isRefreshing else { return }
         isRefreshing = true
         if !silently { status?.statusMessage = String(localized: "正在扫描本机安装的 Xcode…") }
@@ -166,6 +171,19 @@ final class InstallationStore: ObservableObject {
     func select(_ installation: XcodeInstallation) {
         selectedID = installation.id
         reloadSelected(installation)
+    }
+
+    /// Supplies deterministic data for the shipped-app UI tests without starting
+    /// discovery or the per-installation background loaders.
+    func replaceInstallationsForUITesting(
+        _ installations: [XcodeInstallation],
+        activeDeveloperPath: String?
+    ) {
+        usesUITestFixture = true
+        self.installations = installations
+        selectedID = installations.first?.id
+        self.activeDeveloperPath = activeDeveloperPath
+        commandLineToolsPath = activeDeveloperPath ?? String(localized: "未检测到")
     }
 
     var isAnyXcodeRunning: Bool {

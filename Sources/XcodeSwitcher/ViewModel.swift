@@ -24,6 +24,8 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
 
     @Published var filter = ""
     @Published private(set) var searchFocusRequest = 0
+    @Published private(set) var cleanupFocusRequest = 0
+    @Published private(set) var cleanupFocusInstallationID: String?
 
     /// Deliberately not `@Published`: only the runtime section observes it, so
     /// download progress does not republish the whole view model.
@@ -61,6 +63,12 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     /// Invoked when the folders that should be watched for Xcode installations
     /// change, so the app can re-arm its directory monitors.
     var onSearchPathsChanged: (() -> Void)?
+    /// `AppDelegate` uses this to refresh its status item when the user changes
+    /// the low-space preference.
+    var onDiskSpaceWarningConfigurationChanged: (() -> Void)?
+    /// AppDelegate owns UserNotifications. The model only decides which release
+    /// updates have not been shown to this configuration yet.
+    var onXcodeUpdateNotificationsReady: (([XcodeUpdateNotificationCandidate]) -> Void)?
 
     init(
         store: AppConfigurationStore = .shared,
@@ -85,6 +93,9 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
             .store(in: &cancellables)
         releases.status = self
         releases.installations = { [weak self] in self?.installations ?? [] }
+        releases.xcodeUpdateCandidatesDidChange = { [weak self] candidates in
+            self?.handleXcodeUpdateCandidates(candidates)
+        }
         releases.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
@@ -107,7 +118,10 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
             .store(in: &cancellables)
         installs.status = self
         installs.owner = self
-        installs.didRefresh = { [weak self] in self?.projects.invalidateSnapshots() }
+        installs.didRefresh = { [weak self] in
+            self?.projects.invalidateSnapshots()
+            self?.releases.reportXcodeUpdateCandidates()
+        }
         installs.searchPathsDidChange = { [weak self] in self?.onSearchPathsChanged?() }
         // After a refresh or a selection, every other store reloads for that
         // installation. This is the one place that knows about all of them.
@@ -129,6 +143,10 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
             self?.onSearchPathsChanged?()
         }
         settings.shortcutPressed = { [weak self] in self?.showMainWindow(focusSearch: true) }
+        settings.diskSpaceWarningDidChange = { [weak self] in self?.onDiskSpaceWarningConfigurationChanged?() }
+        settings.xcodeUpdateNotificationsDidChange = { [weak self] in
+            self?.releases.reportXcodeUpdateCandidates()
+        }
         settings.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
             .store(in: &cancellables)
@@ -165,6 +183,9 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     func toggleLaunchAtLogin(_ enabled: Bool) { settings.toggleLaunchAtLogin(enabled) }
     func toggleMenuBarOnly(_ enabled: Bool) { settings.toggleMenuBarOnly(enabled) }
     func toggleAutomaticUpdateChecks(_ enabled: Bool) { settings.toggleAutomaticUpdateChecks(enabled) }
+    func toggleDiskSpaceWarning(_ enabled: Bool) { settings.toggleDiskSpaceWarning(enabled) }
+    func updateDiskSpaceWarningThreshold(_ thresholdGB: Int) { settings.updateDiskSpaceWarningThreshold(thresholdGB) }
+    func toggleXcodeUpdateNotifications(_ enabled: Bool) { settings.toggleXcodeUpdateNotifications(enabled) }
     func selectAppLanguage(_ language: AppLanguage) { settings.selectAppLanguage(language) }
     func restartToApplyLanguage() { settings.restartToApplyLanguage() }
     func exportConfiguration() { settings.exportConfiguration() }
@@ -390,6 +411,19 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     func checkForUpdates() { releases.checkForUpdates() }
     func openReleasePage() { releases.openReleasePage() }
 
+    func markXcodeUpdateNotificationsDelivered(_ candidates: [XcodeUpdateNotificationCandidate]) {
+        guard !candidates.isEmpty else { return }
+        configuration.notifiedXcodeUpdateKeys.formUnion(candidates.map(\.notificationKey))
+        persist()
+    }
+
+    private func handleXcodeUpdateCandidates(_ candidates: [XcodeUpdateNotificationCandidate]) {
+        guard configuration.xcodeUpdateNotificationsEnabled else { return }
+        let pending = candidates.filter { !configuration.notifiedXcodeUpdateKeys.contains($0.notificationKey) }
+        guard !pending.isEmpty else { return }
+        onXcodeUpdateNotificationsReady?(pending)
+    }
+
     // MARK: - 环境体检
 
     /// Same forwarding contract as the stores above. `diagnostics(for:)` stays in
@@ -439,6 +473,9 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
         projects.automaticMatch(for: profile)
     }
     func projectIssue(for profile: ProjectProfile) -> String? { projects.projectIssue(for: profile) }
+    func workspaceConflict(for profile: ProjectProfile) -> WorkspaceXcodeConflict? {
+        projects.workspaceConflict(for: profile)
+    }
     func invalidateProjectSnapshots() { projects.invalidateSnapshots() }
     func scheduleProjectUpdate(_ profile: ProjectProfile, name: String, xcodeID: String?) {
         projects.scheduleProjectUpdate(profile, name: name, xcodeID: xcodeID)
@@ -447,6 +484,14 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
 
     func requestSearchFocus() {
         searchFocusRequest += 1
+    }
+
+    /// The AppKit menu bar can route a low-space warning into the existing cleanup
+    /// preview without teaching that layer about SwiftUI's detail-view state.
+    func requestDiskCleanup(for installation: XcodeInstallation) {
+        select(installation)
+        cleanupFocusInstallationID = installation.id
+        cleanupFocusRequest += 1
     }
 
     func showMainWindow(focusSearch: Bool = false) {

@@ -33,6 +33,16 @@
         }
       }
     },
+    "%@ %@ 可更新到 Xcode %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %@ can be updated to Xcode %@."
+          }
+        }
+      }
+    },
     "%@ Simulator Runtime 下载命令已完成。": {
       "localizations": {
         "en": {
@@ -210,6 +220,17 @@
       }
     },
     "Finder": {},
+    "GB": {},
+    "GB 时提示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GB"
+          }
+        }
+      }
+    },
     "GM": {},
     "GM Seed %lld": {},
     "GitHub Release 标签无效：%@。": {
@@ -445,6 +466,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "SwiftPM Caches"
+          }
+        }
+      }
+    },
+    "Workspace 中的项目要求多个 Xcode 版本：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projects in this workspace require multiple Xcode versions: %@"
           }
         }
       }
@@ -763,6 +794,16 @@
         }
       }
     },
+    "仅用于确认清理流程测试，不会删除该目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used only to test the cleanup confirmation flow. This directory is not deleted."
+          }
+        }
+      }
+    },
     "仅预发布": {
       "localizations": {
         "en": {
@@ -813,6 +854,16 @@
         }
       }
     },
+    "低空间时在菜单栏提示": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show menu bar alerts when disk space is low"
+          }
+        }
+      }
+    },
     "使用 %@ %@": {
       "localizations": {
         "en": {
@@ -825,6 +876,16 @@
           "stringUnit": {
             "state": "new",
             "value": "使用 %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "使用发布索引检查已安装 Xcode 的同一主版本更新。首次启用时会请求通知权限。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checks the release index for updates in the same major version of installed Xcode. Notification permission is requested the first time you enable it."
           }
         }
       }
@@ -1265,6 +1326,26 @@
         }
       }
     },
+    "发现新的 Xcode 版本": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Xcode version found"
+          }
+        }
+      }
+    },
+    "发现新的 Xcode 版本时通知": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notify when a new Xcode version is found"
+          }
+        }
+      }
+    },
     "发行说明": {
       "localizations": {
         "en": {
@@ -1345,6 +1426,16 @@
         }
       }
     },
+    "可用空间低于": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alert below"
+          }
+        }
+      }
+    },
     "合计：%@": {
       "localizations": {
         "en": {
@@ -1401,6 +1492,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Startup & Updates"
+          }
+        }
+      }
+    },
+    "启动时及之后每 30 分钟检查一次。只显示清理建议，不会自动删除文件。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checked at launch and every 30 minutes. Suggestions never delete files automatically."
           }
         }
       }
@@ -4167,6 +4268,36 @@
         }
       }
     },
+    "测试 DerivedData": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test DerivedData"
+          }
+        }
+      }
+    },
+    "测试诊断完成": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test diagnostics complete"
+          }
+        }
+      }
+    },
+    "测试项目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test project"
+          }
+        }
+      }
+    },
     "添加搜索目录…": {
       "localizations": {
         "en": {
@@ -4585,6 +4716,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Disk space"
+          }
+        }
+      }
+    },
+    "磁盘空间不足：剩余 %@。打开菜单查看清理建议。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low disk space: %@ remaining. Open the menu for cleanup suggestions."
+          }
+        }
+      }
+    },
+    "磁盘空间不足：剩余 %@。查看清理建议…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low disk space: %@ remaining. View cleanup suggestions…"
+          }
+        }
+      }
+    },
+    "磁盘空间预警": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disk space alerts"
           }
         }
       }
@@ -5011,6 +5172,16 @@
         }
       }
     },
+    "调整磁盘空间预警阈值": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adjust disk space alert threshold"
+          }
+        }
+      }
+    },
     "跟随系统": {
       "localizations": {
         "en": {
@@ -5107,6 +5278,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Permanently deletes the device and its data. This cannot be undone."
+          }
+        }
+      }
+    },
+    "这是 UI 测试提供的诊断结果。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This diagnostic result is supplied by the UI test."
           }
         }
       }

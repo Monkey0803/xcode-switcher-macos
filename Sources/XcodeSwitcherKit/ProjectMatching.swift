@@ -317,3 +317,129 @@ public enum ProjectXcodeMatcher {
         return directories
     }
 }
+
+/// A version disagreement among projects referenced by one `.xcworkspace`.
+/// Only explicit project requirements participate: a project that merely falls
+/// back to the active Xcode must not turn a workspace into a false conflict.
+public struct WorkspaceXcodeConflict: Equatable, Sendable {
+    public struct Requirement: Equatable, Sendable, Identifiable {
+        public let projectName: String
+        public let version: String
+        public let source: String
+
+        public var id: String { "\(projectName)|\(version)|\(source)" }
+
+        public init(projectName: String, version: String, source: String) {
+            self.projectName = projectName
+            self.version = version
+            self.source = source
+        }
+    }
+
+    public let workspaceURL: URL
+    public let requirements: [Requirement]
+
+    public var versions: [String] {
+        Array(Set(requirements.map(\.version))).sorted { lhs, rhs in
+            Self.isEarlier(lhs, than: rhs)
+        }
+    }
+
+    public var hasConflict: Bool { versions.count > 1 }
+
+    public init(workspaceURL: URL, requirements: [Requirement]) {
+        self.workspaceURL = workspaceURL
+        self.requirements = requirements
+    }
+
+    private static func isEarlier(_ lhs: String, than rhs: String) -> Bool {
+        let left = lhs.split(separator: ".").map { Int($0) ?? 0 }
+        let right = rhs.split(separator: ".").map { Int($0) ?? 0 }
+        for index in 0..<max(left.count, right.count) {
+            let lhsPart = index < left.count ? left[index] : 0
+            let rhsPart = index < right.count ? right[index] : 0
+            if lhsPart != rhsPart { return lhsPart < rhsPart }
+        }
+        return false
+    }
+}
+
+/// Reads the projects a workspace references and resolves each project's local
+/// Xcode requirement. This is intentionally separate from project opening:
+/// detection never changes `DEVELOPER_DIR` or writes project files.
+public enum WorkspaceXcodeConflictDetector {
+    public static func conflict(
+        in workspaceURL: URL,
+        installations: [XcodeInstallation],
+        aliases: [String: String] = [:],
+        fileManager: FileManager = .default
+    ) -> WorkspaceXcodeConflict? {
+        guard workspaceURL.pathExtension == "xcworkspace",
+              fileManager.fileExists(atPath: workspaceURL.path),
+              let contents = try? String(
+                  contentsOf: workspaceURL.appendingPathComponent("contents.xcworkspacedata"),
+                  encoding: .utf8
+              )
+        else { return nil }
+
+        let projectURLs = referencedProjectURLs(in: contents, workspaceURL: workspaceURL)
+        let requirements = projectURLs.compactMap { projectURL -> WorkspaceXcodeConflict.Requirement? in
+            let profile = ProjectProfile(
+                name: projectURL.deletingPathExtension().lastPathComponent,
+                path: projectURL.path
+            )
+            let configurationURL = ProjectLocalConfigurationStore.configurationURL(for: projectURL, fileManager: fileManager)
+            let localConfiguration = configurationURL.flatMap {
+                ProjectLocalConfigurationStore.load(in: $0.deletingLastPathComponent(), fileManager: fileManager)
+            }
+            let resolution = ProjectXcodeMatcher.resolve(
+                profile: profile,
+                installations: installations,
+                aliases: aliases,
+                activeInstallationID: nil,
+                localConfiguration: localConfiguration,
+                fileManager: fileManager
+            )
+            switch resolution {
+            case let .resolved(installationID, source):
+                let hasExplicitRequirement: Bool
+                switch source {
+                case .localConfiguration, .automaticRequirement:
+                    hasExplicitRequirement = true
+                case .explicitBinding, .currentInstallationFallback, .firstInstallationFallback:
+                    hasExplicitRequirement = false
+                }
+                guard hasExplicitRequirement,
+                      let installation = installations.first(where: { $0.id == installationID })
+                else { return nil }
+                return WorkspaceXcodeConflict.Requirement(
+                    projectName: profile.name,
+                    version: installation.version,
+                    source: source.displayName
+                )
+            case let .missingRequiredXcode(requirement):
+                return WorkspaceXcodeConflict.Requirement(
+                    projectName: profile.name,
+                    version: requirement.normalizedVersion,
+                    source: URL(fileURLWithPath: requirement.source).lastPathComponent
+                )
+            case .missingProject, .missingBoundXcode, .invalidProjectConfiguration, .noInstallation:
+                return nil
+            }
+        }
+        let conflict = WorkspaceXcodeConflict(workspaceURL: workspaceURL, requirements: requirements)
+        return conflict.hasConflict ? conflict : nil
+    }
+
+    private static func referencedProjectURLs(in contents: String, workspaceURL: URL) -> [URL] {
+        let pattern = #"location\s*=\s*\"(?:group:|container:)?([^\"]+\.xcodeproj)\""#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(contents.startIndex..., in: contents)
+        return regex.matches(in: contents, range: range).compactMap { match in
+            guard let locationRange = Range(match.range(at: 1), in: contents) else { return nil }
+            return workspaceURL.deletingLastPathComponent()
+                .appendingPathComponent(String(contents[locationRange]))
+                .standardizedFileURL
+        }
+    }
+}

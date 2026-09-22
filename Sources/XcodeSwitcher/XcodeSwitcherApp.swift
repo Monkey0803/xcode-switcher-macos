@@ -39,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var directoryRefreshTask: Task<Void, Never>?
     private let monitorQueue = DispatchQueue(label: "com.yostar.xcodeswitcher.directory-monitor")
     private var menuBarTitleObserver: AnyCancellable?
+    private var diskSpaceTimer: Timer?
+    private var lowDiskSpaceAvailableBytes: Int64?
 
     /// Windows are told apart by identifier rather than by title so the code does
     /// not depend on user-visible, localized strings.
@@ -85,11 +87,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         defaults.removePersistentDomain(forName: uiTestingDefaultsSuite)
         let configurationURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("XcodeSwitcherUITests-\(ProcessInfo.processInfo.processIdentifier).json")
-        return XcodeViewModel(
+        let model = XcodeViewModel(
             store: AppConfigurationStore(fileURL: configurationURL),
             languageDefaults: defaults,
             configuresSystemServices: false
         )
+        configureUITestFixture(on: model)
+        return model
+    }
+
+    /// The UI suite launches the production app target, but this fixture removes
+    /// dependencies on the user's installed Xcodes, project list, and disk usage.
+    private static func configureUITestFixture(on model: XcodeViewModel) {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("XcodeSwitcherUITestFixture-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+        let active = XcodeInstallation(
+            appURL: root.appendingPathComponent("Xcode 15.4.app", isDirectory: true),
+            version: "15.4",
+            build: "15F31d"
+        )
+        let recommended = XcodeInstallation(
+            appURL: root.appendingPathComponent("Xcode 16.0.app", isDirectory: true),
+            version: "16.0",
+            build: "16A242d"
+        )
+        let projectURL = root.appendingPathComponent("Fixture.xcodeproj", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: active.developerURL,
+            withIntermediateDirectories: true
+        )
+        try? FileManager.default.createDirectory(
+            at: recommended.developerURL,
+            withIntermediateDirectories: true
+        )
+        try? FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+
+        model.installs.replaceInstallationsForUITesting(
+            [active, recommended],
+            activeDeveloperPath: active.developerURL.path
+        )
+        // The UI test opens then cancels this confirmation. It must remain
+        // enabled even when the developer machine has a real Xcode process.
+        model.cleanup.isAnyXcodeRunning = { false }
+        model.cleanup.setCleanupEntriesForUITesting([
+            XcodeCleanupEntry(
+                path: root.appendingPathComponent("DerivedData").path,
+                label: String(localized: "测试 DerivedData"),
+                bytes: 512 * 1_024 * 1_024,
+                safety: .safe,
+                note: String(localized: "仅用于确认清理流程测试，不会删除该目录。")
+            )
+        ], for: active)
+        model.environment.inspect = { installation, _ in
+            EnvironmentReport(
+                installationID: installation.id,
+                installationName: installation.name,
+                version: installation.version,
+                checks: [
+                    EnvironmentCheck(
+                        id: "ui-test-check",
+                        title: String(localized: "测试诊断完成"),
+                        detail: String(localized: "这是 UI 测试提供的诊断结果。"),
+                        severity: .healthy
+                    )
+                ]
+            )
+        }
+        model.configuration.projects = [
+            ProjectProfile(name: String(localized: "测试项目"), path: projectURL.path, xcodeID: recommended.id)
+        ]
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -106,8 +172,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         menu.autoenablesItems = false
         statusItem.menu = menu
+        model.onDiskSpaceWarningConfigurationChanged = { [weak self] in self?.refreshDiskSpaceWarning() }
+        model.onXcodeUpdateNotificationsReady = { [weak self] candidates in
+            Task { @MainActor [weak self] in
+                let delivered = await XcodeUpdateNotificationService.deliver(candidates)
+                self?.model.markXcodeUpdateNotificationsDelivered(delivered)
+            }
+        }
         if !Self.isRunningUITests {
             model.refresh()
+            startDiskSpaceMonitoring()
         }
         rebuildMenu()
         // Keep the version in the menu bar current even when it changes outside
@@ -174,11 +248,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let version = model.installations
             .first { $0.developerURL.path == model.activeDeveloperPath }?
             .version
-        let title = version.map { " \($0)" } ?? ""
-        guard statusItem.button?.title != title else { return }
+        let normalTitle = version.map { " \($0)" } ?? ""
+        let normalToolTip = version.map { "Xcode Switcher — Xcode \($0)" } ?? "Xcode Switcher"
+        let title = lowDiskSpaceAvailableBytes.map { " ⚠︎ \(DiskUsageFormatter.humanReadable(bytes: $0))" } ?? normalTitle
+        let toolTip = lowDiskSpaceAvailableBytes.map {
+            String(localized: "磁盘空间不足：剩余 \(DiskUsageFormatter.humanReadable(bytes: $0))。打开菜单查看清理建议。")
+        } ?? normalToolTip
+        guard statusItem.button?.title != title || statusItem.button?.toolTip != toolTip else { return }
         statusItem.button?.title = title
         statusItem.button?.imagePosition = title.isEmpty ? .imageOnly : .imageLeading
-        statusItem.button?.toolTip = version.map { "Xcode Switcher — Xcode \($0)" } ?? "Xcode Switcher"
+        statusItem.button?.toolTip = toolTip
     }
 
     private static func menuBarIcon() -> NSImage? {
@@ -189,8 +268,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return image
     }
 
+    private func startDiskSpaceMonitoring() {
+        refreshDiskSpaceWarning()
+        diskSpaceTimer?.invalidate()
+        diskSpaceTimer = Timer.scheduledTimer(withTimeInterval: 30 * 60, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshDiskSpaceWarning()
+            }
+        }
+    }
+
+    private func refreshDiskSpaceWarning() {
+        guard model.configuration.diskSpaceWarningEnabled,
+              let availableBytes = DiskSpaceMonitor.availableBytes(at: FileManager.default.homeDirectoryForCurrentUser),
+              DiskSpaceMonitor.isBelowWarningThreshold(
+                availableBytes: availableBytes,
+                thresholdGB: model.configuration.diskSpaceWarningThresholdGB
+              )
+        else {
+            lowDiskSpaceAvailableBytes = nil
+            updateStatusItemTitle()
+            return
+        }
+        lowDiskSpaceAvailableBytes = availableBytes
+        updateStatusItemTitle()
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         stopWatchingSearchPaths()
+        diskSpaceTimer?.invalidate()
         GlobalShortcutService.shared.stop()
         // Apply an edit that is still inside the project-edit debounce window.
         model.flushPendingProjectUpdate()
@@ -205,6 +311,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func rebuildMenu() {
         menu.removeAllItems()
+        if let availableBytes = lowDiskSpaceAvailableBytes {
+            let warning = NSMenuItem(
+                title: String(localized: "磁盘空间不足：剩余 \(DiskUsageFormatter.humanReadable(bytes: availableBytes))。查看清理建议…"),
+                action: #selector(openDiskCleanup),
+                keyEquivalent: ""
+            )
+            warning.target = self
+            warning.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: nil)
+            menu.addItem(warning)
+            menu.addItem(.separator())
+        }
         if let active = model.activeInstallation {
             let activeItem = NSMenuItem(title: String(localized: "当前：\(active.name) \(active.displayVersion)"), action: nil, keyEquivalent: "")
             activeItem.isEnabled = false
@@ -311,6 +428,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openMainWindow() { model.showMainWindow() }
+    @objc private func openDiskCleanup() {
+        guard let installation = model.activeInstallation ?? model.selectedInstallation ?? model.installations.first else {
+            presentMainWindow()
+            return
+        }
+        model.requestDiskCleanup(for: installation)
+        presentMainWindow()
+    }
     @objc private func refreshXcodes() { model.refresh() }
     @objc private func openAllVersions() { showAllVersions(nil) }
     @objc private func openSettings() { showSettings(nil) }

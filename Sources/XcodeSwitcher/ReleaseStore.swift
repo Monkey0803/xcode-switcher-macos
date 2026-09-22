@@ -3,6 +3,16 @@ import Combine
 import Foundation
 import XcodeSwitcherKit
 
+struct XcodeUpdateNotificationCandidate: Sendable {
+    let installation: XcodeInstallation
+    let release: XcodeReleaseInfo
+
+    /// A newer build for the same installation should notify once. Reinstalling
+    /// an Xcode at another path remains useful information, so the path stays in
+    /// the key rather than suppressing a potentially different installation.
+    var notificationKey: String { "\(installation.id)|\(release.build)" }
+}
+
 /// The community release index, per-installation build details, and the update
 /// check.
 ///
@@ -33,6 +43,7 @@ final class ReleaseStore: ObservableObject {
     /// Set by `XcodeViewModel` at construction.
     weak var status: (any StatusReporting)?
     var installations: () -> [XcodeInstallation] = { [] }
+    var xcodeUpdateCandidatesDidChange: ([XcodeUpdateNotificationCandidate]) -> Void = { _ in }
 
     private let releaseCatalogStore: XcodeReleaseCatalogStore
     private var releaseCatalogTask: Task<Void, Never>?
@@ -112,6 +123,7 @@ final class ReleaseStore: ObservableObject {
             case .success(let snapshot):
                 releaseCatalog = snapshot.releases
                 releaseCatalogState = .loaded(cachedAt: snapshot.cachedAt, failure: snapshot.failure)
+                reportXcodeUpdateCandidates()
                 releaseLog.info(
                     "release index: \(snapshot.releases.count) entries, cached \(snapshot.cachedAt?.description ?? "none", privacy: .public), refresh failure \(snapshot.failure ?? "none", privacy: .public)"
                 )
@@ -121,6 +133,15 @@ final class ReleaseStore: ObservableObject {
                 releaseCatalogState = .unavailable(message)
             }
         }
+    }
+
+    func reportXcodeUpdateCandidates() {
+        let candidates = installations().compactMap { installation in
+            newerRelease(for: installation).map {
+                XcodeUpdateNotificationCandidate(installation: installation, release: $0)
+            }
+        }
+        xcodeUpdateCandidatesDidChange(candidates)
     }
     var isUpdateServiceAvailable: Bool {
         UpdateService.shared.isAvailable

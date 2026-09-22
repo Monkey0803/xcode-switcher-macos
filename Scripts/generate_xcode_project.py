@@ -707,7 +707,16 @@ def build_objects() -> tuple[dict, str]:
         "SWIFT_EMIT_LOC_STRINGS": "YES",
         "SWIFT_INCLUDE_PATHS": module_dir(KIT_TARGET),
     }
-    app_debug = configuration("Debug", app_settings)
+    # A separately identifiable Debug app prevents LaunchServices from selecting an
+    # installed release build when XCTest starts the target application.
+    app_debug = configuration(
+        "Debug",
+        {
+            **app_settings,
+            "INFOPLIST_FILE": "Resources/DebugInfo.plist",
+            "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_IDENTIFIER + ".debug",
+        },
+    )
     app_release = configuration(
         "Release",
         {key: value for key, value in app_settings.items() if key != "CODE_SIGN_ENTITLEMENTS"},

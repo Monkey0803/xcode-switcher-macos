@@ -437,6 +437,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>0DB3E50DE3B16E4D40F15861</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>DiskSpaceMonitorTests.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>22CB118B39C9CEDB958AEDBB</key>
 		<dict>
 			<key>isa</key>
@@ -558,6 +569,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>A0CD4965E3853D880FBC1363</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>WorkspaceXcodeConflictTests.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>925275FB104EC55A92CE2016</key>
 		<dict>
 			<key>isa</key>
@@ -588,6 +610,17 @@
 			<string>sourcecode.swift</string>
 			<key>path</key>
 			<string>XcodeSettingsAutomationTests.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>5B5477B5DEFA353293A6853B</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>XcodeUpdateNotificationTests.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -1020,6 +1053,13 @@
 			<key>fileRef</key>
 			<string>8C77BB1D50E0387CBAB9B7E7</string>
 		</dict>
+		<key>98670E146C83CA2CEA7DBBD4</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>0DB3E50DE3B16E4D40F15861</string>
+		</dict>
 		<key>F3E5CCA0D279669922F93185</key>
 		<dict>
 			<key>isa</key>
@@ -1097,6 +1137,13 @@
 			<key>fileRef</key>
 			<string>EFFFF68CFB69190935A03796</string>
 		</dict>
+		<key>D02368F88908FEAF37B79878</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>A0CD4965E3853D880FBC1363</string>
+		</dict>
 		<key>E648DC7793718D965FB05241</key>
 		<dict>
 			<key>isa</key>
@@ -1117,6 +1164,13 @@
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
 			<string>4DE67949251C57619C3CB4A6</string>
+		</dict>
+		<key>0F27A3EE15A213761CA6848C</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>5B5477B5DEFA353293A6853B</string>
 		</dict>
 		<key>7803BB7B350A7AD0B8165C8F</key>
 		<dict>
@@ -1321,6 +1375,7 @@
 				<string>8B7E7775B325759CE3F9C230</string>
 				<string>40035B339B9D80308265BC4B</string>
 				<string>C7C9658B1571BA3FDE19AB97</string>
+				<string>98670E146C83CA2CEA7DBBD4</string>
 				<string>F3E5CCA0D279669922F93185</string>
 				<string>8DA50758D59FABF9076D9D0D</string>
 				<string>7013DFE55489B5A5380E4267</string>
@@ -1332,9 +1387,11 @@
 				<string>5E0D2E5739F131707B3F3757</string>
 				<string>F3095A3BDDEAC248F0ED42C7</string>
 				<string>B773FF146CE2DDA004B3084D</string>
+				<string>D02368F88908FEAF37B79878</string>
 				<string>E648DC7793718D965FB05241</string>
 				<string>E082C57F092B9E72933C068B</string>
 				<string>965FDB09CB3CA4FBF76FC940</string>
+				<string>0F27A3EE15A213761CA6848C</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<string>0</string>
@@ -1514,7 +1571,7 @@
 			<key>name</key>
 			<string>Release</string>
 		</dict>
-		<key>2316E74E9212FAEB3E9FD61F</key>
+		<key>526F8A5267216BE2664A4D2A</key>
 		<dict>
 			<key>isa</key>
 			<string>XCBuildConfiguration</string>
@@ -1527,7 +1584,7 @@
 				<key>EXECUTABLE_NAME</key>
 				<string>XcodeSwitcherApp</string>
 				<key>INFOPLIST_FILE</key>
-				<string>Resources/Info.plist</string>
+				<string>Resources/DebugInfo.plist</string>
 				<key>LD_RUNPATH_SEARCH_PATHS</key>
 				<array>
 					<string>$(inherited)</string>
@@ -1536,7 +1593,7 @@
 				<key>MARKETING_VERSION</key>
 				<string>2.1.0</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
-				<string>com.yostar.xcodeswitcher</string>
+				<string>com.yostar.xcodeswitcher.debug</string>
 				<key>PRODUCT_MODULE_NAME</key>
 				<string>XcodeSwitcher</string>
 				<key>PRODUCT_NAME</key>
@@ -1762,7 +1819,7 @@
 			<string>XCConfigurationList</string>
 			<key>buildConfigurations</key>
 			<array>
-				<string>2316E74E9212FAEB3E9FD61F</string>
+				<string>526F8A5267216BE2664A4D2A</string>
 				<string>4A2B052168120770F3C7A998</string>
 			</array>
 			<key>defaultConfigurationIsVisible</key>
@@ -2075,6 +2132,7 @@
 				<string>BB76EA955C0140F5539B3370</string>
 				<string>69695652279E52526C55DB08</string>
 				<string>8C77BB1D50E0387CBAB9B7E7</string>
+				<string>0DB3E50DE3B16E4D40F15861</string>
 				<string>22CB118B39C9CEDB958AEDBB</string>
 				<string>96D4427B2C32C35C0167EF5D</string>
 				<string>A899526A641091D8B55BC5EB</string>
@@ -2086,9 +2144,11 @@
 				<string>2FCCB4B3FA0095D6712FC135</string>
 				<string>57FB700E19CFBDDCB95A6C43</string>
 				<string>EFFFF68CFB69190935A03796</string>
+				<string>A0CD4965E3853D880FBC1363</string>
 				<string>925275FB104EC55A92CE2016</string>
 				<string>D60DB81089C930E80F8721DE</string>
 				<string>4DE67949251C57619C3CB4A6</string>
+				<string>5B5477B5DEFA353293A6853B</string>
 			</array>
 			<key>path</key>
 			<string>Tests</string>

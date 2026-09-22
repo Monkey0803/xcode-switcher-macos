@@ -103,4 +103,21 @@ final class ConfigurationStoreTests: XCTestCase {
         let backups = try FileManager.default.contentsOfDirectory(at: store.backupDirectoryURL, includingPropertiesForKeys: nil)
         XCTAssertEqual(backups.count, 1)
     }
+
+    func testMigratesDiskSpaceWarningDefaultsAndClampsImportedThreshold() throws {
+        let legacy = try JSONDecoder().decode(AppConfiguration.self, from: Data("{}".utf8))
+        XCTAssertTrue(legacy.diskSpaceWarningEnabled)
+        XCTAssertEqual(legacy.diskSpaceWarningThresholdGB, DiskSpaceMonitor.defaultThresholdGB)
+        XCTAssertFalse(legacy.xcodeUpdateNotificationsEnabled)
+        XCTAssertTrue(legacy.notifiedXcodeUpdateKeys.isEmpty)
+
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("XcodeSwitcherConfig-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("import.json")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data("{\"diskSpaceWarningThresholdGB\": 999}".utf8).write(to: source)
+
+        let imported = try AppConfigurationStore(fileURL: root.appendingPathComponent("configuration.json")).import(from: source)
+        XCTAssertEqual(imported.diskSpaceWarningThresholdGB, DiskSpaceMonitor.maximumThresholdGB)
+    }
 }

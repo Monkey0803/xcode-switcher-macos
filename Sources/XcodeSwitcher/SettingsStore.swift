@@ -69,6 +69,13 @@ final class SettingsStore: ObservableObject {
     var searchFoldersDidChange: () -> Void = {}
     /// What the global shortcut does, which is an application command.
     var shortcutPressed: () -> Void = {}
+    /// The menu-bar monitor owns the displayed warning, while this store owns its
+    /// configuration. Keep the one-way notification explicit rather than letting
+    /// the store reach into AppKit.
+    var diskSpaceWarningDidChange: () -> Void = {}
+    /// Xcode-release alerts are delivered by AppKit, after this store persists
+    /// the user's opt-in preference.
+    var xcodeUpdateNotificationsDidChange: () -> Void = {}
 
     private let store: AppConfigurationStore
     private let languageDefaults: UserDefaults
@@ -183,6 +190,24 @@ final class SettingsStore: ObservableObject {
         UpdateService.shared.setAutomaticallyChecksForUpdates(enabled)
     }
 
+    func toggleDiskSpaceWarning(_ enabled: Bool) {
+        configuration.diskSpaceWarningEnabled = enabled
+        persist()
+        diskSpaceWarningDidChange()
+    }
+
+    func updateDiskSpaceWarningThreshold(_ thresholdGB: Int) {
+        configuration.diskSpaceWarningThresholdGB = DiskSpaceMonitor.normalizedThresholdGB(thresholdGB)
+        persist()
+        diskSpaceWarningDidChange()
+    }
+
+    func toggleXcodeUpdateNotifications(_ enabled: Bool) {
+        configuration.xcodeUpdateNotificationsEnabled = enabled
+        persist()
+        xcodeUpdateNotificationsDidChange()
+    }
+
     func selectAppLanguage(_ language: AppLanguage) {
         guard appLanguage != language else { return }
         AppLanguagePreference.apply(language, to: languageDefaults)
@@ -231,6 +256,8 @@ final class SettingsStore: ObservableObject {
             configuration = try store.import(from: url)
             persist()
             searchFoldersDidChange()
+            diskSpaceWarningDidChange()
+            xcodeUpdateNotificationsDidChange()
             status?.statusMessage = String(localized: "配置已导入。")
             status?.isError = false
         } catch { status?.statusMessage = String(localized: "导入失败：\(error.localizedDescription)"); status?.isError = true }
@@ -242,6 +269,8 @@ final class SettingsStore: ObservableObject {
         do {
             configuration = try store.restoreBackup()
             searchFoldersDidChange()
+            diskSpaceWarningDidChange()
+            xcodeUpdateNotificationsDidChange()
             status?.statusMessage = String(localized: "已恢复上次配置备份。")
             status?.isError = false
         } catch {
