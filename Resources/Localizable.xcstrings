@@ -880,6 +880,22 @@
         }
       }
     },
+    "使用 %@ 的 Xcode %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use %@'s Xcode %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "使用 %1$@ 的 Xcode %2$@"
+          }
+        }
+      }
+    },
     "使用发布索引检查已安装 Xcode 的同一主版本更新。首次启用时会请求通知权限。": {
       "localizations": {
         "en": {
@@ -1546,6 +1562,16 @@
         }
       }
     },
+    "固定此 Workspace 打开时使用的 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pin the Xcode used to open this workspace."
+          }
+        }
+      }
+    },
     "在 App 中下载 Simulator Runtime，或打开 Xcode Settings。": {
       "localizations": {
         "en": {
@@ -2106,6 +2132,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Installed, but the Xcode it uses could not be read."
+          }
+        }
+      }
+    },
+    "已将 %@ 固定使用 Xcode %@，对应 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set %@ to always use Xcode %@, matching %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已将 %1$@ 固定使用 Xcode %2$@，对应 %3$@。"
           }
         }
       }
@@ -3692,6 +3734,16 @@
         }
       }
     },
+    "本机未安装该项目要求的 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Xcode required by this project is not installed."
+          }
+        }
+      }
+    },
     "本机没有可用的 Xcode。": {
       "localizations": {
         "en": {
@@ -4274,6 +4326,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Test DerivedData"
+          }
+        }
+      }
+    },
+    "测试工作区": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Workspace"
           }
         }
       }
@@ -5088,6 +5150,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Exporting the certificate failed: %@"
+          }
+        }
+      }
+    },
+    "该选择已过期，请重新选择项目对应的 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That choice is no longer available. Select the project's Xcode again."
           }
         }
       }

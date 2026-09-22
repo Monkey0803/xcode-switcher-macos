@@ -1359,6 +1359,7 @@ struct ProjectProfileRow: View {
     let profile: ProjectProfile
     @State private var name: String
     @State private var selectedXcodeID: String
+    @State private var ignoresNextXcodeBindingSave = false
 
     init(profile: ProjectProfile) {
         self.profile = profile
@@ -1389,6 +1390,7 @@ struct ProjectProfileRow: View {
                     }
                 }
                 .frame(minWidth: 180, idealWidth: 240)
+                .accessibilityIdentifier("project-xcode-picker-\(profile.id.uuidString)")
                 Button("应用并打开") { model.applyAndOpen(profile) }
                     .prominentActionStyle()
                     .disabled(model.projectIssue(for: profile) != nil)
@@ -1402,14 +1404,32 @@ struct ProjectProfileRow: View {
                     .foregroundStyle(.orange)
                     .textSelection(.enabled)
             } else if let conflict = model.workspaceConflict(for: profile) {
-                Label(
-                    "Workspace 中的项目要求多个 Xcode 版本：\(conflict.versions.joined(separator: "、"))",
-                    systemImage: "exclamationmark.triangle.fill"
-                )
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(
+                        "Workspace 中的项目要求多个 Xcode 版本：\(conflict.versions.joined(separator: "、"))",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("workspace-xcode-conflict-\(profile.id.uuidString)")
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(conflict.requirements) { requirement in
+                                Button("使用 \(requirement.projectName) 的 Xcode \(requirement.version)") {
+                                    chooseWorkspaceRequirement(requirement)
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(requirement.installationID == nil)
+                                .help(requirement.installationID == nil
+                                    ? String(localized: "本机未安装该项目要求的 Xcode。")
+                                    : String(localized: "固定此 Workspace 打开时使用的 Xcode。"))
+                                .accessibilityIdentifier("workspace-xcode-choice-\(profile.id.uuidString)-\(requirement.id)")
+                            }
+                        }
+                    }
+                }
                 .font(.caption)
                 .foregroundStyle(.orange)
-                .textSelection(.enabled)
-                .accessibilityIdentifier("workspace-xcode-conflict-\(profile.id.uuidString)")
             } else if selectedXcodeID.isEmpty, let match = model.automaticMatch(for: profile), match.isInstalled {
                 Label(
                     "根据 \(URL(fileURLWithPath: match.requirement.source).lastPathComponent) 自动匹配 Xcode \(match.requirement.normalizedVersion)",
@@ -1423,12 +1443,24 @@ struct ProjectProfileRow: View {
         // macOS 14 起 `onChange(of:perform:)`（单参数闭包）废弃；抬到 15 后它以
         // 废弃警告的形式被 `-warnings-as-errors` 拦下，改为两参数形式。
         .onChange(of: name) { _, _ in scheduleSave() }
-        .onChange(of: selectedXcodeID) { _, _ in scheduleSave() }
+        .onChange(of: selectedXcodeID) { _, _ in
+            guard !ignoresNextXcodeBindingSave else {
+                ignoresNextXcodeBindingSave = false
+                return
+            }
+            scheduleSave()
+        }
         .onDisappear { model.flushPendingProjectUpdate() }
     }
 
     private func scheduleSave() {
         model.scheduleProjectUpdate(profile, name: name, xcodeID: selectedXcodeID.isEmpty ? nil : selectedXcodeID)
+    }
+
+    private func chooseWorkspaceRequirement(_ requirement: WorkspaceXcodeConflict.Requirement) {
+        guard let installationID = model.selectWorkspaceRequirement(requirement, for: profile) else { return }
+        ignoresNextXcodeBindingSave = true
+        selectedXcodeID = installationID
     }
 }
 

@@ -14,6 +14,25 @@ final class XcodeUpdateNotificationTests: XCTestCase {
     ]
     """.utf8)
 
+    func testOptingInNotifiesAppDelegateToRequestAuthorization() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("XcodeUpdateNotificationPreference-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let configurationStore = AppConfigurationStore(
+            fileURL: root.appendingPathComponent("configuration.json")
+        )
+        let model = XcodeViewModel(store: configurationStore, configuresSystemServices: false)
+        var requestedAuthorization: Bool?
+        model.onXcodeUpdateNotificationsPreferenceChanged = { requestedAuthorization = $0 }
+
+        model.toggleXcodeUpdateNotifications(true)
+
+        XCTAssertEqual(requestedAuthorization, true)
+        XCTAssertTrue(configurationStore.load().xcodeUpdateNotificationsEnabled)
+    }
+
     func testEnabledNotificationsReportOnceAndPersistDeliveredBuild() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("XcodeUpdateNotifications-\(UUID().uuidString)")

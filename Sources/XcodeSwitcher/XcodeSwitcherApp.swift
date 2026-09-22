@@ -112,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             build: "16A242d"
         )
         let projectURL = root.appendingPathComponent("Fixture.xcodeproj", isDirectory: true)
+        let workspaceURL = root.appendingPathComponent("Workspace.xcworkspace", isDirectory: true)
         try? FileManager.default.createDirectory(
             at: active.developerURL,
             withIntermediateDirectories: true
@@ -121,6 +122,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             withIntermediateDirectories: true
         )
         try? FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+        for (name, version) in [("App", "15.4"), ("Tools", "16.0")] {
+            let directory = root.appendingPathComponent(name, isDirectory: true)
+            let childProjectURL = directory.appendingPathComponent("\(name).xcodeproj", isDirectory: true)
+            try? FileManager.default.createDirectory(at: childProjectURL, withIntermediateDirectories: true)
+            try? "{\"xcode\": \"\(version)\"}".write(
+                to: directory.appendingPathComponent(".xcode-switcher.json"),
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+        try? """
+        <Workspace version=\"1.0\">
+          <FileRef location=\"group:App/App.xcodeproj\"/>
+          <FileRef location=\"group:Tools/Tools.xcodeproj\"/>
+        </Workspace>
+        """.write(
+            to: workspaceURL.appendingPathComponent("contents.xcworkspacedata"),
+            atomically: true,
+            encoding: .utf8
+        )
 
         model.installs.replaceInstallationsForUITesting(
             [active, recommended],
@@ -154,7 +176,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         }
         model.configuration.projects = [
-            ProjectProfile(name: String(localized: "测试项目"), path: projectURL.path, xcodeID: recommended.id)
+            ProjectProfile(name: String(localized: "测试项目"), path: projectURL.path, xcodeID: recommended.id),
+            ProjectProfile(name: String(localized: "测试工作区"), path: workspaceURL.path)
         ]
     }
 
@@ -177,6 +200,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Task { @MainActor [weak self] in
                 let delivered = await XcodeUpdateNotificationService.deliver(candidates)
                 self?.model.markXcodeUpdateNotificationsDelivered(delivered)
+            }
+        }
+        model.onXcodeUpdateNotificationsPreferenceChanged = { enabled in
+            guard enabled else { return }
+            Task { @MainActor in
+                let authorized = await XcodeUpdateNotificationService.requestAuthorizationIfNeeded()
+                AppLog.logger(.settings).info(
+                    "Xcode update notification authorization \(authorized ? "granted" : "not granted", privacy: .public)"
+                )
             }
         }
         if !Self.isRunningUITests {

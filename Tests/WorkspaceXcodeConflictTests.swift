@@ -8,13 +8,23 @@ final class WorkspaceXcodeConflictTests: XCTestCase {
         try fixture.addProject(named: "App", version: "15.4")
         try fixture.addProject(named: "Tools", version: "16.0")
 
+        let xcode15 = fixture.installation(version: "15.4")
+        let xcode16 = fixture.installation(version: "16.0")
         let conflict = WorkspaceXcodeConflictDetector.conflict(
             in: fixture.workspaceURL,
-            installations: [fixture.installation(version: "15.4"), fixture.installation(version: "16.0")]
+            installations: [xcode15, xcode16]
         )
 
         XCTAssertEqual(conflict?.versions, ["15.4", "16.0"])
         XCTAssertEqual(conflict?.requirements.map(\.projectName).sorted(), ["App", "Tools"])
+        XCTAssertEqual(
+            conflict?.requirements.first(where: { $0.projectName == "App" })?.installationID,
+            xcode15.id
+        )
+        XCTAssertEqual(
+            conflict?.requirements.first(where: { $0.projectName == "Tools" })?.installationID,
+            xcode16.id
+        )
     }
 
     func testIgnoresWorkspaceWhenEveryProjectRequiresTheSameVersion() throws {

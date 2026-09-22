@@ -185,6 +185,31 @@ final class ProjectStore: ObservableObject {
         snapshot(for: profile).workspaceConflict
     }
 
+    /// Pins a workspace to one Xcode chosen from its conflicting child-project
+    /// requirements. This records an app-level opening preference only: the
+    /// workspace and every child project's version file remain untouched.
+    @discardableResult
+    func selectWorkspaceRequirement(
+        _ requirement: WorkspaceXcodeConflict.Requirement,
+        for profile: ProjectProfile
+    ) -> String? {
+        guard let conflict = snapshot(for: profile, refreshing: true).workspaceConflict,
+              let currentRequirement = conflict.requirements.first(where: { $0.id == requirement.id }),
+              let installationID = currentRequirement.installationID,
+              let installation = installations().first(where: { $0.id == installationID })
+        else {
+            status?.statusMessage = String(localized: "该选择已过期，请重新选择项目对应的 Xcode。")
+            status?.isError = true
+            return nil
+        }
+
+        updateProject(profile, name: profile.name, xcodeID: installationID)
+        snapshots.removeValue(forKey: profile.id)
+        status?.statusMessage = String(localized: "已将 \(profile.name) 固定使用 Xcode \(installation.displayVersion)，对应 \(currentRequirement.projectName)。")
+        status?.isError = false
+        return installationID
+    }
+
     /// Drops every cached project resolution. Called whenever the inputs a
     /// resolution depends on change, so the next read is fresh.
     func invalidateSnapshots() {

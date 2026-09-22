@@ -69,6 +69,8 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     /// AppDelegate owns UserNotifications. The model only decides which release
     /// updates have not been shown to this configuration yet.
     var onXcodeUpdateNotificationsReady: (([XcodeUpdateNotificationCandidate]) -> Void)?
+    /// Requests notification authorization immediately after the user opts in.
+    var onXcodeUpdateNotificationsPreferenceChanged: ((Bool) -> Void)?
 
     init(
         store: AppConfigurationStore = .shared,
@@ -145,7 +147,9 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
         settings.shortcutPressed = { [weak self] in self?.showMainWindow(focusSearch: true) }
         settings.diskSpaceWarningDidChange = { [weak self] in self?.onDiskSpaceWarningConfigurationChanged?() }
         settings.xcodeUpdateNotificationsDidChange = { [weak self] in
-            self?.releases.reportXcodeUpdateCandidates()
+            guard let self else { return }
+            self.onXcodeUpdateNotificationsPreferenceChanged?(self.configuration.xcodeUpdateNotificationsEnabled)
+            self.releases.reportXcodeUpdateCandidates()
         }
         settings.objectWillChange
             .sink { [weak self] in self?.objectWillChange.send() }
@@ -475,6 +479,13 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     func projectIssue(for profile: ProjectProfile) -> String? { projects.projectIssue(for: profile) }
     func workspaceConflict(for profile: ProjectProfile) -> WorkspaceXcodeConflict? {
         projects.workspaceConflict(for: profile)
+    }
+    @discardableResult
+    func selectWorkspaceRequirement(
+        _ requirement: WorkspaceXcodeConflict.Requirement,
+        for profile: ProjectProfile
+    ) -> String? {
+        projects.selectWorkspaceRequirement(requirement, for: profile)
     }
     func invalidateProjectSnapshots() { projects.invalidateSnapshots() }
     func scheduleProjectUpdate(_ profile: ProjectProfile, name: String, xcodeID: String?) {

@@ -32,6 +32,32 @@ struct ViewModelCachingTests {
         return ProjectProfile(name: "Demo", path: projectURL.path)
     }
 
+    private func makeConflictingWorkspace(in root: URL) throws -> ProjectProfile {
+        let workspaceURL = root.appendingPathComponent("Workspace/Demo.xcworkspace", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+        for (name, version) in [("App", "15.4"), ("Tools", "16.0")] {
+            let directory = root.appendingPathComponent("Workspace/\(name)", isDirectory: true)
+            let projectURL = directory.appendingPathComponent("\(name).xcodeproj", isDirectory: true)
+            try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+            try "{\"xcode\": \"\(version)\"}".write(
+                to: directory.appendingPathComponent(".xcode-switcher.json"),
+                atomically: true,
+                encoding: .utf8
+            )
+        }
+        try """
+        <Workspace version=\"1.0\">
+          <FileRef location=\"group:App/App.xcodeproj\"/>
+          <FileRef location=\"group:Tools/Tools.xcodeproj\"/>
+        </Workspace>
+        """.write(
+            to: workspaceURL.appendingPathComponent("contents.xcworkspacedata"),
+            atomically: true,
+            encoding: .utf8
+        )
+        return ProjectProfile(name: "Demo", path: workspaceURL.path)
+    }
+
     @Test("渲染路径不再每次读盘：结果被缓存，失效后才重新解析")
     func cachesProjectResolutionUntilInvalidated() throws {
         let fixture = try makeFixture()
@@ -96,6 +122,37 @@ struct ViewModelCachingTests {
         // A second flush is a no-op rather than another write.
         fixture.model.flushPendingProjectUpdate()
         #expect(fixture.store.load().projects.first?.name == "Renamed")
+    }
+
+    @Test("可从 Workspace 冲突提示直接固定一个子项目对应的 Xcode")
+    func selectsXcodeFromWorkspaceConflict() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let profile = try makeConflictingWorkspace(in: fixture.root)
+        let xcode15 = XcodeInstallation(
+            appURL: fixture.root.appendingPathComponent("Xcode 15.4.app"),
+            version: "15.4",
+            build: "15F31d"
+        )
+        let xcode16 = XcodeInstallation(
+            appURL: fixture.root.appendingPathComponent("Xcode 16.0.app"),
+            version: "16.0",
+            build: "16A242d"
+        )
+        fixture.model.installs.replaceInstallationsForUITesting(
+            [xcode15, xcode16],
+            activeDeveloperPath: xcode15.developerURL.path
+        )
+        fixture.model.configuration.projects = [profile]
+
+        let conflict = try #require(fixture.model.workspaceConflict(for: profile))
+        let toolsRequirement = try #require(conflict.requirements.first { $0.projectName == "Tools" })
+        #expect(toolsRequirement.installationID == xcode16.id)
+
+        let selectedID = fixture.model.selectWorkspaceRequirement(toolsRequirement, for: profile)
+        #expect(selectedID == xcode16.id)
+        #expect(fixture.model.configuration.projects.first?.xcodeID == xcode16.id)
+        #expect(fixture.store.load().projects.first?.xcodeID == xcode16.id)
     }
 
     @Test("防抖窗口结束后自动落盘")

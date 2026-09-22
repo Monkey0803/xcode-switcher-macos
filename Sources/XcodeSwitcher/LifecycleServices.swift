@@ -17,22 +17,26 @@ struct ReleaseCheckResult: Sendable, Equatable {
 /// later permission change can still produce the alert.
 @MainActor
 enum XcodeUpdateNotificationService {
+    /// Requests notification access as soon as the user enables the setting,
+    /// instead of waiting until a matching Xcode update happens to be found.
+    static func requestAuthorizationIfNeeded() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        switch await center.notificationSettings().authorizationStatus {
+        case .authorized, .provisional:
+            return true
+        case .notDetermined:
+            return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+        case .denied, .ephemeral:
+            return false
+        @unknown default:
+            return false
+        }
+    }
+
     static func deliver(_ candidates: [XcodeUpdateNotificationCandidate]) async -> [XcodeUpdateNotificationCandidate] {
         guard !candidates.isEmpty else { return [] }
+        guard await requestAuthorizationIfNeeded() else { return [] }
         let center = UNUserNotificationCenter.current()
-        let settings = await center.notificationSettings()
-        let authorized: Bool
-        switch settings.authorizationStatus {
-        case .authorized, .provisional:
-            authorized = true
-        case .notDetermined:
-            authorized = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
-        case .denied, .ephemeral:
-            authorized = false
-        @unknown default:
-            authorized = false
-        }
-        guard authorized else { return [] }
 
         var delivered: [XcodeUpdateNotificationCandidate] = []
         for candidate in candidates {

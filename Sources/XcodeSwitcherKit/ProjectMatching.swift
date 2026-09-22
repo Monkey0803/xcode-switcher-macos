@@ -326,13 +326,23 @@ public struct WorkspaceXcodeConflict: Equatable, Sendable {
         public let projectName: String
         public let version: String
         public let source: String
+        /// The locally installed Xcode that satisfies this requirement. A
+        /// missing requirement stays visible in the conflict warning, but it
+        /// cannot be selected as the workspace's opening preference.
+        public let installationID: String?
 
         public var id: String { "\(projectName)|\(version)|\(source)" }
 
-        public init(projectName: String, version: String, source: String) {
+        public init(
+            projectName: String,
+            version: String,
+            source: String,
+            installationID: String? = nil
+        ) {
             self.projectName = projectName
             self.version = version
             self.source = source
+            self.installationID = installationID
         }
     }
 
@@ -415,7 +425,8 @@ public enum WorkspaceXcodeConflictDetector {
                 return WorkspaceXcodeConflict.Requirement(
                     projectName: profile.name,
                     version: installation.version,
-                    source: source.displayName
+                    source: source.displayName,
+                    installationID: installation.id
                 )
             case let .missingRequiredXcode(requirement):
                 return WorkspaceXcodeConflict.Requirement(
