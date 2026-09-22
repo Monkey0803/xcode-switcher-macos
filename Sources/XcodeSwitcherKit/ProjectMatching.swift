@@ -318,6 +318,68 @@ public enum ProjectXcodeMatcher {
     }
 }
 
+/// Finds project packages inside user-selected source folders for the project
+/// compatibility overview. The scan is read-only and deliberately skips common
+/// generated trees, so adding a repository does not register Pods or build
+/// artifacts as projects the user owns.
+public enum ProjectDirectoryScanner {
+    private static let projectExtensions: Set<String> = ["xcodeproj", "xcworkspace"]
+    private static let skippedDirectoryNames: Set<String> = [
+        ".build", "Carthage", "DerivedData", "node_modules", "Pods"
+    ]
+
+    public static func scan(
+        roots: [URL],
+        fileManager: FileManager = .default
+    ) -> [URL] {
+        var discovered: [URL] = []
+        var discoveredPaths = Set<String>()
+
+        func appendProject(_ url: URL) {
+            let normalized = url.standardizedFileURL
+            guard discoveredPaths.insert(normalized.path).inserted else { return }
+            discovered.append(normalized)
+        }
+
+        for root in roots {
+            let normalizedRoot = root.standardizedFileURL
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: normalizedRoot.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                continue
+            }
+
+            if projectExtensions.contains(normalizedRoot.pathExtension.lowercased()) {
+                appendProject(normalizedRoot)
+                continue
+            }
+
+            guard let enumerator = fileManager.enumerator(
+                at: normalizedRoot,
+                includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else { continue }
+
+            for case let url as URL in enumerator {
+                let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                guard values?.isDirectory == true, values?.isSymbolicLink != true else { continue }
+
+                if skippedDirectoryNames.contains(url.lastPathComponent) {
+                    enumerator.skipDescendants()
+                    continue
+                }
+                if projectExtensions.contains(url.pathExtension.lowercased()) {
+                    appendProject(url)
+                    enumerator.skipDescendants()
+                }
+            }
+        }
+
+        return discovered.sorted {
+            $0.path.localizedStandardCompare($1.path) == .orderedAscending
+        }
+    }
+}
+
 /// A version disagreement among projects referenced by one `.xcworkspace`.
 /// Only explicit project requirements participate: a project that merely falls
 /// back to the active Xcode must not turn a workspace into a false conflict.

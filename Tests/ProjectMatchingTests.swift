@@ -4,6 +4,25 @@ import XCTest
 @testable import XcodeSwitcherKit
 
 final class ProjectMatchingTests: XCTestCase {
+    func testProjectDirectoryScannerFindsProjectAndWorkspaceButSkipsBuildArtifacts() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("XcodeSwitcherScanner-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+        let app = root.appendingPathComponent("App/App.xcodeproj", isDirectory: true)
+        let workspace = root.appendingPathComponent("Workspace/App.xcworkspace", isDirectory: true)
+        let derived = root.appendingPathComponent("DerivedData/Generated.xcodeproj", isDirectory: true)
+        try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: derived, withIntermediateDirectories: true)
+
+        XCTAssertEqual(
+            ProjectDirectoryScanner.scan(roots: [root]).map(\.path),
+            [app, workspace].map { $0.standardizedFileURL.path }.sorted()
+        )
+    }
+
     func testXcodeVersionFileMatchesInstalledVersion() throws {
         let fixture = try Fixture()
         try fixture.write("16.4\n", to: ".xcode-version")

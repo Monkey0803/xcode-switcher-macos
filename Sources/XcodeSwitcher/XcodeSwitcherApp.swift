@@ -48,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let settingsWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherSettingsWindow")
     private static let uiTestingEnvironmentKey = "XCODE_SWITCHER_UI_TESTING"
     private static let uiTestingDefaultsSuite = "com.yostar.xcodeswitcher.uitests"
+    private static let uiTestingRecommendedProjectID = UUID(uuidString: "7C7B93FD-DC7A-47BB-9C91-F0E591DDD2AA")!
 
     private static var isRunningUITests: Bool {
         ProcessInfo.processInfo.environment[uiTestingEnvironmentKey] == "1"
@@ -176,9 +177,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         }
         model.configuration.projects = [
-            ProjectProfile(name: String(localized: "测试项目"), path: projectURL.path, xcodeID: recommended.id),
+            ProjectProfile(
+                id: uiTestingRecommendedProjectID,
+                name: String(localized: "测试项目"),
+                path: projectURL.path,
+                xcodeID: recommended.id
+            ),
             ProjectProfile(name: String(localized: "测试工作区"), path: workspaceURL.path)
         ]
+        model.configuration.projectSearchPaths = [root.path]
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

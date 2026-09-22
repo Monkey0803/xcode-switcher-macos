@@ -155,6 +155,44 @@ struct ViewModelCachingTests {
         #expect(fixture.store.load().projects.first?.xcodeID == xcode16.id)
     }
 
+    @Test("扫描项目目录会加入新项目并保留已有项目")
+    func scansConfiguredProjectFolders() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let existing = try makeProject(in: fixture.root, version: "16.4")
+        let discoveredURL = fixture.root.appendingPathComponent("Other/Other.xcworkspace", isDirectory: true)
+        try FileManager.default.createDirectory(at: discoveredURL, withIntermediateDirectories: true)
+        fixture.model.configuration.projects = [existing]
+        fixture.model.configuration.projectSearchPaths = [fixture.root.path]
+
+        let added = fixture.model.scanProjectSearchPaths()
+
+        #expect(added == 1)
+        #expect(Set(fixture.model.configuration.projects.map(\.path)) == [existing.path, discoveredURL.path])
+        #expect(fixture.store.load().projectSearchPaths == [fixture.root.path])
+    }
+
+    @Test("批量修复只移除失效显式绑定，并恢复自动匹配")
+    func repairsMissingProjectBindings() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let original = try makeProject(in: fixture.root, version: "16.4")
+        let profile = ProjectProfile(name: original.name, path: original.path, xcodeID: "missing-xcode")
+        let installed = XcodeInstallation(
+            appURL: fixture.root.appendingPathComponent("Xcode 16.4.app"),
+            version: "16.4",
+            build: "16F6"
+        )
+        fixture.model.installs.replaceInstallationsForUITesting([installed], activeDeveloperPath: installed.developerURL.path)
+        fixture.model.configuration.projects = [profile]
+
+        #expect(fixture.model.repairableMissingProjectBindings.map(\.id) == [profile.id])
+        #expect(fixture.model.repairMissingProjectBindings() == 1)
+        #expect(fixture.model.configuration.projects.first?.xcodeID == nil)
+        #expect(fixture.model.projectIssue(for: profile) == nil)
+        #expect(fixture.model.installation(for: profile)?.id == installed.id)
+    }
+
     @Test("防抖窗口结束后自动落盘")
     func debounceAppliesAfterDelay() async throws {
         let fixture = try makeFixture()

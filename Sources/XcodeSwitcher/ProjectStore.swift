@@ -3,6 +3,34 @@ import Combine
 import Foundation
 import XcodeSwitcherKit
 
+/// A single, cached compatibility result for a configured project. Keeping this
+/// as data lets both the overview header and an individual row present the same
+/// answer without each view independently interpreting the resolver result.
+struct ProjectCompatibilityItem: Identifiable {
+    let profile: ProjectProfile
+    let resolution: ProjectXcodeResolution
+    let automaticMatch: ProjectXcodeMatch?
+    let workspaceConflict: WorkspaceXcodeConflict?
+    let installation: XcodeInstallation?
+    let isProjectPresent: Bool
+    let isActiveInstallation: Bool
+
+    var id: UUID { profile.id }
+    var issueDescription: String? { resolution.issueDescription }
+    var resolvedSource: ProjectXcodeResolutionSource? {
+        guard case let .resolved(_, source) = resolution else { return nil }
+        return source
+    }
+    /// Only app-level bindings can be repaired automatically. A missing version
+    /// declared in a repository file still needs that Xcode installed, and a
+    /// malformed local config must be fixed in the project itself.
+    var hasRepairableMissingBinding: Bool {
+        guard profile.xcodeID != nil else { return false }
+        guard case .missingBoundXcode = resolution else { return false }
+        return true
+    }
+}
+
 /// Projects: their profiles, how each resolves to an Xcode, and opening them.
 ///
 /// Split out of `XcodeViewModel`, which owned every domain at once. This one spans
@@ -18,6 +46,8 @@ final class ProjectStore: ObservableObject {
     /// Set by `XcodeViewModel` at construction.
     var projects: () -> [ProjectProfile] = { [] }
     var setProjects: ([ProjectProfile]) -> Void = { _ in }
+    var projectSearchPaths: () -> [String] = { [] }
+    var setProjectSearchPaths: ([String]) -> Void = { _ in }
     var persist: () -> Void = {}
     var installations: () -> [XcodeInstallation] = { [] }
     var activeInstallation: () -> XcodeInstallation? = { nil }
@@ -85,6 +115,62 @@ final class ProjectStore: ObservableObject {
         persist()
     }
 
+    func addProjectSearchPath(_ url: URL) {
+        let normalized = url.standardizedFileURL
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: normalized.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            status?.statusMessage = String(localized: "项目扫描目录不存在：\(normalized.path)")
+            status?.isError = true
+            return
+        }
+        guard !projectSearchPaths().contains(where: {
+            URL(fileURLWithPath: $0).standardizedFileURL.path == normalized.path
+        }) else {
+            status?.statusMessage = String(localized: "该项目扫描目录已经添加。")
+            status?.isError = false
+            return
+        }
+        setProjectSearchPaths(projectSearchPaths() + [normalized.path])
+        persist()
+        status?.statusMessage = String(localized: "已添加项目扫描目录：\(normalized.lastPathComponent)")
+        status?.isError = false
+    }
+
+    func removeProjectSearchPath(_ path: String) {
+        let normalized = URL(fileURLWithPath: path).standardizedFileURL.path
+        setProjectSearchPaths(projectSearchPaths().filter {
+            URL(fileURLWithPath: $0).standardizedFileURL.path != normalized
+        })
+        persist()
+    }
+
+    /// Adds newly discovered project packages but never removes a manually
+    /// configured profile. Removing projects remains an explicit user action.
+    @discardableResult
+    func scanProjectSearchPaths() -> Int {
+        let searchPaths = projectSearchPaths()
+        guard !searchPaths.isEmpty else {
+            status?.statusMessage = String(localized: "请先添加项目扫描目录。")
+            status?.isError = false
+            return 0
+        }
+        let discovered = ProjectDirectoryScanner.scan(
+            roots: searchPaths.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        )
+        let existingPaths = Set(projects().map { URL(fileURLWithPath: $0.path).standardizedFileURL.path })
+        let additions = discovered
+            .filter { !existingPaths.contains($0.path) }
+            .map { ProjectProfile(name: $0.deletingPathExtension().lastPathComponent, path: $0.path) }
+        if !additions.isEmpty {
+            setProjects(projects() + additions)
+            persist()
+            invalidateSnapshots()
+        }
+        status?.statusMessage = String(localized: "项目扫描完成：发现 \(discovered.count) 个项目和 Workspace，新增 \(additions.count) 个。")
+        status?.isError = false
+        return additions.count
+    }
+
     var invalidProjects: [ProjectProfile] {
         projects().filter { !snapshot(for: $0).isProjectPresent }
     }
@@ -94,6 +180,65 @@ final class ProjectStore: ObservableObject {
         setProjects(projects().filter { !invalidIDs.contains($0.id) })
         persist()
         status?.statusMessage = invalidIDs.isEmpty ? String(localized: "没有失效项目。") : String(localized: "已移除 \(invalidIDs.count) 个失效项目。")
+        status?.isError = false
+    }
+
+    var projectCompatibilityItems: [ProjectCompatibilityItem] {
+        projects().map { profile in
+            let snapshot = snapshot(for: profile)
+            let installation = snapshot.resolution.installationID.flatMap { id in
+                installations().first(where: { $0.id == id })
+            }
+            return ProjectCompatibilityItem(
+                profile: profile,
+                resolution: snapshot.resolution,
+                automaticMatch: snapshot.match,
+                workspaceConflict: snapshot.workspaceConflict,
+                installation: installation,
+                isProjectPresent: snapshot.isProjectPresent,
+                isActiveInstallation: installation?.id == activeInstallation()?.id
+            )
+        }
+        .sorted { lhs, rhs in
+            let lhsNeedsAttention = lhs.issueDescription != nil || lhs.workspaceConflict != nil
+            let rhsNeedsAttention = rhs.issueDescription != nil || rhs.workspaceConflict != nil
+            if lhsNeedsAttention != rhsNeedsAttention { return lhsNeedsAttention }
+            return lhs.profile.name.localizedStandardCompare(rhs.profile.name) == .orderedAscending
+        }
+    }
+
+    var repairableMissingProjectBindings: [ProjectProfile] {
+        projectCompatibilityItems.filter(\.hasRepairableMissingBinding).map(\.profile)
+    }
+
+    /// Clears only stale app-level bindings. The next resolution then follows the
+    /// project's declared version or the current Xcode; it never writes a version
+    /// file or chooses an arbitrary Xcode on the user's behalf.
+    @discardableResult
+    func repairMissingProjectBindings() -> Int {
+        let repairableIDs = Set(repairableMissingProjectBindings.map(\.id))
+        guard !repairableIDs.isEmpty else {
+            status?.statusMessage = String(localized: "没有需要修复的失效 Xcode 绑定。")
+            status?.isError = false
+            return 0
+        }
+        let repaired = projects().map { profile -> ProjectProfile in
+            guard repairableIDs.contains(profile.id) else { return profile }
+            var repaired = profile
+            repaired.xcodeID = nil
+            return repaired
+        }
+        setProjects(repaired)
+        persist()
+        invalidateSnapshots()
+        status?.statusMessage = String(localized: "已移除 \(repairableIDs.count) 个失效 Xcode 绑定，并重新启用自动匹配。")
+        status?.isError = false
+        return repairableIDs.count
+    }
+
+    func refreshProjectCompatibility() {
+        invalidateSnapshots()
+        status?.statusMessage = String(localized: "已刷新项目兼容性状态。")
         status?.isError = false
     }
 
@@ -217,6 +362,10 @@ final class ProjectStore: ObservableObject {
     }
 
     private func snapshot(for profile: ProjectProfile, refreshing: Bool = false) -> ProjectSnapshot {
+        // SwiftUI rows can hold the value from the render that initiated an
+        // action. Resolve by ID from configuration first so a just-repaired or
+        // edited binding is never evaluated with that stale value.
+        let profile = projects().first(where: { $0.id == profile.id }) ?? profile
         if !refreshing,
            let cached = snapshots[profile.id],
            Date().timeIntervalSince(cached.computedAt) < Self.projectSnapshotLifetime {

@@ -105,7 +105,7 @@ public struct ProjectXcodeMatch: Equatable, Sendable {
 }
 
 public struct AppConfiguration: Codable {
-    static let currentSchemaVersion = 4
+    static let currentSchemaVersion = 5
 
     /// The on-disk schema. Missing values from pre-1.2.0 files are migrated
     /// to the current schema by `AppConfigurationStore`.
@@ -114,6 +114,10 @@ public struct AppConfiguration: Codable {
     public var favoriteIDs: Set<String> = []
     public var xcodeAliases: [String: String] = [:]
     public var projects: [ProjectProfile] = []
+    /// Directories the compatibility overview scans for Xcode projects and
+    /// workspaces. They are deliberately distinct from Xcode search paths:
+    /// scanning an applications folder must never register every nested project.
+    public var projectSearchPaths: [String] = []
     public var globalShortcutEnabled = true
     public var globalShortcut = GlobalShortcut.default
     public var launchAtLoginEnabled = false
@@ -126,7 +130,7 @@ public struct AppConfiguration: Codable {
     public var activationHistory: [String] = []
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, customSearchPaths, favoriteIDs, xcodeAliases, projects, globalShortcutEnabled, globalShortcut
+        case schemaVersion, customSearchPaths, favoriteIDs, xcodeAliases, projects, projectSearchPaths, globalShortcutEnabled, globalShortcut
         case launchAtLoginEnabled, menuBarOnly, automaticallyChecksForUpdates, diskSpaceWarningEnabled, diskSpaceWarningThresholdGB
         case xcodeUpdateNotificationsEnabled, notifiedXcodeUpdateKeys, activationHistory
     }
@@ -140,6 +144,7 @@ public struct AppConfiguration: Codable {
         favoriteIDs = try container.decodeIfPresent(Set<String>.self, forKey: .favoriteIDs) ?? []
         xcodeAliases = try container.decodeIfPresent([String: String].self, forKey: .xcodeAliases) ?? [:]
         projects = try container.decodeIfPresent([ProjectProfile].self, forKey: .projects) ?? []
+        projectSearchPaths = try container.decodeIfPresent([String].self, forKey: .projectSearchPaths) ?? []
         globalShortcutEnabled = try container.decodeIfPresent(Bool.self, forKey: .globalShortcutEnabled) ?? true
         globalShortcut = try container.decodeIfPresent(GlobalShortcut.self, forKey: .globalShortcut) ?? .default
         launchAtLoginEnabled = try container.decodeIfPresent(Bool.self, forKey: .launchAtLoginEnabled) ?? false
@@ -155,6 +160,11 @@ public struct AppConfiguration: Codable {
     mutating func migrate() {
         schemaVersion = Self.currentSchemaVersion
         diskSpaceWarningThresholdGB = DiskSpaceMonitor.normalizedThresholdGB(diskSpaceWarningThresholdGB)
+        var seenProjectPaths = Set<String>()
+        projectSearchPaths = projectSearchPaths.compactMap { path in
+            let normalized = URL(fileURLWithPath: path).standardizedFileURL.path
+            return seenProjectPaths.insert(normalized).inserted ? normalized : nil
+        }
         var seen = Set<String>()
         activationHistory = activationHistory.filter { seen.insert($0).inserted }.prefix(10).map { $0 }
     }

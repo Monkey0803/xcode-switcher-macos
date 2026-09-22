@@ -1295,20 +1295,40 @@ struct ProjectsSettingsView: View {
     @EnvironmentObject private var model: XcodeViewModel
     @State private var filter = ""
 
-    private var visibleProjects: [ProjectProfile] {
+    private var visibleProjects: [ProjectCompatibilityItem] {
         let query = filter.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return model.configuration.projects }
-        return model.configuration.projects.filter {
-            $0.name.localizedCaseInsensitiveContains(query) ||
-            $0.path.localizedCaseInsensitiveContains(query)
+        let projects = model.projectCompatibilityItems
+        guard !query.isEmpty else { return projects }
+        return projects.filter {
+            $0.profile.name.localizedCaseInsensitiveContains(query) ||
+            $0.profile.path.localizedCaseInsensitiveContains(query)
         }
+    }
+
+    private var issueCount: Int {
+        model.projectCompatibilityItems.filter { $0.issueDescription != nil || $0.workspaceConflict != nil }.count
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("项目绑定").font(.title2.bold())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("项目兼容性").font(.title2.bold())
+                    Text("已配置 \(model.projectCompatibilityItems.count) 个项目，\(issueCount) 个需要处理。")
+                        .font(.subheadline)
+                        .foregroundStyle(issueCount == 0 ? Color.secondary : Color.orange)
+                }
                 Spacer()
+                Button { model.refreshProjectCompatibility() } label: {
+                    Label("刷新状态", systemImage: "arrow.clockwise")
+                }
+                .accessibilityIdentifier("refresh-project-compatibility-button")
+                if !model.repairableMissingProjectBindings.isEmpty {
+                    Button("修复 \(model.repairableMissingProjectBindings.count) 个失效绑定") {
+                        model.repairMissingProjectBindings()
+                    }
+                    .accessibilityIdentifier("repair-missing-project-bindings-button")
+                }
                 if !model.invalidProjects.isEmpty {
                     Button("清理失效项目") { model.removeInvalidProjects() }
                         .accessibilityIdentifier("remove-invalid-projects-button")
@@ -1316,8 +1336,44 @@ struct ProjectsSettingsView: View {
                 Button("添加项目…") { addProject() }
                     .accessibilityIdentifier("add-project-button")
             }
-            Text("拖拽 .xcodeproj 或 .xcworkspace 到主窗口，也可以在这里添加。每个项目可以固定使用某个 Xcode。")
+            Text("拖拽 .xcodeproj 或 .xcworkspace 到主窗口，也可以在这里添加。总览会显示项目要求、当前选择和 Workspace 冲突。")
                 .font(.subheadline).foregroundStyle(.secondary)
+
+            GroupBox("项目扫描目录") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("扫描目录会递归查找 .xcodeproj 和 .xcworkspace，并跳过 Pods、DerivedData 等生成内容。扫描只新增项目，不会移除已有绑定。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if model.configuration.projectSearchPaths.isEmpty {
+                        Text("还没有项目扫描目录。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.configuration.projectSearchPaths, id: \.self) { path in
+                            HStack(spacing: 8) {
+                                Text(path)
+                                    .font(.caption)
+                                    .textSelection(.enabled)
+                                    .lineLimit(1)
+                                Spacer()
+                                Button { model.removeProjectSearchPath(path) } label: {
+                                    Image(systemName: "minus.circle")
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("移除项目扫描目录 \(path)")
+                            }
+                        }
+                    }
+                    HStack {
+                        Button("添加扫描目录…") { addProjectSearchPath() }
+                            .accessibilityIdentifier("add-project-search-path-button")
+                        Button("扫描并添加项目") { model.scanProjectSearchPaths() }
+                            .disabled(model.configuration.projectSearchPaths.isEmpty)
+                            .accessibilityIdentifier("scan-project-search-paths-button")
+                    }
+                }
+                .padding(4)
+            }
             TextField("搜索项目名称或路径", text: $filter)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("project-search-field")
@@ -1327,10 +1383,10 @@ struct ProjectsSettingsView: View {
                 EmptyStateView(title: String(localized: "没有匹配的项目"), systemImage: "magnifyingglass", description: String(localized: "尝试搜索其他名称或路径。"))
             } else {
                 List {
-                    ForEach(visibleProjects) { profile in
-                        ProjectProfileRow(profile: profile)
+                    ForEach(visibleProjects) { compatibility in
+                        ProjectProfileRow(profile: compatibility.profile, compatibility: compatibility)
                     }
-                    .onDelete { offsets in offsets.map { visibleProjects[$0] }.forEach(model.removeProject) }
+                    .onDelete { offsets in offsets.map { visibleProjects[$0].profile }.forEach(model.removeProject) }
                 }
             }
         }
@@ -1352,17 +1408,28 @@ struct ProjectsSettingsView: View {
         ].compactMap { $0 }
         if panel.runModal() == .OK { panel.urls.forEach(model.addProject) }
     }
+
+    private func addProjectSearchPath() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.prompt = String(localized: "添加扫描目录")
+        if panel.runModal() == .OK { panel.urls.forEach(model.addProjectSearchPath) }
+    }
 }
 
 struct ProjectProfileRow: View {
     @EnvironmentObject private var model: XcodeViewModel
     let profile: ProjectProfile
+    let compatibility: ProjectCompatibilityItem
     @State private var name: String
     @State private var selectedXcodeID: String
     @State private var ignoresNextXcodeBindingSave = false
 
-    init(profile: ProjectProfile) {
+    init(profile: ProjectProfile, compatibility: ProjectCompatibilityItem) {
         self.profile = profile
+        self.compatibility = compatibility
         _name = State(initialValue: profile.name)
         _selectedXcodeID = State(initialValue: profile.xcodeID ?? "")
     }
@@ -1393,17 +1460,35 @@ struct ProjectProfileRow: View {
                 .accessibilityIdentifier("project-xcode-picker-\(profile.id.uuidString)")
                 Button("应用并打开") { model.applyAndOpen(profile) }
                     .prominentActionStyle()
-                    .disabled(model.projectIssue(for: profile) != nil)
+                    .disabled(compatibility.issueDescription != nil)
                     .accessibilityIdentifier("open-project-button-\(profile.id.uuidString)")
                 Button { NSWorkspace.shared.activateFileViewerSelecting([profile.url]) } label: { Image(systemName: "folder") }
                     .buttonStyle(.borderless)
             }
-            if let issue = model.projectIssue(for: profile) {
+            if let match = compatibility.automaticMatch {
+                Label(
+                    requirementDescription(match),
+                    systemImage: match.isInstalled ? "checkmark.circle" : "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(match.isInstalled ? Color.secondary : Color.orange)
+            }
+            if let installation = compatibility.installation,
+               let source = compatibility.resolvedSource {
+                Label(
+                    resolvedInstallationDescription(installation, source: source),
+                    systemImage: compatibility.isActiveInstallation ? "checkmark.circle.fill" : "hammer"
+                )
+                .font(.caption)
+                .foregroundStyle(compatibility.isActiveInstallation ? .green : .secondary)
+            }
+            if let issue = compatibility.issueDescription {
                 Label(issue, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .textSelection(.enabled)
-            } else if let conflict = model.workspaceConflict(for: profile) {
+            }
+            if let conflict = compatibility.workspaceConflict {
                 VStack(alignment: .leading, spacing: 6) {
                     Label(
                         "Workspace 中的项目要求多个 Xcode 版本：\(conflict.versions.joined(separator: "、"))",
@@ -1430,19 +1515,24 @@ struct ProjectProfileRow: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.orange)
-            } else if selectedXcodeID.isEmpty, let match = model.automaticMatch(for: profile), match.isInstalled {
-                Label(
-                    "根据 \(URL(fileURLWithPath: match.requirement.source).lastPathComponent) 自动匹配 Xcode \(match.requirement.normalizedVersion)",
-                    systemImage: "wand.and.stars"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 5)
         // macOS 14 起 `onChange(of:perform:)`（单参数闭包）废弃；抬到 15 后它以
         // 废弃警告的形式被 `-warnings-as-errors` 拦下，改为两参数形式。
         .onChange(of: name) { _, _ in scheduleSave() }
+        .onChange(of: profile.name) { _, updatedName in
+            guard name != updatedName else { return }
+            name = updatedName
+        }
+        .onChange(of: profile.xcodeID) { _, updatedID in
+            let updatedSelection = updatedID ?? ""
+            guard selectedXcodeID != updatedSelection else { return }
+            // The change came from an action such as batch repair, not from this
+            // Picker. Keep its binding in sync without scheduling a stale write.
+            ignoresNextXcodeBindingSave = true
+            selectedXcodeID = updatedSelection
+        }
         .onChange(of: selectedXcodeID) { _, _ in
             guard !ignoresNextXcodeBindingSave else {
                 ignoresNextXcodeBindingSave = false
@@ -1461,6 +1551,23 @@ struct ProjectProfileRow: View {
         guard let installationID = model.selectWorkspaceRequirement(requirement, for: profile) else { return }
         ignoresNextXcodeBindingSave = true
         selectedXcodeID = installationID
+    }
+
+    private func requirementDescription(_ match: ProjectXcodeMatch) -> String {
+        let installationState = match.isInstalled
+            ? String(localized: "已安装")
+            : String(localized: "未安装")
+        return String(localized: "要求 Xcode \(match.requirement.normalizedVersion)（\(installationState)），来自 \(URL(fileURLWithPath: match.requirement.source).lastPathComponent)")
+    }
+
+    private func resolvedInstallationDescription(
+        _ installation: XcodeInstallation,
+        source: ProjectXcodeResolutionSource
+    ) -> String {
+        let activeSuffix = compatibility.isActiveInstallation
+            ? String(localized: "（当前激活）")
+            : ""
+        return String(localized: "当前选择：\(installation.name) \(installation.displayVersion) · \(source.displayName)\(activeSuffix)")
     }
 }
 

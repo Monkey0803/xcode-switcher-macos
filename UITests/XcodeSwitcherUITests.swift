@@ -85,9 +85,7 @@ final class XcodeSwitcherUITests: XCTestCase {
         XCTAssertTrue(projectsTab.waitForExistence(timeout: 10))
         projectsTab.click()
 
-        let openProject = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "open-project-button-")
-        ).firstMatch
+        let openProject = app.buttons["open-project-button-7C7B93FD-DC7A-47BB-9C91-F0E591DDD2AA"]
         XCTAssertTrue(openProject.waitForExistence(timeout: 5))
         openProject.click()
 
@@ -110,6 +108,23 @@ final class XcodeSwitcherUITests: XCTestCase {
         XCTAssertTrue(choice.waitForExistence(timeout: 5))
         choice.click()
         XCTAssertTrue(choice.exists)
+    }
+
+    func testProjectCompatibilityOverviewShowsScanAndRecommendedOpenActions() throws {
+        app.typeKey(",", modifierFlags: .command)
+
+        let projectsTab = app.radioButtons["项目"]
+        XCTAssertTrue(projectsTab.waitForExistence(timeout: 10))
+        projectsTab.click()
+
+        XCTAssertTrue(app.staticTexts["项目兼容性"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["refresh-project-compatibility-button"].exists)
+        let scan = app.buttons["scan-project-search-paths-button"]
+        XCTAssertTrue(scan.exists)
+        scan.click()
+        XCTAssertTrue(app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "open-project-button-")
+        ).firstMatch.waitForExistence(timeout: 5))
     }
 
     func testInstalledAppPersistsDiskWarningThresholdAfterRestart() throws {

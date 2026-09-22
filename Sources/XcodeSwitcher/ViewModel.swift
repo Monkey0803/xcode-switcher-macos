@@ -108,6 +108,8 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
             .store(in: &cancellables)
         projects.projects = { [weak self] in self?.configuration.projects ?? [] }
         projects.setProjects = { [weak self] in self?.configuration.projects = $0 }
+        projects.projectSearchPaths = { [weak self] in self?.configuration.projectSearchPaths ?? [] }
+        projects.setProjectSearchPaths = { [weak self] in self?.configuration.projectSearchPaths = $0 }
         projects.persist = { [weak self] in self?.persist() }
         projects.installations = { [weak self] in self?.installations ?? [] }
         projects.activeInstallation = { [weak self] in self?.activeInstallation }
@@ -459,10 +461,19 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     /// Same forwarding contract as the stores above.
     var pendingProjectOpen: ProjectOpenRequest? { projects.pendingProjectOpen }
     var invalidProjects: [ProjectProfile] { projects.invalidProjects }
+    var projectCompatibilityItems: [ProjectCompatibilityItem] { projects.projectCompatibilityItems }
+    var repairableMissingProjectBindings: [ProjectProfile] { projects.repairableMissingProjectBindings }
 
     func addProject(_ url: URL) { projects.addProject(url) }
     func removeProject(_ profile: ProjectProfile) { projects.removeProject(profile) }
     func removeInvalidProjects() { projects.removeInvalidProjects() }
+    func addProjectSearchPath(_ url: URL) { projects.addProjectSearchPath(url) }
+    func removeProjectSearchPath(_ path: String) { projects.removeProjectSearchPath(path) }
+    @discardableResult
+    func scanProjectSearchPaths() -> Int { projects.scanProjectSearchPaths() }
+    @discardableResult
+    func repairMissingProjectBindings() -> Int { projects.repairMissingProjectBindings() }
+    func refreshProjectCompatibility() { projects.refreshProjectCompatibility() }
     func updateProject(_ profile: ProjectProfile, name: String, xcodeID: String?) {
         projects.updateProject(profile, name: name, xcodeID: xcodeID)
     }

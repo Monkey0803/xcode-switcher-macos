@@ -942,6 +942,16 @@
         }
       }
     },
+    "修复 %lld 个失效绑定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repair %lld missing bindings"
+          }
+        }
+      }
+    },
     "克隆": {
       "localizations": {
         "en": {
@@ -1282,6 +1292,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Refresh the version list"
+          }
+        }
+      }
+    },
+    "刷新状态": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Status"
           }
         }
       }
@@ -1988,6 +2008,16 @@
         }
       }
     },
+    "已刷新项目兼容性状态。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshed project compatibility status."
+          }
+        }
+      }
+    },
     "已发现 %lld 个 Xcode。": {
       "localizations": {
         "en": {
@@ -2312,6 +2342,16 @@
         }
       }
     },
+    "已添加项目扫描目录：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added project scan folder: %@"
+          }
+        }
+      }
+    },
     "已清理 %@。": {
       "localizations": {
         "en": {
@@ -2430,6 +2470,16 @@
         }
       }
     },
+    "已移除 %lld 个失效 Xcode 绑定，并重新启用自动匹配。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed %lld missing Xcode bindings and restored automatic matching."
+          }
+        }
+      }
+    },
     "已移除 %lld 个失效项目。": {
       "localizations": {
         "en": {
@@ -2498,6 +2548,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Expired"
+          }
+        }
+      }
+    },
+    "已配置 %lld 个项目，%lld 个需要处理。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已配置 %1$lld 个项目，%2$lld 个需要处理。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld projects configured, %lld need attention."
           }
         }
       }
@@ -2678,6 +2744,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Xcode project found in the current directory; pass the project path explicitly."
+          }
+        }
+      }
+    },
+    "当前选择：%@ %@ · %@%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "当前选择：%1$@ %2$@ · %3$@%4$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current choice: %@ %@ · %@%@"
           }
         }
       }
@@ -2918,6 +3000,26 @@
         }
       }
     },
+    "扫描并添加项目": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan and Add Projects"
+          }
+        }
+      }
+    },
+    "扫描目录会递归查找 .xcodeproj 和 .xcworkspace，并跳过 Pods、DerivedData 等生成内容。扫描只新增项目，不会移除已有绑定。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The scan recursively finds .xcodeproj and .xcworkspace packages and skips generated content such as Pods and DerivedData. It only adds projects and never removes existing bindings."
+          }
+        }
+      }
+    },
     "批量清理": {
       "localizations": {
         "en": {
@@ -2978,12 +3080,12 @@
         }
       }
     },
-    "拖拽 .xcodeproj 或 .xcworkspace 到主窗口，也可以在这里添加。每个项目可以固定使用某个 Xcode。": {
+    "拖拽 .xcodeproj 或 .xcworkspace 到主窗口，也可以在这里添加。总览会显示项目要求、当前选择和 Workspace 冲突。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Drag an .xcodeproj or .xcworkspace into the main window, or add one here. Each project can be pinned to a particular Xcode."
+            "value": "Drag a .xcodeproj or .xcworkspace onto the main window, or add it here. The overview shows requirements, the current choice, and Workspace conflicts."
           }
         }
       }
@@ -3794,22 +3896,6 @@
         }
       }
     },
-    "根据 %@ 自动匹配 Xcode %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Automatically matched to Xcode %@ based on %@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "根据 %1$@ 自动匹配 Xcode %2$@"
-          }
-        }
-      }
-    },
     "检查 Xcode 安装完整性或重新安装对应平台组件。": {
       "localizations": {
         "en": {
@@ -4310,6 +4396,16 @@
         }
       }
     },
+    "没有需要修复的失效 Xcode 绑定。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no missing Xcode bindings to repair."
+          }
+        }
+      }
+    },
     "没有需要清理的 Runtime。": {
       "localizations": {
         "en": {
@@ -4356,6 +4452,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Test project"
+          }
+        }
+      }
+    },
+    "添加扫描目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Scan Folder"
+          }
+        }
+      }
+    },
+    "添加扫描目录…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Scan Folder…"
           }
         }
       }
@@ -4812,6 +4928,16 @@
         }
       }
     },
+    "移除项目扫描目录 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove project scan folder %@"
+          }
+        }
+      }
+    },
     "第三方工具继承终端的环境；在终端里执行「激活此版本」，或检查 shell 配置。": {
       "localizations": {
         "en": {
@@ -5084,6 +5210,22 @@
         }
       }
     },
+    "要求 Xcode %@（%@），来自 %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "要求 Xcode %1$@（%2$@），来自 %3$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requires Xcode %@ (%@), from %@"
+          }
+        }
+      }
+    },
     "警告": {
       "localizations": {
         "en": {
@@ -5174,6 +5316,16 @@
         }
       }
     },
+    "该项目扫描目录已经添加。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This project scan folder is already added."
+          }
+        }
+      }
+    },
     "语言": {
       "localizations": {
         "en": {
@@ -5200,6 +5352,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Language setting saved. Restart the app to apply it."
+          }
+        }
+      }
+    },
+    "请先添加项目扫描目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a project scan folder first."
           }
         }
       }
@@ -5320,6 +5482,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Projects Yet"
+          }
+        }
+      }
+    },
+    "还没有项目扫描目录。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no project scan folders yet."
           }
         }
       }
@@ -5770,6 +5942,16 @@
         }
       }
     },
+    "项目兼容性": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project Compatibility"
+          }
+        }
+      }
+    },
     "项目名称": {
       "localizations": {
         "en": {
@@ -5790,6 +5972,42 @@
         }
       }
     },
+    "项目扫描完成：发现 %lld 个项目和 Workspace，新增 %lld 个。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "项目扫描完成：发现 %1$lld 个项目和 Workspace，新增 %2$lld 个。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project scan complete: found %lld projects and Workspaces, added %lld."
+          }
+        }
+      }
+    },
+    "项目扫描目录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project Scan Folders"
+          }
+        }
+      }
+    },
+    "项目扫描目录不存在：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The project scan folder does not exist: %@"
+          }
+        }
+      }
+    },
     "项目推荐使用另一版本的 Xcode": {
       "localizations": {
         "en": {
@@ -5806,16 +6024,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Project Signing Diagnostics"
-          }
-        }
-      }
-    },
-    "项目绑定": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Project Bindings"
           }
         }
       }
@@ -5958,6 +6166,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Default selection"
+          }
+        }
+      }
+    },
+    "（当前激活）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " (Currently active)"
           }
         }
       }

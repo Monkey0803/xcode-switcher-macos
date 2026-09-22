@@ -110,6 +110,7 @@ final class ConfigurationStoreTests: XCTestCase {
         XCTAssertEqual(legacy.diskSpaceWarningThresholdGB, DiskSpaceMonitor.defaultThresholdGB)
         XCTAssertFalse(legacy.xcodeUpdateNotificationsEnabled)
         XCTAssertTrue(legacy.notifiedXcodeUpdateKeys.isEmpty)
+        XCTAssertTrue(legacy.projectSearchPaths.isEmpty)
 
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("XcodeSwitcherConfig-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }
