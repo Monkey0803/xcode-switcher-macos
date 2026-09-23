@@ -1307,9 +1307,9 @@
 			</array>
 			<key>inputPaths</key>
 			<array>
-				<string>"$(SRCROOT)/Scripts/build_icons.sh"</string>
-				<string>"$(SRCROOT)/Resources/AppIcon.svg"</string>
-				<string>"$(SRCROOT)/Resources/MenuBarIcon.svg"</string>
+				<string>$(SRCROOT)/Scripts/build_icons.sh</string>
+				<string>$(SRCROOT)/Resources/AppIcon.svg</string>
+				<string>$(SRCROOT)/Resources/MenuBarIcon.svg</string>
 			</array>
 			<key>name</key>
 			<string>Generate icons</string>
@@ -1318,8 +1318,8 @@
 			</array>
 			<key>outputPaths</key>
 			<array>
-				<string>"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/AppIcon.icns"</string>
-				<string>"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/MenuBarIcon.png"</string>
+				<string>$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/AppIcon.icns</string>
+				<string>$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/MenuBarIcon.png</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<string>0</string>

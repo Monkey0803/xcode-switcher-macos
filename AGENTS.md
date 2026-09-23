@@ -75,6 +75,24 @@ Xcode 27, which is the toolchain that used to fail here. **Lifting that cap is a
 question** and is not implied by this fix: it also depends on the Homebrew sandbox /
 SDK 27 `@State` macro problem recorded below.
 
+### Build settings in the generated project are not shell-quoted (fixed 2026-09-23)
+
+`inputPaths` / `outputPaths` in `Scripts/generate_xcode_project.py` used to be written as
+`'"$(SRCROOT)/…"'`. Xcode expands build settings but treats the quotes as characters, so
+it created the parent directories of a path beginning with a quote: every build left an
+empty `"/<repo>/build/DerivedData/Build/Products` tree in the working directory. It was
+invisible for months because **git does not track directories**, so `git status` stayed
+clean and nothing pointed at the cause.
+
+Re-check after touching that generator:
+
+```bash
+rm -rf '"'
+xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
+  -configuration Debug -derivedDataPath build/DerivedData build
+ls -d '"'    # 必须报「No such file or directory」
+```
+
 ## Release artifacts and the cask checksum
 
 `Casks/xcode-switcher.rb`'s `sha256` must come from the **published** Release, never

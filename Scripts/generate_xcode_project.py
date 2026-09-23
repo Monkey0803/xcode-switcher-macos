@@ -536,16 +536,23 @@ def build_objects() -> tuple[dict, str]:
             "buildActionMask": MAX_BUILD_ACTION_MASK,
             "files": [],
             "inputFileListPaths": [],
+            # Build settings are expanded by Xcode; the quotes around them here are
+            # characters, not shell quoting. They used to be wrapped in `"…"`, which
+            # Xcode took literally: it created the parent directories of a path
+            # starting with a quote, so every build left an empty
+            # `"/<repo>/build/DerivedData/Build/Products` tree in the working
+            # directory. Empty directories are invisible to `git status`, so it went
+            # unnoticed until 2026-09-23.
             "inputPaths": [
-                '"$(SRCROOT)/Scripts/build_icons.sh"',
-                '"$(SRCROOT)/Resources/AppIcon.svg"',
-                '"$(SRCROOT)/Resources/MenuBarIcon.svg"',
+                "$(SRCROOT)/Scripts/build_icons.sh",
+                "$(SRCROOT)/Resources/AppIcon.svg",
+                "$(SRCROOT)/Resources/MenuBarIcon.svg",
             ],
             "name": "Generate icons",
             "outputFileListPaths": [],
             "outputPaths": [
-                '"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/AppIcon.icns"',
-                '"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/MenuBarIcon.png"',
+                "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/AppIcon.icns",
+                "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/MenuBarIcon.png",
             ],
             "runOnlyForDeploymentPostprocessing": "0",
             "shellPath": "/bin/bash",
