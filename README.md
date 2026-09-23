@@ -178,7 +178,16 @@ ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.lo
 
 `use` 和 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`resolve` 与 `doctor` 不改变系统配置。
 所有命令默认输出人类可读文本；`--json` 输出机器可读 JSON，`--dry-run` 只解析并展示 `use`/`open` 将执行的动作，不会切换 Xcode 或打开项目。
-命令失败时，`--json` 会在标准错误输出 `{"code":"usage|failed","message":"…"}`，并返回稳定退出码 `2`。
+命令失败时，`--json` 会在标准错误输出 `{"code":"usage|failed","message":"…"}`，退出码按下面的约定：
+
+| 退出码 | 含义 |
+| --- | --- |
+| `0` | 成功 |
+| `1` | 命令执行了但没成功：没有这个 Xcode、项目解析不了、切换后校验失败；`list` 在本机没有任何 Xcode 时也是 `1` |
+| `2` | 仅 `doctor` 的「严重问题」等级（`doctor` 自己用 `0` 健康 / `1` 有问题 / `2` 严重） |
+| `64` | 命令行本身写错：未知命令、缺参数（`sysexits.h` 的 `EX_USAGE`） |
+
+`2` 没有用作通用错误码，是因为 `doctor` 已经把它当作结果等级在用；把两者混在一起，脚本就无法区分「参数写错了」和「这台机器的工具链坏了」。在 2.1.1 及更早的版本里所有失败都返回 `2`，脚本如果按 `2` 判断失败需要改成 `1`。
 
 ### Shell 项目环境
 

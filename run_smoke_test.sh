@@ -46,6 +46,7 @@ printf '%s' "$localized_error" | /usr/bin/grep -q "Xcode not found"
   "$script_dir/Scripts/verify_string_catalog.sh"
 
 /bin/bash -n "$script_dir/Scripts/shell_environment_e2e.sh"
+/bin/bash -n "$script_dir/Scripts/cli_contract_e2e.sh"
 
 if release_preflight_output="$(
   /usr/bin/env -i PATH=/usr/bin:/bin \
@@ -71,5 +72,6 @@ trap cleanup EXIT
 /bin/kill -0 "$app_pid"
 
 "$script_dir/Scripts/shell_environment_e2e.sh"
+"$script_dir/Scripts/cli_contract_e2e.sh"
 
-printf 'Smoke test passed: unit tests, Apple Silicon app/CLI, Sparkle link, plist, signature, localizations, scripts, and packaged launch.\n'
+printf 'Smoke test passed: unit tests, Apple Silicon app/CLI, Sparkle link, plist, signature, localizations, scripts, CLI contract, and packaged launch.\n'

@@ -12,6 +12,32 @@ private enum CLIError: Error, CustomStringConvertible {
         case let .usage(message), let .failed(message): return message
         }
     }
+
+    /// The process exit status for this error.
+    ///
+    /// Both cases were `2` until 2026-09-23, so a script could not tell "you called
+    /// me wrong" from "it did not work" — the JSON output has always carried
+    /// `"code":"usage|failed"`, but only callers that asked for `--json` can read it.
+    ///
+    /// Usage takes `EX_USAGE` (64) from `sysexits.h` rather than the `2` every error
+    /// used before 2026-09-23, because `2` is already taken: `doctor` answers with its
+    /// own result scale — 0 healthy, 1 issues, 2 a severe finding — and overloading it
+    /// would make "your arguments are wrong" indistinguishable from "this machine's
+    /// toolchain is broken". `1` for a failure also matches `list` reporting a machine
+    /// with no Xcode left.
+    var exitStatus: Int32 {
+        switch self {
+        case .usage: return 64
+        case .failed: return 1
+        }
+    }
+
+    var code: String {
+        switch self {
+        case .usage: return "usage"
+        case .failed: return "failed"
+        }
+    }
 }
 
 /// Collects measurements from concurrent `du` runs. A box class because a
@@ -777,10 +803,10 @@ private struct XcodeSwitcherCLIEntryPoint {
             let status = try XcodeSwitcherCLI().run(arguments: arguments)
             exit(status)
         } catch {
-            let message = (error as? CLIError)?.description ?? error.localizedDescription
+            let cliError = error as? CLIError
+            let message = cliError?.description ?? error.localizedDescription
+            let code = cliError?.code ?? "failed"
             if arguments.contains("--json") {
-                let code: String
-                if case CLIError.usage = error { code = "usage" } else { code = "failed" }
                 let encoder = JSONEncoder()
                 encoder.outputFormatting = [.sortedKeys]
                 let output = CLIErrorOutput(code: code, message: message)
@@ -791,7 +817,7 @@ private struct XcodeSwitcherCLIEntryPoint {
             } else {
                 FileHandle.standardError.write(Data((String(localized: "错误：\(message)") + "\n").utf8))
             }
-            exit(2)
+            exit(cliError?.exitStatus ?? 1)
         }
     }
 }
