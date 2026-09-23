@@ -54,6 +54,7 @@ cd xcode-switcher-macos && ./build_app.sh
 - 查看 Simulator Runtime 的占用与最近使用时间，可逐个删除，或按 simctl 的「已过时 / 30 天未使用 / 不可用」批量回收；也可启动 iOS Runtime 下载或打开所选 Xcode 的 Settings。哪些镜像符合条件由 `simctl` 判断，预览即其 `--dry-run` 输出。
 - 查看 Simulator 设备状态，并可启动、关闭、抹掉、删除、克隆、重命名或新建设备（新建时按所选运行系统过滤设备类型）；不再受当前 Xcode SDK 支持的设备可一次性清理（这类设备无法启动也无法抹掉，此前只能不断堆积）；切换 Xcode 后可回滚到最近使用版本。
 - 清理 Xcode 磁盘占用：DerivedData、Products、DeviceLogs、文档缓存与索引、CoreSimulator 缓存、包缓存、Archives 与 iOS DeviceSupport 子项，按「可安全清理 / 需谨慎清理」分级；谨慎项（归档、真机支持、包缓存）删除时移到废纸篓以便恢复。
+- 移除不再需要的 Xcode：详情页的「磁盘清理」区顶部显示这个 Xcode.app 自身占用多少，并可在确认后把它移到废纸篓（缓存清理永远不碰 Xcode.app，两者刻意分开）。它是当前系统默认、正在运行、被某个项目绑定、或路径含符号链接时会被拒绝并说明原因——这几种情况下移除要么没用，要么会破坏别的东西。
 - 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode，一键切换并打开项目。
 - 自动读取项目或上级目录中的 `.xcode-version`、`.tool-versions`，匹配对应 Xcode；绑定版本或项目路径失效时会阻止误开并给出提示。
 - 一键打开指定 Xcode，或打开注入对应 `DEVELOPER_DIR` 的 Terminal。
@@ -66,7 +67,7 @@ cd xcode-switcher-macos && ./build_app.sh
 - Runtime 下载显示命令进度，支持主动取消，并为外部命令设置超时保护。
 - 针对每个 Xcode 执行环境体检，检查安装路径、Command Line Tools、首次启动任务、License、iPhoneOS SDK、Simulator、Rosetta 与磁盘空间，并经登录 shell 核对「终端里的 Xcode」与第三方工具（如 CocoaPods）实际使用的版本——「明明切了 Xcode，构建还是老 SDK」通常就出在这里；报告支持复制和导出。
 - 菜单栏“项目”子菜单可直接按项目配置匹配 Xcode 并打开，失效项目会禁用并提示原因。
-- 内置 `xcodeswitcher` CLI：列出/解析/诊断/切换 Xcode、按项目配置打开工程、统计各 Xcode 与 Runtime 的磁盘占用（`sizes`）、清理缓存（`clean`，默认仅预览、需 `--force` 才执行）、管理别名与项目绑定（`alias`/`pin`/`workspace`）、生成 shell 补全（`completions`）。
+- 内置 `xcodeswitcher` CLI：列出/解析/诊断/切换 Xcode、按项目配置打开工程、统计各 Xcode 与 Runtime 的磁盘占用（`sizes`）、清理缓存（`clean`，默认仅预览、需 `--force` 才执行）、移除已安装的 Xcode（`uninstall`，默认只预览，需 `--force` 才越过「正在运行」这一条）、管理别名与项目绑定（`alias`/`pin`/`workspace`）、生成 shell 补全（`completions`）。
 - 支持登录时启动、仅在菜单栏运行；正式签名构建使用 Sparkle 2 自动更新，直接分发构建可检查 GitHub Releases 并跳转下载。
 - App 与 CLI 均仅面向 Apple Silicon（`arm64`）构建，并提供本地直接分发 ZIP/DMG，以及可选的 Developer ID 签名、公证、DMG 与 appcast 发布脚本。
 
@@ -167,6 +168,7 @@ CLI 位于 App 包内：
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" doctor 16.4
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json use --dry-run 16.4
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json open --dry-run /path/Demo.xcodeproj
+"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json uninstall --dry-run 16.0
 ```
 
 安装到 `/Applications` 后，可将它链接到用户命令目录：
@@ -176,7 +178,7 @@ mkdir -p "$HOME/.local/bin"
 ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.local/bin/xcodeswitcher"
 ```
 
-`use` 和 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`resolve` 与 `doctor` 不改变系统配置。
+`use` 和 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`resolve` 与 `doctor` 不改变系统配置。`uninstall` 把 Xcode.app 移到废纸篓（不删除项目、签名或用户数据），需要 `--dry-run` 预览，并在它是系统默认、被项目绑定或路径含符号链接时拒绝——只有「它正在运行」这一条能用 `--force` 越过。
 所有命令默认输出人类可读文本；`--json` 输出机器可读 JSON，`--dry-run` 只解析并展示 `use`/`open` 将执行的动作，不会切换 Xcode 或打开项目。
 命令失败时，`--json` 会在标准错误输出 `{"code":"usage|failed","message":"…"}`，退出码按下面的约定：
 

@@ -57,11 +57,11 @@ final class CLIOptionsTests: XCTestCase {
         XCTAssertEqual(Set(all).count, all.count, "重复的子命令会让补全脚本出现重复项")
         // `clean` was added to the dispatcher and the help text but missed by all
         // three completion scripts, which each kept their own copy of this list.
-        for command in ["clean", "sizes", "completions", "workspace"] {
+        for command in ["clean", "sizes", "uninstall", "completions", "workspace"] {
             XCTAssertTrue(all.contains(command), "补全脚本缺少子命令：\(command)")
         }
         // Guards against a command being dropped from completions by accident.
-        XCTAssertEqual(all.count, 18, "子命令数量变了；请同时确认帮助文本与补全脚本")
+        XCTAssertEqual(all.count, 19, "子命令数量变了；请同时确认帮助文本与补全脚本")
     }
 
     func testErrorOutputIsCodableForMachineClients() throws {

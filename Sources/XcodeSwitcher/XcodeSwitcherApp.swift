@@ -179,8 +179,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The UI suite launches the production app target, but this fixture removes
     /// dependencies on the user's installed Xcodes, project list, and disk usage.
     private static func configureUITestFixture(on model: XcodeViewModel) {
+        // Resolved, not the raw temporary directory: that lives under `/var`, which is
+        // a symbolic link to `/private/var`, and the removal policy refuses a path that
+        // is not its own resolution — every fixture installation would be reported as
+        // a symbolic link instead of testing anything. Discovery resolves symlinks too,
+        // so this is also what a real installation looks like.
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("XcodeSwitcherUITestFixture-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+            .resolvingSymlinksInPath()
         let active = XcodeInstallation(
             appURL: root.appendingPathComponent("Xcode 15.4.app", isDirectory: true),
             version: "15.4",
@@ -191,6 +197,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             version: "16.0",
             build: "16A242d"
         )
+        // A third installation that nothing pins and that is not the system default,
+        // so the removal panel has one case where the action is actually offered.
+        // Its build is deliberately absent from the release index above, which keeps
+        // the 「已安装」 filter assertions about 15F31d/16A242d untouched.
+        let spare = XcodeInstallation(
+            appURL: root.appendingPathComponent("Xcode 17.5.app", isDirectory: true),
+            version: "17.5",
+            build: "17B42"
+        )
         let projectURL = root.appendingPathComponent("Fixture.xcodeproj", isDirectory: true)
         let workspaceURL = root.appendingPathComponent("Workspace.xcworkspace", isDirectory: true)
         try? FileManager.default.createDirectory(
@@ -199,6 +214,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         try? FileManager.default.createDirectory(
             at: recommended.developerURL,
+            withIntermediateDirectories: true
+        )
+        try? FileManager.default.createDirectory(
+            at: spare.developerURL,
             withIntermediateDirectories: true
         )
         try? FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
@@ -225,7 +244,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
 
         model.installs.replaceInstallationsForUITesting(
-            [active, recommended],
+            [active, recommended, spare],
             activeDeveloperPath: active.developerURL.path
         )
         // The UI test opens then cancels this confirmation. It must remain

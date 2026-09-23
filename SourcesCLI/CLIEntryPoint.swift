@@ -101,6 +101,8 @@ private struct XcodeSwitcherCLI {
             return try sizes(options)
         case "clean":
             return try clean(options)
+        case "uninstall":
+            return try uninstall(options)
         case "workspace":
             return try setWorkspace(options)
         case "unworkspace":
@@ -623,6 +625,104 @@ private struct XcodeSwitcherCLI {
         return failures.isEmpty ? 0 : 1
     }
 
+    /// Moves an installed Xcode to the Trash, refusing exactly what the app refuses.
+    ///
+    /// The rules live in `XcodeRemoval` so the two front ends cannot drift; this only
+    /// supplies the state they ask about — the discovered list, the active developer
+    /// directory, whether that bundle is running, and which projects pin it.
+    private func uninstall(_ options: CLIOptions) throws -> Int32 {
+        guard let selector = options.values.first else {
+            throw CLIError.usage(String(localized: "用法：xcodeswitcher uninstall [--dry-run] [--force] <版本、别名或路径>"))
+        }
+        let installation = try findInstallation(selector)
+        let context = XcodeRemovalContext(
+            knownInstallations: installations,
+            activeDeveloperPath: activeDeveloperPath,
+            isRunning: !XcodeProcessInspector.runningInstallations(among: [installation]).isEmpty,
+            boundProjectNames: configuration.projects
+                .filter { $0.xcodeID == installation.id }
+                .map(\.name),
+            force: options.force
+        )
+        if case let .refused(refusal) = XcodeRemoval.decide(installation, in: context) {
+            throw CLIError.failed(refusal.message)
+        }
+
+        let label = "\(installation.name) \(installation.displayVersion)"
+        // Measured before the removal, because afterwards there is nothing to measure.
+        // Not a reason to refuse anything: a traversal that fails leaves the size
+        // unknown, which the output says with an absent field rather than a zero.
+        let bytes = DiskUsageReporter.allocatedBytes(ofPath: installation.appURL.path)
+        let humanSize = bytes.map { DiskUsageFormatter.humanReadable(bytes: $0) }
+        let alias = configuration.xcodeAliases[installation.id]
+
+        if options.dryRun {
+            if options.json {
+                printJSON(CLIUninstallOutput(
+                    installation: CLIInstallationOutput(
+                        installation: installation,
+                        active: false,
+                        alias: alias
+                    ),
+                    bytes: bytes,
+                    size: humanSize,
+                    trashedTo: nil,
+                    alreadyGone: false,
+                    performed: false
+                ))
+            } else if let humanSize {
+                print(String(localized: "[dry-run] 将把 \(label) 移到废纸篓，释放约 \(humanSize)。"))
+            } else {
+                print(String(localized: "[dry-run] 将把 \(label) 移到废纸篓。"))
+            }
+            return 0
+        }
+
+        let outcome: XcodeRemovalOutcome
+        do {
+            outcome = try XcodeRemoval.remove(installation, in: context)
+        } catch {
+            throw CLIError.failed(error.localizedDescription)
+        }
+
+        // The favourites, the alias, the notification bookkeeping and the activation
+        // history are all keyed by the installation's path, which no longer exists.
+        var updated = configuration
+        updated.forgetInstallation(id: installation.id)
+        try saveConfiguration(updated)
+
+        let trashedTo: String?
+        let alreadyGone: Bool
+        switch outcome {
+        case .trashed(let url):
+            trashedTo = url.path
+            alreadyGone = false
+        case .alreadyGone:
+            trashedTo = nil
+            alreadyGone = true
+        }
+
+        if options.json {
+            printJSON(CLIUninstallOutput(
+                installation: CLIInstallationOutput(installation: installation, active: false, alias: alias),
+                bytes: bytes,
+                size: humanSize,
+                trashedTo: trashedTo,
+                alreadyGone: alreadyGone,
+                performed: true
+            ))
+            return 0
+        }
+        if alreadyGone {
+            print(String(localized: "\(label) 已经不存在，配置中与它相关的记录已清理。"))
+        } else if let humanSize {
+            print(String(localized: "已把 \(label) 移到废纸篓，释放约 \(humanSize)。"))
+        } else {
+            print(String(localized: "已把 \(label) 移到废纸篓。"))
+        }
+        return 0
+    }
+
     /// The project to bind: an explicit path, or the project in the current directory.
     private func boundProjectURL(from values: [String]) throws -> URL {
         guard let path = values.first else {
@@ -737,6 +837,7 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher version
       xcodeswitcher sizes [版本、别名或路径]
       xcodeswitcher clean [--force] [--all]
+      xcodeswitcher uninstall [--dry-run] [--force] <版本、别名或路径>
       xcodeswitcher workspace <工作区文件名> [项目路径]
       xcodeswitcher unworkspace [项目路径]
       xcodeswitcher completions <zsh|bash|fish>
@@ -752,11 +853,14 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher unpin [项目路径]
       xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>
 
-    --json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。
-    --force 即使有 Xcode 正在运行也继续切换；clean 则用它表示真正执行清理。
+    --json 输出机器可读 JSON；--dry-run 仅显示将执行的动作。
+    --force 即使有 Xcode 正在运行也继续切换；clean 则用它表示真正执行清理，
+    uninstall 用它绕过「它正在运行」这一条。
     clean 默认只预览并列出可直接清理的缓存；--all 会一并处理 Xcode 无法自动
     重建的内容（归档、真机支持、包缓存），这些会移到废纸篓。clean 不处理
     Simulator Runtime，请在应用中清理。
+    uninstall 把 Xcode.app 移到废纸篓，不移除项目、签名或用户数据；它是系统
+    默认、被项目绑定、或路径含符号链接时会被拒绝。
     env 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。
     """)
 }

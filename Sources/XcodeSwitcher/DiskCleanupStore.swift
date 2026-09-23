@@ -25,6 +25,11 @@ final class DiskCleanupStore: ObservableObject {
     @Published private(set) var cleanupRemovingPaths: Set<String> = []
     @Published private(set) var runtimeSizesByID: [String: [DiskUsageReporter.SimulatorRuntime]] = [:]
     @Published private(set) var runtimeSizesLoadingIDs: Set<String> = []
+    /// The installation bundle's own size. Measured here rather than in the
+    /// installation store because it is disk usage, and it is what the removal panel
+    /// next to the cache list has to show before offering to remove anything.
+    @Published private(set) var installationSizesByID: [String: Int64] = [:]
+    @Published private(set) var installationSizeLoadingIDs: Set<String> = []
     @Published private(set) var runtimeReclaimPreview: SimulatorRuntimeReclaimPreview?
     @Published private(set) var isReclaimingRuntimes = false
 
@@ -36,6 +41,7 @@ final class DiskCleanupStore: ObservableObject {
     private var cleanupCancellations: [String: XcodeCleanupCancellation] = [:]
     private var cleanupSharedEntries: [XcodeCleanupEntry]?
     private var runtimeSizesTasks: [String: Task<Void, Never>] = [:]
+    private var installationSizeTasks: [String: Task<Void, Never>] = [:]
 
     func cleanupEntries(for installation: XcodeInstallation) -> [XcodeCleanupEntry] {
         cleanupEntriesByID[installation.id] ?? []
@@ -186,6 +192,50 @@ final class DiskCleanupStore: ObservableObject {
         runtimeSizesTasks[id] = nil
         runtimeSizesLoadingIDs.remove(id)
         runtimeSizesByID[id] = runtimes
+    }
+
+    // MARK: - The installation bundle's own size
+
+    func installationSize(for installation: XcodeInstallation) -> Int64? {
+        installationSizesByID[installation.id]
+    }
+
+    func isLoadingInstallationSize(for installation: XcodeInstallation) -> Bool {
+        installationSizeLoadingIDs.contains(installation.id)
+    }
+
+    /// A traversal, not a `stat`: `du` on an Xcode.app takes seconds, so this is
+    /// fetched when the section showing it appears and then cached — the same
+    /// arrangement the runtime sizes use, and never on every refresh.
+    func loadInstallationSize(for installation: XcodeInstallation, force: Bool = false) {
+        let id = installation.id
+        if installationSizeTasks[id] != nil {
+            guard force else { return }
+            installationSizeTasks[id]?.cancel()
+            installationSizeTasks[id] = nil
+            installationSizeLoadingIDs.remove(id)
+        }
+        guard force || installationSizesByID[id] == nil else { return }
+        installationSizeLoadingIDs.insert(id)
+        installationSizeTasks[id] = Task.detached(priority: .utility) { [weak self] in
+            let bytes = DiskUsageReporter.allocatedBytes(ofPath: installation.appURL.path)
+            await self?.completeInstallationSizeLoad(for: id, bytes: bytes)
+        }
+    }
+
+    private func completeInstallationSizeLoad(for id: String, bytes: Int64?) {
+        installationSizeTasks[id] = nil
+        installationSizeLoadingIDs.remove(id)
+        if let bytes { installationSizesByID[id] = bytes }
+    }
+
+    /// Forget the measurement for a bundle that is no longer there, so a later
+    /// reinstall of the same path is measured again rather than reusing the old size.
+    func forgetInstallationSize(id: String) {
+        installationSizeTasks[id]?.cancel()
+        installationSizeTasks[id] = nil
+        installationSizeLoadingIDs.remove(id)
+        installationSizesByID.removeValue(forKey: id)
     }
 
     func deleteRuntime(_ runtime: DiskUsageReporter.SimulatorRuntime, for installation: XcodeInstallation) {
@@ -358,5 +408,6 @@ final class DiskCleanupStore: ObservableObject {
     deinit {
         cleanupScanTasks.values.forEach { $0.cancel() }
         runtimeSizesTasks.values.forEach { $0.cancel() }
+        installationSizeTasks.values.forEach { $0.cancel() }
     }
 }

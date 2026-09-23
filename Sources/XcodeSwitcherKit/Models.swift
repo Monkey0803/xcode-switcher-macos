@@ -168,6 +168,21 @@ public struct AppConfiguration: Codable {
         var seen = Set<String>()
         activationHistory = activationHistory.filter { seen.insert($0).inserted }.prefix(10).map { $0 }
     }
+
+    /// Drops every reference to an installation that no longer exists.
+    ///
+    /// Project bindings are deliberately **not** touched: a removal is refused while a
+    /// project pins the version (``XcodeRemovalRefusal/boundProjects``), so clearing
+    /// them here would silently rewrite a decision the user never made. Favourites,
+    /// the alias, the notification bookkeeping keyed by `"<id>|<build>"`, and the
+    /// activation history would otherwise keep pointing at a path that is gone — and
+    /// the history is what 「回滚上一个」 reads.
+    public mutating func forgetInstallation(id: String) {
+        favoriteIDs.remove(id)
+        xcodeAliases.removeValue(forKey: id)
+        activationHistory.removeAll { $0 == id }
+        notifiedXcodeUpdateKeys = notifiedXcodeUpdateKeys.filter { !$0.hasPrefix("\(id)|") }
+    }
 }
 
 public struct XcodeDetails: Sendable {

@@ -89,6 +89,61 @@ run 1 use 99.9
 run 1 --json use 99.9
 expect_contains "$stderr" '"code":"failed"' "--json 未找到 Xcode"
 
+# --- uninstall：拒绝要按规则来，预览不能动任何东西 ---
+run 64 uninstall
+run 1 uninstall --dry-run 99.9
+
+# 系统默认的 Xcode 必须被拒绝，而不是被移走：这是这个命令最危险的误用。
+active_version="$(/usr/bin/python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+print(data["version"] if data.get("active") else "")
+' <<<"$("$cli" --json current)")"
+if [[ -n "$active_version" ]]; then
+  run 1 --json uninstall --dry-run "$active_version"
+  expect_contains "$stderr" '"code":"failed"' "--json uninstall 拒绝系统默认版本"
+fi
+
+# 预览一个真的可以被移除的版本——既不是系统默认，也没有被项目绑定。CI 上通常
+# 只有一台 Xcode（也就是默认那台），这时整段跳过。
+spare_version="$(/usr/bin/python3 - "$cli" <<'SPARE'
+import json, pathlib, subprocess, sys
+
+cli = sys.argv[1]
+
+
+def out(args):
+    return json.loads(subprocess.run([cli, *args], capture_output=True, text=True).stdout)
+
+
+try:
+    installs = out(["--json", "list"])
+    active = out(["--json", "current"]).get("developer")
+except Exception:
+    sys.exit(0)
+
+bound = set()
+try:
+    config = json.loads(
+        (pathlib.Path.home() / "Library/Application Support/XcodeSwitcher/configuration.json").read_text()
+    )
+    bound = {p["xcodeID"] for p in config.get("projects", []) if p.get("xcodeID")}
+except Exception:
+    pass
+
+for item in installs:
+    if item.get("developer") != active and item.get("app") not in bound:
+        print(item["version"])
+        break
+SPARE
+)"
+if [[ -n "$spare_version" ]]; then
+  run 0 uninstall --dry-run "$spare_version"
+  expect_contains "$stdout" "[dry-run]" "uninstall --dry-run"
+  run 0 --json uninstall --dry-run "$spare_version"
+  expect_contains "$stdout" '"performed" : false' "--json uninstall --dry-run"
+fi
+
 # --- dry-run 只解析，不切换 ---
 # 这里的版本号不可能存在，所以用 list 里真实存在的一个。
 installation_version="$(/usr/bin/python3 -c '
@@ -120,4 +175,4 @@ case "$doctor_status" in
     ;;
 esac
 
-printf 'CLI 契约 E2E 通过：只读命令、退出码 0/1/2/64、--json 错误结构与标准错误输出、dry-run 不改变全局开发者目录。\n'
+printf 'CLI 契约 E2E 通过：只读命令、退出码 0/1/2/64、--json 错误结构与标准错误输出、uninstall 的拒绝规则、dry-run 不改变全局开发者目录。\n'

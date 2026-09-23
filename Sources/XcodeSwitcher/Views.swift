@@ -499,7 +499,10 @@ struct XcodeDetailView: View {
             RuntimeSectionView(installation: installation, download: model.runtimeDownload)
 
         case .cleanup:
-            CleanupSectionView(installation: installation)
+            VStack(alignment: .leading, spacing: 20) {
+                RemovalSectionView(installation: installation)
+                CleanupSectionView(installation: installation)
+            }
         }
     }
 
@@ -556,6 +559,106 @@ private struct CleanupEntryRow: View {
                 .accessibilityIdentifier("cleanup-entry-button-\(entry.id)")
         }
         .padding(.vertical, 3)
+    }
+}
+
+/// Removing the Xcode itself, as opposed to the caches it shares with its siblings.
+///
+/// Placed above the cache list because it is the larger number and the one that
+/// needs thinking about: the directories below are rebuilt by Xcode, this is not.
+private struct RemovalSectionView: View {
+    @EnvironmentObject private var model: XcodeViewModel
+    let installation: XcodeInstallation
+    @State private var isConfirmingRemoval = false
+
+    /// The same rules the action re-checks when it runs. Rendered here so the button
+    /// is disabled with a reason rather than failing after the click.
+    private var decision: XcodeRemovalDecision { model.removalDecision(for: installation) }
+
+    private var refusal: XcodeRemovalRefusal? {
+        if case let .refused(refusal) = decision { return refusal }
+        return nil
+    }
+
+    var body: some View {
+        GroupBox("移除这个 Xcode") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("把 Xcode.app 移到废纸篓。项目文件、签名和用户数据不受影响，需要时可以恢复。")
+                    .font(.caption).foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    Text(installation.appURL.path).textRole(.identifier).textSelection(.enabled)
+                    Spacer()
+                    Button("在 Finder 中显示") {
+                        NSWorkspace.shared.activateFileViewerSelecting([installation.appURL])
+                    }
+                    .buttonStyle(.borderless)
+                }
+
+                sizeRow
+
+                if let refusal {
+                    Label(refusal.message, systemImage: "lock.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack {
+                    Button("移到废纸篓…", role: .destructive) { isConfirmingRemoval = true }
+                        .disabled(refusal != nil || model.isRemoving(installation))
+                        .accessibilityIdentifier("remove-xcode-button-\(installation.id)")
+                    if model.isRemoving(installation) {
+                        ProgressView().controlSize(.small)
+                    }
+                    Spacer()
+                }
+            }
+            .padding(4)
+        }
+        // Measuring is a traversal of the whole bundle, so it happens when this pane is
+        // opened rather than on every refresh, and the result is cached.
+        .onAppear { model.loadInstallationSize(for: installation) }
+        .confirmationDialog(
+            "确认移除这个 Xcode？",
+            isPresented: $isConfirmingRemoval,
+            titleVisibility: .visible
+        ) {
+            Button("移除 \(installation.name)", role: .destructive) {
+                model.remove(installation)
+                isConfirmingRemoval = false
+            }
+            Button("取消", role: .cancel) { isConfirmingRemoval = false }
+        } message: {
+            Text(removalConfirmationMessage)
+        }
+    }
+
+    @ViewBuilder
+    private var sizeRow: some View {
+        if let bytes = model.installationSize(for: installation) {
+            Text("占用 \(DiskUsageFormatter.humanReadable(bytes: bytes))。")
+                .textRole(.fieldValue)
+                .accessibilityIdentifier("xcode-size-label-\(installation.id)")
+        } else if model.isLoadingInstallationSize(for: installation) {
+            ProgressView("正在测量体积…")
+        } else {
+            Button("测量体积") { model.loadInstallationSize(for: installation) }
+        }
+    }
+
+    /// Names the exact bundle and what will happen, because the dialog is the last
+    /// thing between a click and a version that takes minutes to download again.
+    private var removalConfirmationMessage: String {
+        var lines = [
+            "\(installation.name) \(installation.displayVersion)",
+            installation.appURL.path
+        ]
+        if let bytes = model.installationSize(for: installation) {
+            lines.append(String(localized: "占用 \(DiskUsageFormatter.humanReadable(bytes: bytes))。"))
+        }
+        lines.append(String(localized: "会移到废纸篓，需要时可以恢复。"))
+        return lines.joined(separator: "\n")
     }
 }
 

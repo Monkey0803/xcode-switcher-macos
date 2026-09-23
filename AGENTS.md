@@ -243,6 +243,12 @@ only the test process sets (`AppDelegate.makeModel()`):
 - a dedicated `UserDefaults` suite, cleared on every launch, so a test never reads or
   writes the developer's own configuration or language.
 
+The fixture's root is `resolvingSymlinksInPath()`ed on purpose. `FileManager`'s temporary
+directory lives under `/var`, which is a symlink to `/private/var`, and the removal policy
+refuses a path that is not its own resolution — leaving it unresolved made every fixture
+installation report itself as a symbolic link, so the removal panel could not be tested at
+all. Discovery resolves symlinks too, so this is also what a real installation looks like.
+
 `InstallationStore.refresh` ignores every trigger while that fixture is in place
 (`usesUITestFixture`), so clicking 「重新扫描」 in a test cannot replace the list with the
 host's real Xcodes. New tests must keep that property: assert only on fixture values,
@@ -265,6 +271,37 @@ xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
 
 CI runs the same target: the `xcode:` job's `xcodebuild … build test` is not restricted
 to the unit-test target.
+
+## Removing an installed Xcode
+
+`XcodeRemoval.decide` is a pure function over a `XcodeRemovalContext`, so the app (which
+disables the button and shows the reason) and the CLI (which has to answer without any UI)
+cannot drift apart. The refusals, in the order they are checked:
+
+| 拒因 | 为什么 | `--force` 能越过吗 |
+| --- | --- | --- |
+| `notADiscoveredInstallation` | 路径不在已发现且验证过的列表里，下面每条都不可信 | 否 |
+| `activeDeveloperDirectory` | `xcode-select` 指着它；移走等于把全机工具链指向空 | 否 |
+| `symbolicLinkComponent` | 移动的是链接本身，一点空间都不释放，还会留下断链 | 否 |
+| `boundProjects` | 某个项目绑定着它；静默改写用户做过的决定不是 flag 该干的事 | 否 |
+| `running` | 只是此刻不方便，不是不安全 | **是** |
+
+Two details that are easy to undo by accident:
+
+- **The symlink check is `appURL.resolvingSymlinksInPath() != appURL.path`**, not a
+  per-component walk like `XcodeCleanupReporter.containsSymlinkComponent`. Reusing that
+  one would refuse every path under `/var/folders/...` because the *ancestor* `/var` is a
+  link — including the UI-test fixture and `mktemp -d`. Discovery already resolves, so a
+  stored path that is not its own resolution is the real signal.
+- **`XcodeRemoval.remove` returns `.alreadyGone` rather than throwing** when the bundle is
+  no longer there. A stale list row is the usual reason something looked removable, and
+  the runtime cleanup already treats that case as information rather than failure.
+
+The bundle goes to the Trash, never deleted: this is the one action in the app that
+removes something Xcode cannot rebuild, so it has to stay recoverable. `AppConfiguration
+.forgetInstallation(id:)` drops what pointed at it — favourites, alias, activation history,
+and the `"<id>|<build>"` notification keys — but **not** project bindings, which the
+refusal above guarantees are not stale.
 
 ## `sync_string_catalog.sh` and stale `.stringsdata`
 

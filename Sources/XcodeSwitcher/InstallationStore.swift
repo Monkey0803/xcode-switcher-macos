@@ -27,6 +27,7 @@ final class InstallationStore: ObservableObject {
     /// Only needed while the creation form is open, so it is fetched then rather than on
     /// every refresh.
     @Published private(set) var deviceTypesByID: [String: [SimulatorDeviceType]] = [:]
+    @Published private(set) var removingInstallationIDs: Set<String> = []
 
     /// Deliberately not `@Published`: only the runtime section observes it, so the
     /// download progress does not republish the whole view model.
@@ -38,6 +39,9 @@ final class InstallationStore: ObservableObject {
     var didRefresh: () -> Void = {}
     var reloadSelected: (XcodeInstallation?) -> Void = { _ in }
     var searchPathsDidChange: () -> Void = {}
+    /// Told the id of a bundle that is no longer on disk, so the stores holding a
+    /// measurement or a cached size for it can drop theirs too.
+    var didRemoveInstallation: (String) -> Void = { _ in }
 
     private var refreshTask: Task<Void, Never>?
     private var usesUITestFixture = false
@@ -188,6 +192,133 @@ final class InstallationStore: ObservableObject {
 
     var isAnyXcodeRunning: Bool {
         !XcodeProcessInspector.runningInstallations(among: installations).isEmpty
+    }
+
+    // MARK: - Removing an installed Xcode
+
+    /// What the policy says about removing this installation right now.
+    ///
+    /// The detail pane calls this to disable the button and to name the reason, but
+    /// the action re-runs it at the moment it executes: a disabled button is a
+    /// rendering of state sampled at the last body evaluation, not a guard.
+    func removalDecision(for installation: XcodeInstallation, force: Bool = false) -> XcodeRemovalDecision {
+        XcodeRemoval.decide(installation, in: removalContext(for: installation, force: force))
+    }
+
+    func isRemoving(_ installation: XcodeInstallation) -> Bool {
+        removingInstallationIDs.contains(installation.id)
+    }
+
+    private func removalContext(for installation: XcodeInstallation, force: Bool) -> XcodeRemovalContext {
+        XcodeRemovalContext(
+            knownInstallations: installations,
+            activeDeveloperPath: activeDeveloperPath,
+            isRunning: !XcodeProcessInspector.runningInstallations(among: [installation]).isEmpty,
+            boundProjectNames: owner?.configuration.projects
+                .filter { $0.xcodeID == installation.id }
+                .map(\.name) ?? [],
+            force: force
+        )
+    }
+
+    /// Moves the bundle to the Trash, drops everything that pointed at it, and rescans.
+    ///
+    /// To the Trash rather than deleted: this is the one action in the app that
+    /// removes something Xcode cannot rebuild, so it has to stay recoverable — which
+    /// is exactly the difference between it and the cache cleanup next to it.
+    func remove(_ installation: XcodeInstallation) {
+        guard !removingInstallationIDs.contains(installation.id) else { return }
+        // Re-decided here rather than trusted from the view: the machine can change
+        // between the body that disabled the button and the click that ran it.
+        let context = removalContext(for: installation, force: false)
+        if case let .refused(refusal) = XcodeRemoval.decide(installation, in: context) {
+            status?.isError = true
+            status?.statusMessage = refusal.message
+            return
+        }
+        removingInstallationIDs.insert(installation.id)
+        // One label rather than two interpolations: `String(localized:)` keys on the
+        // sentence, and this one reads the same in both languages.
+        let label = "\(installation.name) \(installation.displayVersion)"
+        status?.isError = false
+        status?.statusMessage = String(localized: "正在把 \(label) 移到废纸篓…")
+        AppLog.logger(.cleanup).notice(
+            "removing \(installation.appURL.path, privacy: .public) (\(installation.displayVersion, privacy: .public))"
+        )
+        Task { [weak self] in
+            let outcome = await Task.detached(priority: .utility) { () -> XcodeRemovalResult in
+                do {
+                    switch try XcodeRemoval.remove(installation, in: context) {
+                    case .trashed(let url): return .trashed(url)
+                    case .alreadyGone: return .alreadyGone
+                    }
+                } catch {
+                    return .failed(error.localizedDescription)
+                }
+            }.value
+            guard let self else { return }
+            removingInstallationIDs.remove(installation.id)
+            completeRemoval(outcome, of: installation)
+        }
+    }
+
+    /// A `Sendable` result rather than `Result<_, Error>`: the failure crosses back
+    /// from the detached task, and `any Error` does not.
+    private enum XcodeRemovalResult: Sendable {
+        case trashed(URL)
+        case alreadyGone
+        case failed(String)
+    }
+
+    private func completeRemoval(_ outcome: XcodeRemovalResult, of installation: XcodeInstallation) {
+        let cleanupLog = AppLog.logger(.cleanup)
+        let label = "\(installation.name) \(installation.displayVersion)"
+        switch outcome {
+        case .failed(let message):
+            cleanupLog.error(
+                "removal failed for \(installation.appURL.path, privacy: .public): \(message, privacy: .public)"
+            )
+            status?.isError = true
+            status?.statusMessage = String(localized: "移除失败：\(message)")
+        case .alreadyGone:
+            // Not a failure: a stale list row is the usual reason something looked
+            // removable, and the same case is treated as information for runtimes.
+            cleanupLog.notice("already gone: \(installation.appURL.path, privacy: .public)")
+            forget(installation)
+            status?.isError = false
+            // The same sentence the runtime cleanup uses for this case; the key
+            // already exists and both mean "it was not there after all".
+            status?.statusMessage = String(localized: "\(label) 已经不存在，列表已刷新。")
+        case .trashed(let url):
+            cleanupLog.notice(
+                "trashed \(installation.appURL.path, privacy: .public) to \(url.path, privacy: .public)"
+            )
+            forget(installation)
+            status?.isError = false
+            status?.statusMessage = String(localized: "已把 \(label) 移到废纸篓，需要时可以恢复。")
+        }
+        refresh(silently: true)
+    }
+
+    /// Drops every trace of a bundle that is gone: the persisted references, and the
+    /// per-installation caches that would otherwise let the UI draw a version that is
+    /// no longer there.
+    private func forget(_ installation: XcodeInstallation) {
+        let id = installation.id
+        // Dropped from the list here rather than left to the rescan that follows: that
+        // rescan is asynchronous, and under the UI-test fixture it deliberately never
+        // runs at all, so the row would otherwise sit there advertising a bundle that
+        // is in the Trash.
+        installations.removeAll { $0.id == id }
+        owner?.configuration.forgetInstallation(id: id)
+        owner?.persist()
+        detailsByID.removeValue(forKey: id)
+        runtimesByID.removeValue(forKey: id)
+        devicesByID.removeValue(forKey: id)
+        deviceTypesByID.removeValue(forKey: id)
+        iconCache.removeValue(forKey: id)
+        if selectedID == id { selectedID = nil }
+        didRemoveInstallation(id)
     }
 
 

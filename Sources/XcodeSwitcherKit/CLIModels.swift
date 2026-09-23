@@ -8,7 +8,7 @@ import Foundation
 /// kept omitting it.
 public enum CLISubcommands {
     public static let all = [
-        "list", "version", "sizes", "clean", "alias", "unalias", "current", "resolve",
+        "list", "version", "sizes", "clean", "uninstall", "alias", "unalias", "current", "resolve",
         "env", "shell-init", "doctor", "use", "pin", "unpin", "open", "workspace",
         "unworkspace", "completions",
     ]
@@ -211,6 +211,40 @@ public struct CLICleanupOutput: Codable, Equatable, Sendable {
         self.failures = failures
         self.totalBytes = totalBytes
         self.total = total
+        self.performed = performed
+    }
+}
+
+/// What `uninstall` did, or would do under `--dry-run`.
+///
+/// The three optional fields are **omitted** from the JSON rather than emitted as
+/// `null`: that is what a synthesised `encode(to:)` does with optionals, and what
+/// `CLIOperationOutput.project` already does. `bytes`/`size` are absent when the bundle
+/// could not be measured — an unreadable directory is not a reason to refuse the
+/// removal, and the app treats a failed measurement the same way.
+public struct CLIUninstallOutput: Codable, Equatable, Sendable {
+    let installation: CLIInstallationOutput
+    let bytes: Int64?
+    let size: String?
+    /// Where the Trash put it. Absent for a dry run, and for a bundle that was
+    /// already gone.
+    let trashedTo: String?
+    let alreadyGone: Bool
+    let performed: Bool
+
+    public init(
+        installation: CLIInstallationOutput,
+        bytes: Int64?,
+        size: String?,
+        trashedTo: String?,
+        alreadyGone: Bool,
+        performed: Bool
+    ) {
+        self.installation = installation
+        self.bytes = bytes
+        self.size = size
+        self.trashedTo = trashedTo
+        self.alreadyGone = alreadyGone
         self.performed = performed
     }
 }

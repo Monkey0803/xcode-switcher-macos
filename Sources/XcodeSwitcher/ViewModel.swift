@@ -127,6 +127,11 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
             self?.releases.reportXcodeUpdateCandidates()
         }
         installs.searchPathsDidChange = { [weak self] in self?.onSearchPathsChanged?() }
+        // A removed bundle takes its measured size with it; the next Xcode installed
+        // at the same path must be measured again rather than reuse the old number.
+        installs.didRemoveInstallation = { [weak self] id in
+            self?.cleanup.forgetInstallationSize(id: id)
+        }
         // After a refresh or a selection, every other store reloads for that
         // installation. This is the one place that knows about all of them.
         installs.reloadSelected = { [weak self] installation in
@@ -248,6 +253,22 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
     func loadDetails(for installation: XcodeInstallation) { installs.loadDetails(for: installation) }
     func isLoadingDetails(for installation: XcodeInstallation) -> Bool {
         installs.isLoadingDetails(for: installation)
+    }
+    func removalDecision(for installation: XcodeInstallation) -> XcodeRemovalDecision {
+        installs.removalDecision(for: installation)
+    }
+    func isRemoving(_ installation: XcodeInstallation) -> Bool {
+        installs.isRemoving(installation)
+    }
+    func remove(_ installation: XcodeInstallation) { installs.remove(installation) }
+    func installationSize(for installation: XcodeInstallation) -> Int64? {
+        cleanup.installationSize(for: installation)
+    }
+    func isLoadingInstallationSize(for installation: XcodeInstallation) -> Bool {
+        cleanup.isLoadingInstallationSize(for: installation)
+    }
+    func loadInstallationSize(for installation: XcodeInstallation, force: Bool = false) {
+        cleanup.loadInstallationSize(for: installation, force: force)
     }
     func activateSelection() { installs.activateSelection() }
     func activate(_ installation: XcodeInstallation, thenOpen project: URL? = nil, force: Bool = false) {

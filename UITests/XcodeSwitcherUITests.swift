@@ -295,10 +295,11 @@ final class XcodeSwitcherUITests: XCTestCase {
     func testMainWindowListsFixtureInstallationsAndMarksTheActiveOne() throws {
         let count = app.staticTexts["installation-count-label"]
         XCTAssertTrue(count.waitForExistence(timeout: 10))
-        XCTAssertEqual(text(of: count), "2 个版本")
+        XCTAssertEqual(text(of: count), "3 个版本")
 
         XCTAssertTrue(installationRow("Xcode 15.4.app"))
         XCTAssertTrue(installationRow("Xcode 16.0.app"))
+        XCTAssertTrue(installationRow("Xcode 17.5.app"))
 
         // Exactly one row carries the active marker, and the fixture makes that 15.4.
         XCTAssertTrue(waitFor(
@@ -324,8 +325,9 @@ final class XcodeSwitcherUITests: XCTestCase {
 
         XCTAssertTrue(installationRow("Xcode 16.0.app"))
         XCTAssertTrue(installationRow("Xcode 15.4.app", exists: false))
+        XCTAssertTrue(installationRow("Xcode 17.5.app", exists: false))
         // The count is how many Xcodes this Mac has, not how many the query kept.
-        XCTAssertEqual(text(of: app.staticTexts["installation-count-label"]), "2 个版本")
+        XCTAssertEqual(text(of: app.staticTexts["installation-count-label"]), "3 个版本")
     }
 
     func testListPaneToggleHidesAndRestoresTheInstallationList() throws {
@@ -351,9 +353,9 @@ final class XcodeSwitcherUITests: XCTestCase {
         refresh.click()
 
         // The UI fixture ignores refresh triggers, so the host's real Xcode
-        // installations must not replace the two versions under test.
+        // installations must not replace the versions under test.
         XCTAssertTrue(installationRow("Xcode 15.4.app"))
-        XCTAssertEqual(text(of: app.staticTexts["installation-count-label"]), "2 个版本")
+        XCTAssertEqual(text(of: app.staticTexts["installation-count-label"]), "3 个版本")
     }
 
     func testDetailCategoryPickerSwitchesSections() throws {
@@ -419,6 +421,88 @@ final class XcodeSwitcherUITests: XCTestCase {
 
         XCTAssertTrue(releaseRow("27Z999", in: window, exists: false))
         XCTAssertTrue(releaseRow("15F31d", in: window))
+    }
+
+    // MARK: - 移除已安装的 Xcode
+
+    /// Selects an installation by clicking its row, so the detail pane switches to it.
+    private func selectInstallation(_ appName: String) {
+        let row = app.staticTexts.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND identifier ENDSWITH %@",
+            "installation-row-",
+            appName
+        ))
+        XCTAssertTrue(waitFor(NSPredicate(format: "count > 0"), evaluatedWith: row))
+        row.element(boundBy: 0).click()
+    }
+
+    private var removalButton: XCUIElement {
+        app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@",
+            "remove-xcode-button-"
+        )).firstMatch
+    }
+
+    /// The active installation is the one case the fixture can drive without risking
+    /// a real bundle: 15.4 is what `xcode-select` points at, so the policy must refuse
+    /// it and the panel must say why rather than failing after the click.
+    func testRemovalPanelRefusesTheActiveXcodeAndSaysWhy() throws {
+        app.radioButtons["磁盘清理"].click()
+
+        let button = removalButton
+        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        XCTAssertFalse(button.isEnabled)
+
+        // The measurement runs on appearance — the number is the point of the panel.
+        let size = app.staticTexts.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@",
+            "xcode-size-label-"
+        ))
+        XCTAssertTrue(waitFor(NSPredicate(format: "count > 0"), evaluatedWith: size))
+
+        let refusal = app.staticTexts.matching(NSPredicate(
+            format: "value CONTAINS %@",
+            "系统默认"
+        ))
+        XCTAssertTrue(waitFor(NSPredicate(format: "count > 0"), evaluatedWith: refusal))
+    }
+
+    /// 17.5 is neither the system default nor pinned by a project, so the action is
+    /// offered. The test opens the confirmation and cancels it: removing a fixture
+    /// bundle would only prove that the trash works.
+    func testRemovalPanelOffersAnUnboundXcodeAndCancelsTheConfirmation() throws {
+        selectInstallation("Xcode 17.5.app")
+        app.radioButtons["磁盘清理"].click()
+
+        let button = removalButton
+        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        XCTAssertTrue(button.isEnabled)
+        button.click()
+
+        let confirmation = app.sheets.buttons["取消"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["确认移除这个 Xcode？"].exists)
+        confirmation.click()
+
+        // Nothing was removed and the panel is still usable.
+        XCTAssertTrue(button.waitForExistence(timeout: 5))
+    }
+
+    /// A bundle a project pins is refused too, and `--force` is deliberately not part
+    /// of the app's surface: rebinding is one click away in the Projects pane.
+    func testRemovalPanelRefusesAnXcodeThatAProjectPins() throws {
+        selectInstallation("Xcode 16.0.app")
+        app.radioButtons["磁盘清理"].click()
+
+        let button = removalButton
+        XCTAssertTrue(button.waitForExistence(timeout: 10))
+        XCTAssertFalse(button.isEnabled)
+
+        let refusal = app.staticTexts.matching(NSPredicate(
+            format: "value CONTAINS %@",
+            "绑定到它"
+        ))
+        XCTAssertTrue(waitFor(NSPredicate(format: "count > 0"), evaluatedWith: refusal))
     }
 
     func testAllVersionsDetailsPaneCanBeFolded() throws {

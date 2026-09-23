@@ -105,6 +105,16 @@
         }
       }
     },
+    "%@ 已经不存在，配置中与它相关的记录已清理。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ was already gone; the configuration entries that referred to it have been removed."
+          }
+        }
+      }
+    },
     "%@ 正在运行。切换会改变它正在使用的工具链，可能影响正在进行的构建或调试。": {
       "localizations": {
         "en": {
@@ -483,12 +493,12 @@
     "Xcode": {},
     "Xcode License": {},
     "Xcode Switcher": {},
-    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [版本、别名或路径]\n  xcodeswitcher clean [--force] [--all]\n  xcodeswitcher workspace <工作区文件名> [项目路径]\n  xcodeswitcher unworkspace [项目路径]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher alias <别名> <版本、别名或路径>\n  xcodeswitcher unalias <版本、别名或路径>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher pin <版本、别名或路径> [项目路径]\n  xcodeswitcher unpin [项目路径]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的切换/打开动作。\n--force 即使有 Xcode 正在运行也继续切换；clean 则用它表示真正执行清理。\nclean 默认只预览并列出可直接清理的缓存；--all 会一并处理 Xcode 无法自动\n重建的内容（归档、真机支持、包缓存），这些会移到废纸篓。clean 不处理\nSimulator Runtime，请在应用中清理。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
+    "Xcode Switcher CLI\n\n用法：\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [版本、别名或路径]\n  xcodeswitcher clean [--force] [--all]\n  xcodeswitcher uninstall [--dry-run] [--force] <版本、别名或路径>\n  xcodeswitcher workspace <工作区文件名> [项目路径]\n  xcodeswitcher unworkspace [项目路径]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher alias <别名> <版本、别名或路径>\n  xcodeswitcher unalias <版本、别名或路径>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [目录或项目路径]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [版本、别名或路径]\n  xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>\n  xcodeswitcher pin <版本、别名或路径> [项目路径]\n  xcodeswitcher unpin [项目路径]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json 输出机器可读 JSON；--dry-run 仅显示将执行的动作。\n--force 即使有 Xcode 正在运行也继续切换；clean 则用它表示真正执行清理，\nuninstall 用它绕过「它正在运行」这一条。\nclean 默认只预览并列出可直接清理的缓存；--all 会一并处理 Xcode 无法自动\n重建的内容（归档、真机支持、包缓存），这些会移到废纸篓。clean 不处理\nSimulator Runtime，请在应用中清理。\nuninstall 把 Xcode.app 移到废纸篓，不移除项目、签名或用户数据；它是系统\n默认、被项目绑定、或路径含符号链接时会被拒绝。\nenv 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [version, alias or path]\n  xcodeswitcher clean [--force] [--all]\n  xcodeswitcher workspace <workspace file> [project path]\n  xcodeswitcher unworkspace [project path]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher alias <name> <version, alias or path>\n  xcodeswitcher unalias <version, alias or path>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher pin <version, alias or path> [project path]\n  xcodeswitcher unpin [project path]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the switch or open that would run.\n--force switches even while an Xcode is running; clean uses it to actually remove anything.\nclean only previews the caches Xcode rebuilds on demand; --all also handles what Xcode\ncannot regenerate (archives, device support, package caches) and moves those to the Trash.\nclean does not handle Simulator runtimes; use the app for those.\nenv and shell-init zsh only read the project environment and never change xcode-select."
+            "value": "Xcode Switcher CLI\n\nUsage:\n  xcodeswitcher [--json] list\n  xcodeswitcher version\n  xcodeswitcher sizes [version, alias or path]\n  xcodeswitcher clean [--force] [--all]\n  xcodeswitcher uninstall [--dry-run] [--force] <version, alias or path>\n  xcodeswitcher workspace <workspace file> [project path]\n  xcodeswitcher unworkspace [project path]\n  xcodeswitcher completions <zsh|bash|fish>\n  xcodeswitcher alias <name> <version, alias or path>\n  xcodeswitcher unalias <version, alias or path>\n  xcodeswitcher [--json] current\n  xcodeswitcher [--json] resolve <project.xcodeproj|workspace.xcworkspace>\n  xcodeswitcher [--json] env [directory or project path]\n  xcodeswitcher shell-init zsh\n  xcodeswitcher [--json] doctor [version, alias or path]\n  xcodeswitcher [--json] use [--dry-run] <version, alias or path>\n  xcodeswitcher pin <version, alias or path> [project path]\n  xcodeswitcher unpin [project path]\n  xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>\n\n--json prints machine-readable JSON; --dry-run only shows the action that would run.\n--force switches even while an Xcode is running; clean uses it to actually remove anything,\nuninstall uses it to override \"it is running\".\nclean only previews the caches Xcode rebuilds on demand; --all also handles what Xcode\ncannot regenerate (archives, device support, package caches) and moves those to the Trash.\nclean does not handle Simulator runtimes; use the app for those.\nuninstall moves Xcode.app to the Trash; it removes no projects, signing assets or user data,\nand refuses when that Xcode is the system default, pinned by a project, or a symbolic link.\nenv and shell-init zsh only read the project environment and never change xcode-select."
           }
         }
       }
@@ -615,6 +625,32 @@
           "stringUnit": {
             "state": "new",
             "value": "[dry-run] 将使用 %1$@ 打开 %2$@"
+          }
+        }
+      }
+    },
+    "[dry-run] 将把 %@ 移到废纸篓。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[dry-run] would move %@ to the Trash."
+          }
+        }
+      }
+    },
+    "[dry-run] 将把 %@ 移到废纸篓，释放约 %@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "[dry-run] 将把 %1$@ 移到废纸篓，释放约 %2$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[dry-run] would move %@ to the Trash, freeing about %@."
           }
         }
       }
@@ -850,6 +886,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Oldest first"
+          }
+        }
+      }
+    },
+    "会移到废纸篓，需要时可以恢复。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It moves to the Trash, so you can recover it later if you need to."
           }
         }
       }
@@ -1306,6 +1352,16 @@
         }
       }
     },
+    "占用 %@。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Takes up %@."
+          }
+        }
+      }
+    },
     "发布信息服务器返回了错误响应。": {
       "localizations": {
         "en": {
@@ -1758,6 +1814,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "To run Intel toolchains, run softwareupdate --install-rosetta."
+          }
+        }
+      }
+    },
+    "它是当前系统默认的 Xcode（xcode-select 指向它）。请先切换到其他版本，或改用「不改系统设置」的方式打开项目。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It is the system default Xcode (xcode-select points at it). Switch to another version first, or open your projects the way that leaves the system setting alone."
+          }
+        }
+      }
+    },
+    "它正在运行。请先退出这个 Xcode。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It is running. Quit this Xcode first."
           }
         }
       }
@@ -2296,6 +2372,42 @@
           "stringUnit": {
             "state": "new",
             "value": "已把 %1$@ 的工作区设为 %2$@。"
+          }
+        }
+      }
+    },
+    "已把 %@ 移到废纸篓。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moved %@ to the Trash."
+          }
+        }
+      }
+    },
+    "已把 %@ 移到废纸篓，释放约 %@。": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已把 %1$@ 移到废纸篓，释放约 %2$@。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moved %@ to the Trash, freeing about %@."
+          }
+        }
+      }
+    },
+    "已把 %@ 移到废纸篓，需要时可以恢复。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moved %@ to the Trash; you can recover it later if you need to."
           }
         }
       }
@@ -3026,6 +3138,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bulk Cleanup"
+          }
+        }
+      }
+    },
+    "把 Xcode.app 移到废纸篓。项目文件、签名和用户数据不受影响，需要时可以恢复。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moves Xcode.app to the Trash. Project files, signing assets and your data are untouched, and you can recover it later if you need to."
           }
         }
       }
@@ -4136,6 +4258,16 @@
         }
       }
     },
+    "正在把 %@ 移到废纸篓…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moving %@ to the Trash…"
+          }
+        }
+      }
+    },
     "正在抹掉 Simulator %@…": {
       "localizations": {
         "en": {
@@ -4182,6 +4314,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Checking for updates…"
+          }
+        }
+      }
+    },
+    "正在测量体积…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measuring…"
           }
         }
       }
@@ -4472,6 +4614,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add Scan Folder…"
+          }
+        }
+      }
+    },
+    "测量体积": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measure Size"
           }
         }
       }
@@ -4778,6 +4930,16 @@
         }
       }
     },
+    "用法：xcodeswitcher uninstall [--dry-run] [--force] <版本、别名或路径>": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage: xcodeswitcher uninstall [--dry-run] [--force] <version, alias or path>"
+          }
+        }
+      }
+    },
     "用法：xcodeswitcher use <版本、别名或路径>": {
       "localizations": {
         "en": {
@@ -4878,6 +5040,16 @@
         }
       }
     },
+    "确认移除这个 Xcode？": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove this Xcode?"
+          }
+        }
+      }
+    },
     "磁盘清理": {
       "localizations": {
         "en": {
@@ -4934,6 +5106,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remove project scan folder %@"
+          }
+        }
+      }
+    },
+    "移到废纸篓…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move to Trash…"
+          }
+        }
+      }
+    },
+    "移除 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %@"
+          }
+        }
+      }
+    },
+    "移除失败：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removal failed: %@"
+          }
+        }
+      }
+    },
+    "移除这个 Xcode": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove this Xcode"
           }
         }
       }
@@ -5496,12 +5708,42 @@
         }
       }
     },
+    "这个路径不在本机已发现的 Xcode 列表里。请重新扫描后再试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This path is not one of the Xcodes found on this Mac. Rescan and try again."
+          }
+        }
+      }
+    },
+    "这个路径是符号链接。移除它只会把链接移走，不会释放空间，指向的 Xcode 会留在原处。请在 Finder 中处理它指向的那个版本。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This path is a symbolic link. Moving it would move the link itself, free nothing, and leave the Xcode it points at in place. Handle the version it points at in the Finder instead."
+          }
+        }
+      }
+    },
     "这些目录由所有 Xcode 版本共享。清理不会删除 Xcode.app、项目或签名文件。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "These directories are shared by every Xcode version. Cleaning does not delete Xcode.app, your projects, or signing files."
+          }
+        }
+      }
+    },
+    "这些项目绑定到它：%@。请在「项目」页把它们改绑到其他版本，或改用 .xcode-version 自动匹配。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These projects are pinned to it: %@. Rebind them on the Projects page, or use .xcode-version so they match automatically."
           }
         }
       }
