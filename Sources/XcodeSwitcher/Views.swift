@@ -145,14 +145,19 @@ struct ContentView: View {
                                 }
                             )) {
                                 ForEach(model.filteredInstallations) { installation in
-                                    InstallationRow(installation: installation).tag(installation.id)
+                                    InstallationRow(installation: installation)
+                                        .tag(installation.id)
+                                        .accessibilityIdentifier("installation-row-\(installation.id)")
                                 }
                             }
                         } else {
                             EmptyStateView(title: String(localized: "未发现 Xcode"), systemImage: "hammer", description: String(localized: "请重新扫描，或在设置中添加搜索目录。"))
                         }
                         HStack {
-                            Text("\(model.installations.count) 个版本").font(.caption).foregroundStyle(.secondary)
+                            Text("\(model.installations.count) 个版本")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("installation-count-label")
                             Spacer()
                             // The window needs its own way in: the menu command is only
                             // reachable while the app is frontmost, which a menu bar utility
@@ -202,6 +207,7 @@ struct ContentView: View {
                     .buttonStyle(.borderless)
                     .help("收藏当前版本")
                     .accessibilityLabel(model.isFavorite(selected) ? "取消收藏 \(selected.name)" : "收藏 \(selected.name)")
+                    .accessibilityIdentifier("favorite-selected-button")
                 }
                 Button(model.selectedInstallation.map { model.isActive($0) } == true ? "已激活" : "激活所选 Xcode") {
                     model.activateSelection()

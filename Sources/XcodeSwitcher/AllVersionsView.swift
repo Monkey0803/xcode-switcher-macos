@@ -111,6 +111,7 @@ struct AllVersionsView: View {
                     }
                 }
                 .fixedSize()
+                .accessibilityIdentifier("all-versions-channel-picker")
 
                 Picker("安装状态", selection: $query.installationScope) {
                     ForEach(XcodeReleaseQuery.InstallationScope.allCases) { scope in
@@ -118,6 +119,7 @@ struct AllVersionsView: View {
                     }
                 }
                 .fixedSize()
+                .accessibilityIdentifier("all-versions-installation-picker")
 
                 Picker("芯片", selection: $query.architectureScope) {
                     ForEach(XcodeReleaseQuery.ArchitectureScope.allCases) { scope in
@@ -125,6 +127,7 @@ struct AllVersionsView: View {
                     }
                 }
                 .fixedSize()
+                .accessibilityIdentifier("all-versions-architecture-picker")
 
                 Spacer()
             }
@@ -136,22 +139,27 @@ struct AllVersionsView: View {
                     }
                 }
                 .fixedSize()
+                .accessibilityIdentifier("all-versions-sort-picker")
 
                 Button {
                     query.direction = query.direction == .descending ? .ascending : .descending
                 } label: {
                     Label(query.direction.title, systemImage: query.direction == .descending ? "arrow.down" : "arrow.up")
                 }
+                .accessibilityIdentifier("all-versions-sort-direction-button")
 
                 Toggle("显示 Xcode Tools", isOn: $query.includesTools)
+                    .accessibilityIdentifier("all-versions-includes-tools-toggle")
 
                 Toggle("隐藏本机无法运行的版本", isOn: $query.hidesIncompatible)
+                    .accessibilityIdentifier("all-versions-hides-incompatible-toggle")
 
                 Spacer()
 
                 if case .loaded = model.releaseCatalogState {
                     Text("共 \(releases.count) / \(model.allReleases.count) 个版本")
                         .textRole(.note)
+                        .accessibilityIdentifier("all-versions-count-label")
                 }
             }
         }
@@ -210,15 +218,20 @@ struct AllVersionsView: View {
 
             if releases.isEmpty {
                 centered {
-                    Text("没有符合条件的版本。").textRole(.note)
+                    Text("没有符合条件的版本。")
+                        .textRole(.note)
+                        .accessibilityIdentifier("all-versions-empty-label")
                 }
             } else {
                 List(selection: $selectedBuild) {
                     ForEach(releases, id: \.build) { release in
-                        row(for: release).tag(release.build)
+                        row(for: release)
+                            .tag(release.build)
+                            .accessibilityIdentifier("all-versions-row-\(release.build)")
                     }
                 }
                 .listStyle(.inset)
+                .accessibilityIdentifier("all-versions-list")
             }
         }
     }

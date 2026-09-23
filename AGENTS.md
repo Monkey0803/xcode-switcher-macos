@@ -196,8 +196,57 @@ Two ways to "disprove" this by accident:
 - The window has to exist: `window 1` is whichever window is open, and the process
   is named `XcodeSwitcherApp` regardless of the bundle's display name.
 
-Still untested: whether XCUITest's `XCUIElement` layer sees these identifiers —
-this repository has no UI test target, so nothing exercises that path.
+**XCUITest sees them too** (verified 2026-09-23). `UITests/` is a real target in the
+scheme, and the identifiers in the element tree are exactly the values the sources set —
+on `List` rows and inside `ToolbarItem`s as well. Three things the suite had to learn:
+
+- Query by identifier rather than by visible text. A row's identifier is often built
+  from a value that changes per run (an installation's path), so match it with a
+  predicate instead of a literal.
+- A `StaticText` puts its text in `value`, not in `label` (which is empty), so read
+  `(element.value as? String) ?? element.label`.
+- **`XCUIElementQuery.firstMatch` resolves once and then keeps returning the same
+  result.** Waiting on one for an element that has not appeared yet can therefore never
+  succeed: after typing into the release list's search field, the single row the query
+  narrowed *to* was reported missing for the whole timeout, while the tree dump showed
+  it right there. Poll a predicate over the query instead (`count > 0` / `count == 0`),
+  which re-evaluates the live tree on every attempt and asserts disappearance with the
+  same tool.
+
+### The UI suite runs against a fixture, not the host machine
+
+`AppDelegate` builds the model differently when `XCODE_SWITCHER_UI_TESTING=1`, which
+only the test process sets (`AppDelegate.makeModel()`):
+
+- two fake installations (Xcode 15.4 active, Xcode 16.0), a project and a workspace with
+  a version conflict, one cleanup entry and a stubbed environment report;
+- the release index served from memory (`uiTestReleaseCatalogStore()`), so the
+  "every version" window depends on neither the network nor a day-old cache;
+- a dedicated `UserDefaults` suite, cleared on every launch, so a test never reads or
+  writes the developer's own configuration or language.
+
+`InstallationStore.refresh` ignores every trigger while that fixture is in place
+(`usesUITestFixture`), so clicking 「重新扫描」 in a test cannot replace the list with the
+host's real Xcodes. New tests must keep that property: assert only on fixture values,
+never on something that depends on the machine — how many Xcodes are installed, the host
+macOS version, whether a global shortcut has been authorized. The suite launches the app
+with `-AppleLanguages (zh-Hans)` regardless of the runner's own locale, which is why its
+assertions may spell out Chinese text (unlike the unit tests, see above).
+
+Deliberately **not** covered, because they need a real privileged action or a real
+device: the administrator authorization for `xcode-select --switch`, the global
+shortcut's Accessibility grant, and Simulator device operations. Those remain manual
+acceptance items in `README.md`. The menu-bar status item is not driven either: whether
+it is even present depends on how crowded the runner's menu bar is.
+
+```bash
+xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
+  -configuration Debug -derivedDataPath build/DerivedData test \
+  -only-testing:XcodeSwitcherUITests
+```
+
+CI runs the same target: the `xcode:` job's `xcodebuild … build test` is not restricted
+to the unit-test target.
 
 ## `sync_string_catalog.sh` and stale `.stringsdata`
 

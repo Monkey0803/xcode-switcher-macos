@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// not depend on user-visible, localized strings.
     private static let mainWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherMainWindow")
     private static let settingsWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherSettingsWindow")
+    private static let allVersionsWindowIdentifier = NSUserInterfaceItemIdentifier("XcodeSwitcherAllVersionsWindow")
     private static let uiTestingEnvironmentKey = "XCODE_SWITCHER_UI_TESTING"
     private static let uiTestingDefaultsSuite = "com.yostar.xcodeswitcher.uitests"
     private static let uiTestingRecommendedProjectID = UUID(uuidString: "7C7B93FD-DC7A-47BB-9C91-F0E591DDD2AA")!
@@ -90,12 +91,90 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .appendingPathComponent("XcodeSwitcherUITests-\(ProcessInfo.processInfo.processIdentifier).json")
         let model = XcodeViewModel(
             store: AppConfigurationStore(fileURL: configurationURL),
+            releaseCatalogStore: uiTestReleaseCatalogStore(),
             languageDefaults: defaults,
             configuresSystemServices: false
         )
         configureUITestFixture(on: model)
         return model
     }
+
+    /// The release index the UI suite runs against, served from memory.
+    ///
+    /// Without this the "every version" window would reach `xcodereleases.com` on
+    /// first run and then reuse a day-old on-disk cache: the row count would depend
+    /// on the network and on when the machine last fetched, so no assertion about
+    /// filtering could be stable. `maxAge: 0` keeps the cache from ever being
+    /// trusted, and the cache file is per process so two runs cannot share it.
+    private static func uiTestReleaseCatalogStore() -> XcodeReleaseCatalogStore {
+        let cacheURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("XcodeSwitcherUITests-releases-\(ProcessInfo.processInfo.processIdentifier).json")
+        // Read on the main actor: the closure below is `@Sendable` and cannot touch
+        // this type's actor-isolated state.
+        let index = Data(uiTestReleaseIndex.utf8)
+        return XcodeReleaseCatalogStore(
+            fetch: { index },
+            cacheURL: cacheURL,
+            maxAge: 0
+        )
+    }
+
+    /// Four releases, one per case the window's filters need to tell apart:
+    /// `15F31d` and `16A242d` are the two fixture installations, `17A100` is a beta,
+    /// and `27Z999` requires a macOS that will not exist, so "hidden because this Mac
+    /// cannot run it" always has exactly one row to hide.
+    private static let uiTestReleaseIndex = """
+    [
+      {
+        "name": "Xcode",
+        "version": { "number": "15.4", "build": "15F31d", "release": { "release": true } },
+        "date": { "year": 2024, "month": 5, "day": 13 },
+        "requires": "14.0",
+        "links": {
+          "download": {
+            "url": "https://example.com/Xcode_15.4.xip",
+            "architectures": [ "arm64" ]
+          }
+        }
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "16.0", "build": "16A242d", "release": { "release": true } },
+        "date": { "year": 2024, "month": 9, "day": 16 },
+        "requires": "15.0",
+        "links": {
+          "download": {
+            "url": "https://example.com/Xcode_16.0.xip",
+            "architectures": [ "arm64" ]
+          }
+        }
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "17.0", "build": "17A100", "release": { "beta": 1 } },
+        "date": { "year": 2025, "month": 6, "day": 9 },
+        "requires": "15.0",
+        "links": {
+          "download": {
+            "url": "https://example.com/Xcode_17.0_beta.xip",
+            "architectures": [ "arm64" ]
+          }
+        }
+      },
+      {
+        "name": "Xcode",
+        "version": { "number": "27.5", "build": "27Z999", "release": { "release": true } },
+        "date": { "year": 2027, "month": 1, "day": 1 },
+        "requires": "99.0",
+        "links": {
+          "download": {
+            "url": "https://example.com/Xcode_27.5.xip",
+            "architectures": [ "arm64" ]
+          }
+        }
+      }
+    ]
+    """
 
     /// The UI suite launches the production app target, but this fixture removes
     /// dependencies on the user's installed Xcodes, project list, and disk usage.
@@ -524,6 +603,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             defer: false
         )
         window.title = String(localized: "所有 Xcode 版本")
+        window.identifier = Self.allVersionsWindowIdentifier
         window.contentViewController = NSHostingController(rootView: content)
         // Handing AppKit a hosting controller makes it adopt the view's minimum size,
         // which silently ignores the contentRect above — the window opened at the

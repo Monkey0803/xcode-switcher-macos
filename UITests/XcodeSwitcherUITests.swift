@@ -200,8 +200,7 @@ final class XcodeSwitcherUITests: XCTestCase {
         XCTAssertEqual(choices.count, 2)
     }
 
-    func testEnvironmentDoctorRendersCompletedReport() throws {
-        let environmentCategory = app.radioButtons["环境"]
+    func testEnvironmentDoctorRendersCompletedReport() throws {        let environmentCategory = app.radioButtons["环境"]
         XCTAssertTrue(environmentCategory.waitForExistence(timeout: 10))
         environmentCategory.click()
 
@@ -211,6 +210,231 @@ final class XcodeSwitcherUITests: XCTestCase {
         XCTAssertTrue(doctor.waitForExistence(timeout: 5))
         doctor.click()
         XCTAssertTrue(app.staticTexts["测试诊断完成"].waitForExistence(timeout: 5))
+    }
+
+    // MARK: - 主窗口主路径
+    //
+    // These exercise the paths a user takes every day and that nothing else in the
+    // suite touched: what the list shows, narrowing it, folding it, refreshing it,
+    // and moving between the detail categories. The fixture in `AppDelegate` is what
+    // makes them deterministic — a host Xcode cannot leak in, and the release index
+    // is served from memory rather than the network.
+
+    /// A row puts its text in `value` while a button puts it in `label`, and both the
+    /// count labels and the tooltips are read the same way here.
+    private func text(of element: XCUIElement) -> String {
+        (element.value as? String) ?? element.label
+    }
+
+    /// Waits for a predicate over a *query* to hold.
+    ///
+    /// `XCUIElementQuery.firstMatch` resolves once and then keeps returning what it
+    /// first found, so waiting on one for an element that has not appeared yet can
+    /// never succeed — measured 2026-09-23 on the release list, where after a search
+    /// the one row the query narrowed *to* was the one reported missing. A predicate
+    /// expectation re-evaluates the live tree on every poll instead, and asserts
+    /// disappearance with the same tool.
+    @discardableResult
+    private func waitFor(
+        _ predicate: NSPredicate,
+        evaluatedWith object: Any,
+        timeout: TimeInterval = 5
+    ) -> Bool {
+        XCTWaiter().wait(
+            for: [XCTNSPredicateExpectation(predicate: predicate, object: object)],
+            timeout: timeout
+        ) == .completed
+    }
+
+    private func waitForText(_ element: XCUIElement, _ expected: String, timeout: TimeInterval = 5) -> Bool {
+        waitFor(NSPredicate(format: "value == %@", expected), evaluatedWith: element, timeout: timeout)
+    }
+
+    /// A row's identifier is built from the installation's path, which differs on every
+    /// run, so only its last component is asserted. The `BEGINSWITH` half matters: a
+    /// detail-pane button is identified `open-developer-dir-terminal-<path>` and ends
+    /// with the same component.
+    @discardableResult
+    private func installationRow(_ appName: String, exists: Bool = true, timeout: TimeInterval = 5) -> Bool {
+        waitFor(
+            NSPredicate(format: exists ? "count > 0" : "count == 0"),
+            evaluatedWith: app.descendants(matching: .any).matching(NSPredicate(
+                format: "identifier BEGINSWITH %@ AND identifier ENDSWITH %@",
+                "installation-row-",
+                appName
+            )),
+            timeout: timeout
+        )
+    }
+
+    @discardableResult
+    private func releaseRow(_ build: String, in window: XCUIElement, exists: Bool = true, timeout: TimeInterval = 5) -> Bool {
+        waitFor(
+            NSPredicate(format: exists ? "count > 0" : "count == 0"),
+            evaluatedWith: window.descendants(matching: .any)
+                .matching(identifier: "all-versions-row-\(build)"),
+            timeout: timeout
+        )
+    }
+
+    /// Opens the window the way the main window does, then waits for the index — the
+    /// count label only appears once the catalogue has loaded.
+    private func openAllVersionsWindow() -> XCUIElement {
+        XCTAssertTrue(app.buttons["all-versions-button"].waitForExistence(timeout: 10))
+        app.buttons["all-versions-button"].click()
+        let window = app.windows["XcodeSwitcherAllVersionsWindow"]
+        XCTAssertTrue(window.waitForExistence(timeout: 10))
+        XCTAssertTrue(waitForText(
+            window.staticTexts["all-versions-count-label"],
+            "共 4 / 4 个版本",
+            timeout: 15
+        ))
+        return window
+    }
+
+    func testMainWindowListsFixtureInstallationsAndMarksTheActiveOne() throws {
+        let count = app.staticTexts["installation-count-label"]
+        XCTAssertTrue(count.waitForExistence(timeout: 10))
+        XCTAssertEqual(text(of: count), "2 个版本")
+
+        XCTAssertTrue(installationRow("Xcode 15.4.app"))
+        XCTAssertTrue(installationRow("Xcode 16.0.app"))
+
+        // Exactly one row carries the active marker, and the fixture makes that 15.4.
+        XCTAssertTrue(waitFor(
+            NSPredicate(format: "count == 1"),
+            evaluatedWith: app.staticTexts.matching(NSPredicate(
+                format: "identifier BEGINSWITH %@ AND value == %@",
+                "installation-row-",
+                "当前激活"
+            ))
+        ))
+
+        // Both window actions are unavailable in this state: the selection is already
+        // the system default, and no switch has been recorded to roll back to.
+        XCTAssertFalse(app.buttons["activate-selected-xcode-button"].isEnabled)
+        XCTAssertFalse(app.buttons["rollback-xcode-button"].isEnabled)
+    }
+
+    func testSearchFieldNarrowsTheInstallationList() throws {
+        let search = app.textFields["xcode-search-field"]
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.click()
+        search.typeText("16.0")
+
+        XCTAssertTrue(installationRow("Xcode 16.0.app"))
+        XCTAssertTrue(installationRow("Xcode 15.4.app", exists: false))
+        // The count is how many Xcodes this Mac has, not how many the query kept.
+        XCTAssertEqual(text(of: app.staticTexts["installation-count-label"]), "2 个版本")
+    }
+
+    func testListPaneToggleHidesAndRestoresTheInstallationList() throws {
+        let toggle = app.buttons["list-pane-toggle-button"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["xcode-search-field"].exists)
+
+        toggle.click()
+        XCTAssertTrue(installationRow("Xcode 15.4.app", exists: false))
+        // The detail pane takes the width the list gave up.
+        XCTAssertTrue(app.staticTexts["系统级切换"].waitForExistence(timeout: 5))
+
+        toggle.click()
+        XCTAssertTrue(installationRow("Xcode 15.4.app"))
+        XCTAssertTrue(app.textFields["xcode-search-field"].waitForExistence(timeout: 5))
+    }
+
+    func testRefreshButtonKeepsTheFixtureList() throws {
+        let refresh = app.buttons["refresh-xcodes-button"]
+        XCTAssertTrue(refresh.waitForExistence(timeout: 10))
+        XCTAssertTrue(refresh.isEnabled)
+
+        refresh.click()
+
+        // The UI fixture ignores refresh triggers, so the host's real Xcode
+        // installations must not replace the two versions under test.
+        XCTAssertTrue(installationRow("Xcode 15.4.app"))
+        XCTAssertEqual(text(of: app.staticTexts["installation-count-label"]), "2 个版本")
+    }
+
+    func testDetailCategoryPickerSwitchesSections() throws {
+        XCTAssertTrue(app.staticTexts["系统级切换"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["不改系统设置（不需要管理员授权）"].exists)
+
+        app.radioButtons["版本与兼容"].click()
+        XCTAssertTrue(app.staticTexts["版本详细信息"].waitForExistence(timeout: 5))
+
+        app.radioButtons["环境"].click()
+        XCTAssertTrue(app.staticTexts["环境诊断"].waitForExistence(timeout: 5))
+
+        app.radioButtons["概览"].click()
+        XCTAssertTrue(app.staticTexts["系统级切换"].waitForExistence(timeout: 5))
+    }
+
+    // MARK: - 「所有 Xcode 版本」窗口
+
+    func testAllVersionsWindowListsTheIndexAndSearchesIt() throws {
+        let window = openAllVersionsWindow()
+        XCTAssertTrue(releaseRow("15F31d", in: window))
+        XCTAssertTrue(releaseRow("27Z999", in: window))
+
+        let search = window.textFields["all-versions-search-field"]
+        search.click()
+        search.typeText("16")
+
+        // Only 16.0/16A242d matches, and the count keeps the whole index as its denominator.
+        XCTAssertTrue(releaseRow("16A242d", in: window))
+        XCTAssertTrue(releaseRow("15F31d", in: window, exists: false))
+        XCTAssertTrue(releaseRow("17A100", in: window, exists: false))
+        XCTAssertTrue(waitForText(window.staticTexts["all-versions-count-label"], "共 1 / 4 个版本"))
+
+        // A query that matches nothing says so rather than leaving an empty list.
+        search.typeKey("a", modifierFlags: .command)
+        search.typeText("9.9.9")
+        XCTAssertTrue(window.staticTexts["all-versions-empty-label"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForText(window.staticTexts["all-versions-count-label"], "共 0 / 4 个版本"))
+    }
+
+    func testAllVersionsFiltersByChannelAndInstallationState() throws {
+        let window = openAllVersionsWindow()
+        XCTAssertTrue(releaseRow("17A100", in: window))
+
+        window.popUpButtons["all-versions-channel-picker"].click()
+        app.menuItems["仅正式版"].click()
+        XCTAssertTrue(releaseRow("17A100", in: window, exists: false))
+        XCTAssertTrue(releaseRow("15F31d", in: window))
+
+        window.popUpButtons["all-versions-installation-picker"].click()
+        app.menuItems["已安装"].click()
+        XCTAssertTrue(releaseRow("15F31d", in: window))
+        XCTAssertTrue(releaseRow("16A242d", in: window))
+        XCTAssertTrue(releaseRow("27Z999", in: window, exists: false))
+    }
+
+    func testAllVersionsCanHideReleasesThisMacCannotRun() throws {
+        let window = openAllVersionsWindow()
+        XCTAssertTrue(releaseRow("27Z999", in: window))
+
+        // The fixture entry requires macOS 99.0, so this is the same answer on any host.
+        window.checkBoxes["all-versions-hides-incompatible-toggle"].click()
+
+        XCTAssertTrue(releaseRow("27Z999", in: window, exists: false))
+        XCTAssertTrue(releaseRow("15F31d", in: window))
+    }
+
+    func testAllVersionsDetailsPaneCanBeFolded() throws {
+        let window = openAllVersionsWindow()
+        XCTAssertTrue(window.staticTexts["选择一个版本查看详情。"].waitForExistence(timeout: 5))
+
+        window.buttons["release-details-toggle-button"].click()
+        XCTAssertTrue(waitFor(
+            NSPredicate(format: "count == 0"),
+            evaluatedWith: window.staticTexts.matching(
+                NSPredicate(format: "value == %@", "选择一个版本查看详情。")
+            )
+        ))
+
+        window.buttons["release-details-toggle-button"].click()
+        XCTAssertTrue(window.staticTexts["选择一个版本查看详情。"].waitForExistence(timeout: 5))
     }
 
 }
