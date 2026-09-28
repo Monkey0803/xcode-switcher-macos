@@ -641,16 +641,16 @@
     },
     "[dry-run] 将把 %@ 移到废纸篓，释放约 %@。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "[dry-run] 将把 %1$@ 移到废纸篓，释放约 %2$@。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "[dry-run] would move %@ to the Trash, freeing about %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "[dry-run] 将把 %1$@ 移到废纸篓，释放约 %2$@。"
           }
         }
       }
@@ -1362,12 +1362,52 @@
         }
       }
     },
-    "发布信息服务器返回了错误响应。": {
+    "发布信息服务器正在限流，请在 %@ 后重试。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The release-info server returned an error response."
+            "value": "The release information server is rate limiting requests. Try again after %@."
+          }
+        }
+      }
+    },
+    "发布信息服务器正在限流，请稍后重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The release information server is rate limiting requests. Try again later."
+          }
+        }
+      }
+    },
+    "发布信息服务器请求失败（HTTP %lld），请稍后重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The release information server returned an error (HTTP %lld). Try again in a moment."
+          }
+        }
+      }
+    },
+    "发布信息服务器返回了无效响应。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The release information server returned an invalid response."
+          }
+        }
+      }
+    },
+    "发布信息服务器返回的数据格式无效。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The release information data could not be read."
           }
         }
       }
@@ -1378,6 +1418,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The release index has no entry for build %@."
+          }
+        }
+      }
+    },
+    "发布信息请求超时，请稍后重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The release information request timed out. Try again in a moment."
           }
         }
       }
@@ -2388,16 +2438,16 @@
     },
     "已把 %@ 移到废纸篓，释放约 %@。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "已把 %1$@ 移到废纸篓，释放约 %2$@。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Moved %@ to the Trash, freeing about %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已把 %1$@ 移到废纸篓，释放约 %2$@。"
           }
         }
       }
@@ -2666,16 +2716,16 @@
     },
     "已配置 %lld 个项目，%lld 个需要处理。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "已配置 %1$lld 个项目，%2$lld 个需要处理。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld projects configured, %lld need attention."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已配置 %1$lld 个项目，%2$lld 个需要处理。"
           }
         }
       }
@@ -2862,16 +2912,16 @@
     },
     "当前选择：%@ %@ · %@%@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "当前选择：%1$@ %2$@ · %3$@%4$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Current choice: %@ %@ · %@%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "当前选择：%1$@ %2$@ · %3$@%4$@"
           }
         }
       }
@@ -3568,6 +3618,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Could not reach GitHub Releases. Check your network and try again."
+          }
+        }
+      }
+    },
+    "无法连接发布信息服务器，请检查网络后重试。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach the release information server. Check your connection and try again."
           }
         }
       }
@@ -4598,6 +4658,16 @@
         }
       }
     },
+    "测量体积": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measure Size"
+          }
+        }
+      }
+    },
     "添加扫描目录": {
       "localizations": {
         "en": {
@@ -4614,16 +4684,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add Scan Folder…"
-          }
-        }
-      }
-    },
-    "测量体积": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Measure Size"
           }
         }
       }
@@ -5100,16 +5160,6 @@
         }
       }
     },
-    "移除项目扫描目录 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove project scan folder %@"
-          }
-        }
-      }
-    },
     "移到废纸篓…": {
       "localizations": {
         "en": {
@@ -5146,6 +5196,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remove this Xcode"
+          }
+        }
+      }
+    },
+    "移除项目扫描目录 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove project scan folder %@"
           }
         }
       }
@@ -5424,16 +5484,16 @@
     },
     "要求 Xcode %@（%@），来自 %@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "要求 Xcode %1$@（%2$@），来自 %3$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Requires Xcode %@ (%@), from %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "要求 Xcode %1$@（%2$@），来自 %3$@"
           }
         }
       }
@@ -6216,16 +6276,16 @@
     },
     "项目扫描完成：发现 %lld 个项目和 Workspace，新增 %lld 个。": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "项目扫描完成：发现 %1$lld 个项目和 Workspace，新增 %2$lld 个。"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Project scan complete: found %lld projects and Workspaces, added %lld."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "项目扫描完成：发现 %1$lld 个项目和 Workspace，新增 %2$lld 个。"
           }
         }
       }

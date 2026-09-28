@@ -505,6 +505,12 @@ struct XcodeReleaseCatalogSnapshot: Sendable {
 struct XcodeReleaseCatalogStore: Sendable {
     typealias Fetch = @Sendable () async throws -> Data
 
+    /// A release index has no reason to keep a menu-bar utility waiting for a
+    /// connectivity probe. These values cover both the individual request and
+    /// the whole transfer, so a stalled connection cannot outlive the UI state.
+    static let requestTimeout: TimeInterval = 20
+    static let resourceTimeout: TimeInterval = 25
+
     enum LoadError: LocalizedError {
         case unavailable(String)
 
@@ -515,12 +521,49 @@ struct XcodeReleaseCatalogStore: Sendable {
         }
     }
 
+    /// Network failures that need different advice. Keeping this separate from
+    /// decoding errors lets a stale on-disk index say whether the user should
+    /// wait for a rate limit, reconnect, or report a server response.
+    enum NetworkFailure: LocalizedError, Sendable {
+        case timeout
+        case offline
+        case rateLimited(retryAt: Date?)
+        case server(status: Int)
+        case invalidResponse
+
+        var errorDescription: String? {
+            switch self {
+            case .timeout:
+                return String(localized: "发布信息请求超时，请稍后重试。")
+            case .offline:
+                return String(localized: "无法连接发布信息服务器，请检查网络后重试。")
+            case let .rateLimited(retryAt):
+                guard let retryAt else {
+                    return String(localized: "发布信息服务器正在限流，请稍后重试。")
+                }
+                return String(localized: "发布信息服务器正在限流，请在 \(retryAt.formatted(date: .omitted, time: .shortened)) 后重试。")
+            case let .server(status):
+                return String(localized: "发布信息服务器请求失败（HTTP \(status)），请稍后重试。")
+            case .invalidResponse:
+                return String(localized: "发布信息服务器返回了无效响应。")
+            }
+        }
+    }
+
     let fetch: Fetch
     let cacheURL: URL
     /// How long a cached copy is served before a refresh is attempted.
     let maxAge: TimeInterval
 
     static let datasetURL = URL(string: "https://xcodereleases.com/data.json")!
+
+    private static let networkSession: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = requestTimeout
+        configuration.timeoutIntervalForResource = resourceTimeout
+        configuration.waitsForConnectivity = false
+        return URLSession(configuration: configuration)
+    }()
 
     static var live: XcodeReleaseCatalogStore {
         XcodeReleaseCatalogStore(
@@ -540,13 +583,64 @@ struct XcodeReleaseCatalogStore: Sendable {
 
     static func download() async throws -> Data {
         var request = URLRequest(url: datasetURL)
-        request.timeoutInterval = 20
+        request.timeoutInterval = requestTimeout
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw LoadError.unavailable(String(localized: "发布信息服务器返回了错误响应。"))
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        do {
+            let (data, response) = try await networkSession.data(for: request)
+            return try responsePayload(data, response: response, now: Date())
+        } catch let failure as NetworkFailure {
+            throw failure
+        } catch let error as URLError {
+            switch error.code {
+            case .timedOut:
+                throw NetworkFailure.timeout
+            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                throw NetworkFailure.offline
+            default:
+                throw error
+            }
+        }
+    }
+
+    /// Validates a completed network response before its payload reaches the
+    /// decoder. Keeping it independent of URLSession lets tests exercise the
+    /// exact HTTP behaviour without waiting on a public release service.
+    static func responsePayload(_ data: Data, response: URLResponse, now: Date) throws -> Data {
+        guard let http = response as? HTTPURLResponse else {
+            throw NetworkFailure.invalidResponse
+        }
+        let headers = normalizedHeaders(http.allHeaderFields)
+        if http.statusCode == 429 ||
+            (http.statusCode == 403 && headers["x-ratelimit-remaining"] == "0") {
+            throw NetworkFailure.rateLimited(retryAt: retryAt(headers: headers, now: now))
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw NetworkFailure.server(status: http.statusCode)
         }
         return data
+    }
+
+    /// GitHub-style sources may send either a delta in `Retry-After` or an epoch
+    /// in `X-RateLimit-Reset`; supporting both keeps an alternate mirror from
+    /// turning a temporary limit into a generic failure.
+    static func retryAt(headers: [String: String], now: Date) -> Date? {
+        let normalized = Dictionary(uniqueKeysWithValues: headers.map { ($0.key.lowercased(), $0.value) })
+        if let seconds = TimeInterval(normalized["retry-after"] ?? ""), seconds >= 0 {
+            return now.addingTimeInterval(seconds)
+        }
+        if let epoch = TimeInterval(normalized["x-ratelimit-reset"] ?? ""), epoch > now.timeIntervalSince1970 {
+            return Date(timeIntervalSince1970: epoch)
+        }
+        return nil
+    }
+
+    private static func normalizedHeaders(_ headers: [AnyHashable: Any]) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: headers.compactMap { key, value in
+            guard let value = value as? String else { return nil }
+            return (String(describing: key).lowercased(), value)
+        })
     }
 
     private static var userAgent: String {
@@ -576,13 +670,34 @@ struct XcodeReleaseCatalogStore: Sendable {
                 XcodeReleaseCatalogSnapshot(releases: releases, cachedAt: nil, failure: nil)
             )
         } catch {
+            let message = Self.failureDescription(error)
             if let cached {
                 return .success(
-                    XcodeReleaseCatalogSnapshot(releases: cached.releases, cachedAt: cached.cachedAt, failure: error.localizedDescription)
+                    XcodeReleaseCatalogSnapshot(releases: cached.releases, cachedAt: cached.cachedAt, failure: message)
                 )
             }
-            return .failure(.unavailable(error.localizedDescription))
+            return .failure(.unavailable(message))
         }
+    }
+
+    private static func failureDescription(_ error: Error) -> String {
+        if let failure = error as? NetworkFailure {
+            return failure.errorDescription ?? String(localized: "无法获取发布信息。")
+        }
+        if let error = error as? URLError {
+            switch error.code {
+            case .timedOut:
+                return NetworkFailure.timeout.errorDescription ?? error.localizedDescription
+            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                return NetworkFailure.offline.errorDescription ?? error.localizedDescription
+            default:
+                break
+            }
+        }
+        if error is DecodingError {
+            return String(localized: "发布信息服务器返回的数据格式无效。")
+        }
+        return error.localizedDescription
     }
 
     private func readCache() -> (releases: [XcodeReleaseInfo], cachedAt: Date)? {

@@ -244,7 +244,92 @@ final class XcodeReleaseInfoTests: XCTestCase {
         let snapshot = try XCTUnwrap(try? result.get())
         XCTAssertEqual(snapshot.releases.count, 13, "离线时应回退到过期缓存，而不是什么都不显示")
         // 原因要一路带上来，界面才能说出「为什么」而不是只说「失败了」。
-        XCTAssertEqual(snapshot.failure, URLError(.notConnectedToInternet).localizedDescription)
+        XCTAssertEqual(
+            snapshot.failure,
+            XcodeReleaseCatalogStore.NetworkFailure.offline.errorDescription
+        )
+    }
+
+    func testNetworkFailuresHaveActionableLocalizedDescriptions() {
+        let retryAt = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertEqual(
+            XcodeReleaseCatalogStore.NetworkFailure.timeout.errorDescription,
+            String(localized: "发布信息请求超时，请稍后重试。")
+        )
+        XCTAssertEqual(
+            XcodeReleaseCatalogStore.NetworkFailure.offline.errorDescription,
+            String(localized: "无法连接发布信息服务器，请检查网络后重试。")
+        )
+        XCTAssertEqual(
+            XcodeReleaseCatalogStore.NetworkFailure.rateLimited(retryAt: retryAt).errorDescription,
+            String(localized: "发布信息服务器正在限流，请在 \(retryAt.formatted(date: .omitted, time: .shortened)) 后重试。")
+        )
+    }
+
+    func testRateLimitRetryAfterUsesSecondsOrServerResetTime() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        XCTAssertEqual(
+            XcodeReleaseCatalogStore.retryAt(headers: ["Retry-After": "30"], now: now),
+            now.addingTimeInterval(30)
+        )
+        XCTAssertEqual(
+            XcodeReleaseCatalogStore.retryAt(headers: ["X-RateLimit-Reset": "1700000060"], now: now),
+            Date(timeIntervalSince1970: 1_700_000_060)
+        )
+        XCTAssertNil(XcodeReleaseCatalogStore.retryAt(headers: [:], now: now))
+    }
+
+    func testHTTPResponsesMapRateLimitsAndServerFailures() throws {
+        let url = try XCTUnwrap(URL(string: "https://example.invalid/releases"))
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let payload = Data("[]".utf8)
+
+        let rateLimited = try XCTUnwrap(HTTPURLResponse(
+            url: url,
+            statusCode: 429,
+            httpVersion: nil,
+            headerFields: ["Retry-After": "30"]
+        ))
+        XCTAssertThrowsError(
+            try XcodeReleaseCatalogStore.responsePayload(payload, response: rateLimited, now: now)
+        ) { error in
+            guard case let .rateLimited(retryAt) = error as? XcodeReleaseCatalogStore.NetworkFailure else {
+                return XCTFail("应将 HTTP 429 识别为限流：\(error)")
+            }
+            XCTAssertEqual(retryAt, now.addingTimeInterval(30))
+        }
+
+        let githubLimit = try XCTUnwrap(HTTPURLResponse(
+            url: url,
+            statusCode: 403,
+            httpVersion: nil,
+            headerFields: ["X-RateLimit-Remaining": "0"]
+        ))
+        XCTAssertThrowsError(
+            try XcodeReleaseCatalogStore.responsePayload(payload, response: githubLimit, now: now)
+        ) { error in
+            guard case .rateLimited = error as? XcodeReleaseCatalogStore.NetworkFailure else {
+                return XCTFail("应将已耗尽的 HTTP 403 配额识别为限流：\(error)")
+            }
+        }
+
+        let serverFailure = try XCTUnwrap(HTTPURLResponse(url: url, statusCode: 503, httpVersion: nil, headerFields: nil))
+        XCTAssertThrowsError(
+            try XcodeReleaseCatalogStore.responsePayload(payload, response: serverFailure, now: now)
+        ) { error in
+            guard case let .server(status) = error as? XcodeReleaseCatalogStore.NetworkFailure else {
+                return XCTFail("应保留服务端状态码：\(error)")
+            }
+            XCTAssertEqual(status, 503)
+        }
+
+        XCTAssertThrowsError(
+            try XcodeReleaseCatalogStore.responsePayload(payload, response: URLResponse(url: url, mimeType: nil, expectedContentLength: 0, textEncodingName: nil), now: now)
+        ) { error in
+            guard case .invalidResponse = error as? XcodeReleaseCatalogStore.NetworkFailure else {
+                return XCTFail("非 HTTP 响应应被拒绝：\(error)")
+            }
+        }
     }
 
     func testNoCacheAndFailedFetchReportsUnavailable() async {
