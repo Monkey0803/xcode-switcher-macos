@@ -233,19 +233,25 @@ final class XcodeSwitcherUITests: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH %@", "environment-doctor-button-")
         ).firstMatch
         XCTAssertTrue(doctor.waitForExistence(timeout: 5))
-        doctor.click()
 
-        // 15s rather than 5: this is the one assertion in the suite that waits on a
-        // view rebuilt from an asynchronous report, and the runner is slower than a
-        // developer machine. The diagnostics exist because the first CI run of this
-        // suite failed here and the log could not say whether the report was missing,
-        // late, or rendered in another language.
-        if !app.staticTexts["测试诊断完成"].waitForExistence(timeout: 15) {
-            print("[ui-test] categories=\(app.radioButtons.allElementsBoundByIndex.map(\.label))")
-            print("[ui-test] windows=\(app.windows.allElementsBoundByIndex.map { "\($0.identifier):\($0.frame)" })")
-            print("[ui-test] texts=\(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | "))")
-            XCTFail("体检报告没有渲染出检查项")
+        // Clicked until the button turns into 「重新体检」, rather than once and then
+        // waiting: on the CI runner the first click can land on empty space because the
+        // view is relaid out between XCUITest taking its coordinates and synthesizing the
+        // event. The label is the report's own signal and sits at the top of the box, so
+        // it needs no scrolling.
+        let deadline = Date().addingTimeInterval(30)
+        while Date() < deadline, doctor.label != "重新体检" {
+            doctor.click()
+            RunLoop.current.run(until: Date().addingTimeInterval(1))
         }
+        guard doctor.label == "重新体检" else {
+            print("[ui-test] doctor label=\(doctor.label) hittable=\(doctor.isHittable) frame=\(doctor.frame)")
+            print("[ui-test] categories=\(app.radioButtons.allElementsBoundByIndex.map(\.label))")
+            print("[ui-test] texts=\(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | "))")
+            return XCTFail("体检没有生成报告：按钮始终是「\(doctor.label)」")
+        }
+
+        XCTAssertTrue(app.staticTexts["测试诊断完成"].exists, "报告生成了，但检查项没有渲染")
     }
 
     // MARK: - 主窗口主路径
