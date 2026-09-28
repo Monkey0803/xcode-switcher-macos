@@ -240,6 +240,17 @@ final class XcodeSwitcherUITests: XCTestCase {
         app.activate()
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
 
+        // Move the button away from the bottom edge of the window before clicking it.
+        // On the runner it sits at y=622 in a window that ends at 674, and a click there
+        // is synthesized but never reaches the action — so the hit point itself is part
+        // of the problem. Scrolling the pane that contains it is the cheapest way to
+        // separate 「pressed into the edge」 from everything else.
+        let doctorFrame = doctor.frame
+        if let pane = app.scrollViews.allElementsBoundByIndex.first(where: { $0.frame.contains(doctorFrame) }) {
+            pane.swipeUp()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        }
+
         // Clicked until the button turns into 「重新体检」, rather than once and then
         // waiting: on the CI runner the first click can land on empty space because the
         // view is relaid out between XCUITest taking its coordinates and synthesizing the
