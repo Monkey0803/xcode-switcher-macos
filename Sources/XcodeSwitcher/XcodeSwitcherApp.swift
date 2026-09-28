@@ -627,6 +627,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Centres a window on the screen it will open on, sized to fit it.
+    ///
+    /// `NSWindow.center()` is not enough on its own: it centres whatever size the window
+    /// has *at that moment*, and a window whose content view controller has not been laid
+    /// out yet is still at its minimum. CI found this on a 1024×768 display — the
+    /// 760-point settings window ended up at x=511, i.e. 247 points hanging off the right
+    /// edge, and every control in that strip was unreachable (the UI tests reported
+    /// 「Not hittable」 for elements that were plainly in the tree). Clamping the size and
+    /// computing the origin from the visible frame fixes both halves at once.
+    private func centerOnVisibleScreen(_ window: NSWindow) {
+        guard let screen = window.screen ?? NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        let size = NSSize(
+            width: min(window.frame.width, visible.width),
+            height: min(window.frame.height, visible.height)
+        )
+        window.setFrame(
+            NSRect(origin: NSPoint(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2), size: size),
+            display: false
+        )
+    }
+
     /// A window rather than a sheet: browsing releases is a comparison task, and it
     /// should not block the detail pane it is meant to be read next to.
     @objc func showAllVersions(_ notification: Notification? = nil) {
@@ -649,10 +671,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // which silently ignores the contentRect above — the window opened at the
         // 640x420 floor instead of the intended size. Setting it afterwards sticks.
         window.setContentSize(NSSize(width: 1000, height: 640))
-        window.center()
+        centerOnVisibleScreen(window)
         window.isReleasedWhenClosed = false
         allVersionsWindow = window
         window.makeKeyAndOrderFront(nil)
+        centerOnVisibleScreen(window)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -672,10 +695,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.title = String(localized: "Xcode Switcher 设置")
         window.identifier = Self.settingsWindowIdentifier
         window.contentViewController = NSHostingController(rootView: content)
-        window.center()
+        centerOnVisibleScreen(window)
         window.isReleasedWhenClosed = false
         settingsWindow = window
         window.makeKeyAndOrderFront(nil)
+        // Again, now that the hosting controller has given the window its real size: the
+        // first call could only clamp the size the window had then.
+        centerOnVisibleScreen(window)
         NSApp.activate(ignoringOtherApps: true)
     }
 }

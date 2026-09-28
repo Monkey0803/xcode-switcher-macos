@@ -75,7 +75,9 @@ expect_contains "$stdout" "xcodeswitcher uninstall" "无参数时打印帮助"
 
 # --- 用法错误：64，JSON 走标准错误 ---
 run 64 definitely-not-a-command
-expect_contains "$stderr" "未知命令" "未知命令"
+# 错误文本是本地化的（英文环境是 "Unknown command"），所以只断言里面那段不翻译的
+# 命令名，以及退出码 64 本身已经表达的「用法错误」。
+expect_contains "$stderr" "definitely-not-a-command" "未知命令"
 run 64 --json definitely-not-a-command
 expect_contains "$stderr" '"code":"usage"' "--json 未知命令"
 if [[ -n "$stdout" ]]; then
