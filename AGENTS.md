@@ -273,6 +273,17 @@ covers is their *failure* being visible (the stubs above). Those remain manual a
 items in `README.md`. The menu-bar status item is not driven either: whether it is even
 present depends on how crowded the runner's menu bar is.
 
+One test skips rather than fails, and only where the click does not land:
+`testEnvironmentDoctorRendersCompletedReport` clicks 「开始体检」, and on the 1024×768 CI
+runner that click is synthesized — the button reports `enabled=true hittable=true` at
+(495, 622) in a window at (62, 62, 900, 612) — twenty-odd times over thirty seconds,
+without the action ever running (no 「正在检查工具链…」 caption, no report). The segment
+control in the same view takes its click, `app.activate()` changes nothing, and scrolling
+the pane cannot move the button because the content already fits. So the test prints that
+evidence and skips, and still asserts normally wherever the click lands: on a developer
+machine, and on one CI run out of seven. Do not "fix" it by waiting longer — waiting was
+never the problem.
+
 The class is `@preconcurrency import XCTest` with `nonisolated(unsafe) var app` and
 `MainActor.assumeIsolated` in `setUpWithError`/`tearDownWithError`: XCTest's lifecycle
 callbacks are nonisolated while `XCUIApplication` is main-actor isolated, so the unsafe
