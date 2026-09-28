@@ -639,7 +639,15 @@ private struct XcodeSwitcherCLI {
             knownInstallations: installations,
             activeDeveloperPath: activeDeveloperPath,
             isRunning: !XcodeProcessInspector.runningInstallations(among: [installation]).isEmpty,
-            boundProjectNames: configuration.boundProjectNames(to: installation.id),
+            boundProjects: ProjectBindingLocator.bindings(
+                to: installation,
+                among: installations,
+                profiles: configuration.projects,
+                discoveredProjects: ProjectDirectoryScanner.scan(
+                    roots: configuration.projectSearchPaths.map { URL(fileURLWithPath: $0, isDirectory: true) }
+                ),
+                aliases: configuration.xcodeAliases
+            ),
             force: options.force
         )
         if case let .refused(refusal) = XcodeRemoval.decide(installation, in: context) {

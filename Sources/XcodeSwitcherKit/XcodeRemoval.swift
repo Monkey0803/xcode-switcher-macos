@@ -14,8 +14,9 @@ public enum XcodeRemovalRefusal: Equatable, Sendable {
     case symbolicLinkComponent
     /// `xcode-select` currently points at this bundle.
     case activeDeveloperDirectory
-    /// A project in this app's configuration pins this version.
-    case boundProjects([String])
+    /// A project pins this version — through the App's project list, a repository's
+    /// `.xcode-switcher.json`, or both.
+    case boundProjects([XcodeRemovalBinding])
     /// Its process is running.
     case running
 
@@ -31,8 +32,18 @@ public enum XcodeRemovalRefusal: Equatable, Sendable {
             return String(localized: "这个路径是符号链接。移除它只会把链接移走，不会释放空间，指向的 Xcode 会留在原处。请在 Finder 中处理它指向的那个版本。")
         case .activeDeveloperDirectory:
             return String(localized: "它是当前系统默认的 Xcode（xcode-select 指向它）。请先切换到其他版本，或改用「不改系统设置」的方式打开项目。")
-        case .boundProjects(let names):
-            return String(localized: "这些项目绑定到它：\(names.joined(separator: "、"))。请在「项目」页把它们改绑到其他版本，或改用 .xcode-version 自动匹配。")
+        case .boundProjects(let bindings):
+            // Each line says where the decision lives, because the two places are changed
+            // differently: one in the App, the other in the repository.
+            let lines = bindings.map { binding -> String in
+                switch binding.origin {
+                case .appProfile:
+                    return "  \(binding.projectName) — " + String(localized: "App 内绑定")
+                case let .localConfiguration(path):
+                    return "  \(binding.projectName) — \(path)"
+                }
+            }.joined(separator: "\n")
+            return String(localized: "这些项目绑定到它：\n\(lines)\n请在「项目」页改绑其中的 App 绑定，或修改/删除项目里的 .xcode-switcher.json。")
         case .running:
             return String(localized: "它正在运行。请先退出这个 Xcode。")
         }
@@ -69,7 +80,7 @@ public struct XcodeRemovalContext: Sendable {
     public let knownInstallations: [XcodeInstallation]
     public let activeDeveloperPath: String?
     public let isRunning: Bool
-    public let boundProjectNames: [String]
+    public let boundProjects: [XcodeRemovalBinding]
     /// Relaxes ``XcodeRemovalRefusal/running`` only.
     public let force: Bool
 
@@ -77,13 +88,13 @@ public struct XcodeRemovalContext: Sendable {
         knownInstallations: [XcodeInstallation],
         activeDeveloperPath: String?,
         isRunning: Bool,
-        boundProjectNames: [String],
+        boundProjects: [XcodeRemovalBinding],
         force: Bool = false
     ) {
         self.knownInstallations = knownInstallations
         self.activeDeveloperPath = activeDeveloperPath
         self.isRunning = isRunning
-        self.boundProjectNames = boundProjectNames
+        self.boundProjects = boundProjects
         self.force = force
     }
 }
@@ -120,8 +131,8 @@ public enum XcodeRemoval {
         if installation.appURL.resolvingSymlinksInPath().path != installation.appURL.path {
             return .refused(.symbolicLinkComponent)
         }
-        if !context.boundProjectNames.isEmpty {
-            return .refused(.boundProjects(context.boundProjectNames))
+        if !context.boundProjects.isEmpty {
+            return .refused(.boundProjects(context.boundProjects))
         }
         if context.isRunning, !context.force {
             return .refused(.running)

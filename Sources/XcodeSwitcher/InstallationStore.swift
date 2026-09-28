@@ -60,6 +60,8 @@ final class InstallationStore: ObservableObject {
     /// cached instead of being re-fetched on every row render.
     private var iconCache: [String: NSImage] = [:]
     private var lastRefreshAt: Date?
+    private var scannedProjectRoots: [String]?
+    private var scannedProjects: [URL]?
 
     /// Cancelled here rather than from the model's `deinit`, which is nonisolated
     /// and so cannot call into this actor.
@@ -141,6 +143,7 @@ final class InstallationStore: ObservableObject {
         // that fixture while a destructive confirmation path is under test.
         guard !usesUITestFixture else { return }
         guard !isRefreshing else { return }
+        scannedProjectRoots = nil
         isRefreshing = true
         if !silently { status?.statusMessage = String(localized: "正在扫描本机安装的 Xcode…") }
         let searchPaths = owner?.configuration.customSearchPaths ?? []
@@ -231,9 +234,35 @@ final class InstallationStore: ObservableObject {
             knownInstallations: installations,
             activeDeveloperPath: activeDeveloperPath,
             isRunning: !XcodeProcessInspector.runningInstallations(among: [installation]).isEmpty,
-            boundProjectNames: owner?.configuration.boundProjectNames(to: installation.id) ?? [],
+            boundProjects: ProjectBindingLocator.bindings(
+                to: installation,
+                among: installations,
+                profiles: owner?.configuration.projects ?? [],
+                discoveredProjects: discoveredProjectURLs(),
+                aliases: owner?.configuration.xcodeAliases ?? [:]
+            ),
             force: force
         )
+    }
+
+    /// Projects found under the configured project scan directories.
+    ///
+    /// Cached because the answer gates a destructive action: walking the configured trees on
+    /// every row render is wasteful, and walking them *asynchronously* would answer
+    /// 「可以移除」 while the answer was still unknown. What makes caching safe is that the
+    /// scan only matters for projects that were never added to the App — anything in the
+    /// project list is read directly — and the cache is dropped on every refresh, which is
+    /// the same trigger that already re-discovers installations.
+    private func discoveredProjectURLs() -> [URL] {
+        let roots = (owner?.configuration.projectSearchPaths ?? []).sorted()
+        guard !roots.isEmpty else { return [] }
+        if scannedProjectRoots == roots, let scannedProjects { return scannedProjects }
+        let discovered = ProjectDirectoryScanner.scan(
+            roots: roots.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        )
+        scannedProjectRoots = roots
+        scannedProjects = discovered
+        return discovered
     }
 
     /// Moves the bundle to the Trash, drops everything that pointed at it, and rescans.

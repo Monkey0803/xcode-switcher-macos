@@ -1,5 +1,11 @@
 # Changelog
 
+## 未发布
+
+### 修复
+
+- **仓库里自带的项目绑定，移除守卫现在看得见了**：README 一直允许把 `.xcode-switcher.json` 提交进仓库（团队共享绑定），`resolve`/`open` 也一直按它解析，但移除守卫只读 App 全局项目列表里的 `xcodeID`——于是同事克隆一个带绑定的仓库、没有在 App 里添加过该项目时，`uninstall` 什么都不会拦。现在守卫读两份来源（App 项目列表，以及项目或仓库里的 `.xcode-switcher.json`），候选项目来自项目列表与项目扫描目录；本地写法交给 `XcodeSelector.resolve` 解析，歧义时（仓库写 `"27.0"` 而 beta 与正式版都在）两个都不许移除。被拒时会逐条列出项目与**这份绑定写在哪里**——App 内绑定去「项目」页改，仓库里的文件要改那个文件，指错地方比不指更糟。见 `docs/superpowers/plans/2026-09-28-local-project-bindings-in-the-removal-guard.md`。
+
 ## 2.2.2 - 2026-09-28
 
 ### 修复

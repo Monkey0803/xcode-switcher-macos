@@ -193,6 +193,28 @@ if [[ -n "$spare_app" ]]; then
 
   run 0 uninstall --dry-run "$spare_app"
   expect_contains "$stdout" "[dry-run]" "解绑后应当又能预演移除"
+
+  # 仓库自带的绑定：文件由团队写进仓库（README 允许的用法），不经过 pin。守卫必须同样
+  # 看得见它——否则同事克隆一个带绑定的仓库，移除时什么保护都没有。这里的项目不在 App 的
+  # 项目列表里，所以它只能靠项目扫描目录被发现，路径也就一并验了。
+  repo_root="$work/repo"
+  mkdir -p "$repo_root/App.xcodeproj"
+  printf '// dummy\n' >"$repo_root/App.xcodeproj/project.pbxproj"
+  printf '{"xcode": "%s"}\n' "$spare_app" >"$repo_root/.xcode-switcher.json"
+  /usr/bin/python3 - "$config_file" "$repo_root" <<'ADDROOT'
+import json, pathlib, sys
+
+config = pathlib.Path(sys.argv[1])
+data = json.loads(config.read_text())
+data["projectSearchPaths"] = [sys.argv[2]]
+config.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+ADDROOT
+  run 1 uninstall --dry-run "$spare_app"
+  expect_contains "$stderr" "repo" "仓库自带的 .xcode-switcher.json 也必须拒绝移除"
+
+  rm -f "$repo_root/.xcode-switcher.json"
+  run 0 uninstall --dry-run "$spare_app"
+  expect_contains "$stdout" "[dry-run]" "删掉仓库里那个文件后应当又能预演"
 fi
 
 # 同版本装了多个时，版本号是歧义的，必须拒绝并列出候选——否则 uninstall 会静默挑第一个。

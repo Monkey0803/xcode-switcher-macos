@@ -203,6 +203,16 @@
         }
       }
     },
+    "App 内绑定": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App binding"
+          }
+        }
+      }
+    },
     "Apple Silicon": {},
     "Beta %lld": {},
     "CocoaPods": {},
@@ -752,16 +762,16 @@
     "~/Library/MobileDevice/Provisioning Profiles": {},
     "「%@」对应多个已安装的 Xcode，请用下面的路径指明其中一个：\n%@": {
       "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "new",
-            "value": "「%1$@」对应多个已安装的 Xcode，请用下面的路径指明其中一个：\n%2$@"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "\"%@\" matches more than one installed Xcode; pass one of these paths:\n%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "「%1$@」对应多个已安装的 Xcode，请用下面的路径指明其中一个：\n%2$@"
           }
         }
       }
@@ -5814,12 +5824,12 @@
         }
       }
     },
-    "这些项目绑定到它：%@。请在「项目」页把它们改绑到其他版本，或改用 .xcode-version 自动匹配。": {
+    "这些项目绑定到它：\n%@\n请在「项目」页改绑其中的 App 绑定，或修改/删除项目里的 .xcode-switcher.json。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "These projects are pinned to it: %@. Rebind them on the Projects page, or use .xcode-version so they match automatically."
+            "value": "These projects are pinned to it:\n%@\nRebind the App bindings on the Projects page, or edit/remove the project's .xcode-switcher.json."
           }
         }
       }

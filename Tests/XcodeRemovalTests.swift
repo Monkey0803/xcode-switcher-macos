@@ -26,14 +26,14 @@ final class XcodeRemovalTests: XCTestCase {
         known: [XcodeInstallation]? = nil,
         active: String? = nil,
         running: Bool = false,
-        bound: [String] = [],
+        bound: [XcodeRemovalBinding] = [],
         force: Bool = false
     ) -> XcodeRemovalContext {
         XcodeRemovalContext(
             knownInstallations: known ?? [installation],
             activeDeveloperPath: active,
             isRunning: running,
-            boundProjectNames: bound,
+            boundProjects: bound,
             force: force
         )
     }
@@ -70,7 +70,7 @@ final class XcodeRemovalTests: XCTestCase {
         // default" is the one worth showing.
         let decision = XcodeRemoval.decide(
             installation,
-            in: context(installation, active: installation.developerURL.path, running: true, bound: ["Demo"])
+            in: context(installation, active: installation.developerURL.path, running: true, bound: [XcodeRemovalBinding(projectName: "Demo", origin: .appProfile)])
         )
         XCTAssertEqual(decision, .refused(.activeDeveloperDirectory))
     }
@@ -79,37 +79,25 @@ final class XcodeRemovalTests: XCTestCase {
         let (root, installation) = try makeFixture()
         defer { try? FileManager.default.removeItem(atPath: root) }
 
-        let decision = XcodeRemoval.decide(installation, in: context(installation, bound: ["Demo", "Tools"]))
-        XCTAssertEqual(decision, .refused(.boundProjects(["Demo", "Tools"])))
+        let bindings = [
+            XcodeRemovalBinding(projectName: "Demo", origin: .appProfile),
+            XcodeRemovalBinding(projectName: "Tools", origin: .localConfiguration("/repo/Tools/.xcode-switcher.json"))
+        ]
+        let decision = XcodeRemoval.decide(installation, in: context(installation, bound: bindings))
+        XCTAssertEqual(decision, .refused(.boundProjects(bindings)))
 
         // Force relaxes the running check only: silently rewriting a binding the user
         // made is not something a flag should be able to do.
         let forced = XcodeRemoval.decide(
             installation,
-            in: context(installation, bound: ["Demo"], force: true)
+            in: context(installation, bound: [bindings[0]], force: true)
         )
-        XCTAssertEqual(forced, .refused(.boundProjects(["Demo"])))
-        XCTAssertTrue(XcodeRemovalRefusal.boundProjects(["Demo"]).message.contains("Demo"))
-    }
-
-    /// The guard refuses on `AppConfiguration.projects`, and both front ends now ask for the
-    /// names through one shared method. They used to filter the list themselves, and — more
-    /// importantly — `xcodeswitcher pin` wrote only the project's own `.xcode-switcher.json`,
-    /// so the list it filtered had nothing to say. A version could therefore be trashed while
-    /// a project pinned it.
-    func testBoundProjectNamesComeFromTheListTheRemovalGuardReads() throws {
-        var configuration = AppConfiguration()
-        configuration.projects = [
-            ProjectProfile(name: "Aligned", path: "/tmp/Aligned.xcodeproj", xcodeID: "/Applications/Xcode 26.3.app"),
-            ProjectProfile(name: "Unpinned", path: "/tmp/Unpinned.xcodeproj"),
-            ProjectProfile(name: "Also", path: "/tmp/Also.xcworkspace", xcodeID: "/Applications/Xcode 26.3.app")
-        ]
-
-        XCTAssertEqual(
-            configuration.boundProjectNames(to: "/Applications/Xcode 26.3.app"),
-            ["Aligned", "Also"]
-        )
-        XCTAssertTrue(configuration.boundProjectNames(to: "/Applications/Xcode 27.0.app").isEmpty)
+        XCTAssertEqual(forced, .refused(.boundProjects([bindings[0]])))
+        let message = XcodeRemovalRefusal.boundProjects(bindings).message
+        XCTAssertTrue(message.contains("Demo"))
+        // 两个来源指的路不同，所以消息要分别说出来。
+        XCTAssertTrue(message.contains("App 内绑定"))
+        XCTAssertTrue(message.contains("/repo/Tools/.xcode-switcher.json"))
     }
 
     func testRefusesARunningXcodeUnlessForced() throws {
@@ -148,7 +136,7 @@ final class XcodeRemovalTests: XCTestCase {
             .notADiscoveredInstallation,
             .symbolicLinkComponent,
             .activeDeveloperDirectory,
-            .boundProjects(["Demo"]),
+            .boundProjects([XcodeRemovalBinding(projectName: "Demo", origin: .appProfile)]),
             .running,
         ]
         for refusal in refusals {

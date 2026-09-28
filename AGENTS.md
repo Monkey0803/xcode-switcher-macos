@@ -309,7 +309,7 @@ cannot drift apart. The refusals, in the order they are checked:
 | `notADiscoveredInstallation` | 路径不在已发现且验证过的列表里，下面每条都不可信 | 否 |
 | `activeDeveloperDirectory` | `xcode-select` 指着它；移走等于把全机工具链指向空 | 否 |
 | `symbolicLinkComponent` | 移动的是链接本身，一点空间都不释放，还会留下断链 | 否 |
-| `boundProjects` | 某个项目绑定着它；静默改写用户做过的决定不是 flag 该干的事 | 否 |
+| `boundProjects` | 某个项目绑定着它（App 项目列表或项目里的 `.xcode-switcher.json`）；静默改写用户做过的决定不是 flag 该干的事 | 否 |
 | `running` | 只是此刻不方便，不是不安全 | **是** |
 
 Two details that are easy to undo by accident:
@@ -321,17 +321,23 @@ Two details that are easy to undo by accident:
   stored path that is not its own resolution is the real signal. (Foundation's resolver
   itself skips `/var` and `/tmp`, which is why this comparison is safe for temporary
   paths.)
-- **A project binding lives in `AppConfiguration.projects`, and that list is all the guard
-  can see.** `xcodeswitcher pin` writes the project's own `.xcode-switcher.json` (which
-  `resolve` and `open` read) *and*, since 2026-09-28, registers the project in that list;
-  the app's 「项目」 page writes the list alone. Both must keep writing the list, because
-  nothing can enumerate the projects that own a local file — and while the CLI wrote only
-  the local one, a version pinned from the terminal could be moved to the Trash even though
-  `boundProjects` is not overridable. Found by running the published CLI against this
-  machine's real installations: the unit tests and the contract E2E both built their fixture
-  from the guard's own assumption, so the two could never disagree. The name lookup is now
-  `AppConfiguration.boundProjectNames(to:)` for both front ends, so the question cannot be
-  filtered two different ways.
+- **A project binding lives in two stores and the guard reads both**
+  (`ProjectBindingLocator`): `AppConfiguration.projects[].xcodeID`, and the `.xcode-switcher.json`
+  next to a project or above it — the file a repository carries so everyone who clones it
+  inherits the pin, which `README.md` documents and `resolve`/`open` have always honoured.
+  Candidates are the App's project list plus whatever the configured project scan
+  directories turn up, because a project that was never added to the App can still pin a
+  version. Two rounds were needed to get here: `xcodeswitcher pin` used to write *only* the
+  file, so a pin made in the terminal could be moved to the Trash (fixed 2.2.1, and `pin`
+  now registers the project as well); then the file itself was still invisible to the guard,
+  so a repository's own pin — the documented team arrangement — was unenforced (2026-09-28).
+  Both were found by running the published CLI against this machine's real installations,
+  never by the unit tests, whose fixtures shared the guard's own assumption.
+- **An ambiguous local selector pins every candidate.** A repository saying `"xcode": "27.0"`
+  while a beta and a release of 27.0 are installed does not say which one it means, so
+  neither may be removed — the same rule `XcodeSelector` applies to the command line. The
+  refusal carries the origin of each binding, because an App binding is changed in the
+  「项目」 page and a repository's file is changed in the repository.
 - **`XcodeRemoval.remove` returns `.alreadyGone` rather than throwing** when the bundle is
   no longer there. A stale list row is the usual reason something looked removable, and
   the runtime cleanup already treats that case as information rather than failure.

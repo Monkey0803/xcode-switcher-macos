@@ -484,32 +484,32 @@ final class XcodeSwitcherUITests: XCTestCase {
 
 
 
-    /// Brings an auxiliary window (Settings, All versions) to the front and waits for a
-    /// control inside it to become hittable.
+    /// Brings an auxiliary window to the front by asking the app to show it again.
     ///
-    /// They are separate `NSWindow`s, and a window that ends up underneath the main one
-    /// makes every control in the overlap area unreachable: XCUITest reports
-    /// 「Not hittable」 for an element that plainly exists. On the CI runner both windows
-    /// are centred on the same screen, which is exactly the overlap case — this is how
-    /// three of these tests failed on CI while passing on a developer machine.
-    /// Clicking the title bar raises a window without activating one of its controls.
+    /// The Settings command re-orders the window that already exists
+    /// (`makeKeyAndOrderFront`), which is the only reliable way to raise it. Clicking the
+    /// window's title bar does not work when the two overlap: the click lands on whichever
+    /// window is already in front — the situation being fixed — and the control stays
+    /// `isHittable == false` for the whole timeout. Measured on 2026-09-28, in a full local
+    /// run where the settings window happened to open under the main one.
     @discardableResult
     private func raiseAndWait(
         for element: XCUIElement,
         in window: XCUIElement,
+        byShowing shortcut: (key: String, modifiers: XCUIElement.KeyModifierFlags) = (",", .command),
         timeout: TimeInterval = 10
     ) -> Bool {
         guard window.exists else { return false }
         app.activate()
-        window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.01)).click()
+        app.typeKey(shortcut.key, modifierFlags: shortcut.modifiers)
 
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if element.exists, element.isHittable { return true }
             RunLoop.current.run(until: Date().addingTimeInterval(0.3))
         }
-        // The next CI run has to distinguish "covered" from "off-screen" from "gone";
-        // a bare assertion failure says none of that.
+        // The next runner-only failure needs to distinguish "covered" from "off-screen"
+        // from "gone"; a bare assertion failure says none of that.
         print("[ui-test] element=\(element.frame) hittable=\(element.exists ? String(element.isHittable) : "missing") window=\(window.frame) screen=\(NSScreen.main?.frame ?? .zero)")
         return false
     }
