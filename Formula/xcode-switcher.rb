@@ -24,15 +24,15 @@ class XcodeSwitcher < Formula
   desc "Discover, diagnose and switch between installed Xcode versions"
   homepage "https://github.com/Monkey0803/xcode-switcher-macos"
   license "MIT"
-  # Pinned to the v2.2.0 tag through a revision rather than a release tarball:
+  # Pinned to the v2.2.1 tag through a revision rather than a release tarball:
   # GitHub's generated tag tarballs are not guaranteed to stay byte-stable, so a
   # git source with an explicit revision is the reproducible choice. Bumping this
   # matters for more than freshness: the formula builds with the tag's own
   # build_app.sh, and tags before v1.4.1 compile no String Catalog, so their
   # builds ship Chinese only.
   url "https://github.com/Monkey0803/xcode-switcher-macos.git",
-      tag:      "v2.2.0",
-      revision: "cc9a38ae2334ce59bdeb6eefb807a401ae8f2690"
+      tag:      "v2.2.1",
+      revision: "7338c9c881776f57f960436acd7c2f94657cd374"
   head "https://github.com/Monkey0803/xcode-switcher-macos.git", branch: "main"
 
   # The app is arm64 only, and building it needs the macOS 26 SDK because
