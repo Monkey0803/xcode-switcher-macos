@@ -295,8 +295,37 @@ xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
   -only-testing:XcodeSwitcherUITests
 ```
 
-CI runs the same target: the `xcode:` job's `xcodebuild … build test` is not restricted
-to the unit-test target.
+The split is deliberate since 2026-09-28: the per-push `xcode:` job **builds** every target —
+including `XcodeSwitcherUITests`, because "the UI target does not compile" was a six-day red
+build on 2026-09-22 and only compiling can catch it — but runs only the unit tests
+(`test -skip-testing:XcodeSwitcherUITests`). The UI suite runs in `release.yml`, before the
+artifacts are built, so a failure blocks the release instead of every push.
+
+### Run it at release time, not on every change
+
+**Policy (2026-09-28):** the UI suite is a release-time gate. Run it when preparing a
+release — `release.yml` does it on every `v*` tag — and not after every change.
+Unit tests are fast and hermetic and stay in the change loop; this suite takes ~3.5 minutes
+and is the flakiest thing in this repository for reasons that have nothing to do with the
+code:
+
+```
+Failed to load AX for com.yostar.xcodeswitcher.debug (pid:…):
+    Not authorized for performing UI testing actions.
+```
+
+That is the machine's Accessibility/TCC authorization for the test runner, not a test
+failure. It appeared after a long day of repeated runs on 2026-09-28 and took out 8 then all
+25 tests at once. Two causes, both worth clearing before blaming the tests:
+
+- A **leftover instance of the packaged app** — `run_smoke_test.sh` launches
+  `/Applications/Xcode Switcher.app` and leaves it running, and that stray process wedges
+  the session. `pkill -f XcodeSwitcherApp` fixed it once: the same test that had failed
+  passed immediately afterwards.
+- A revoked or wedged Accessibility grant, which only System Settings can restore.
+
+When either happens, stop debugging locally: push and let the runner — whose authorization
+is fresh every time — report.
 
 ## Removing an installed Xcode
 

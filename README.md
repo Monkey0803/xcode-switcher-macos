@@ -280,7 +280,8 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 1. 在真实 Apple Silicon 机器上验证首次启动、辅助功能授权、管理员授权和多个 Xcode 版本切换。
 2. 在干净用户环境安装直接分发 DMG，确认 Gatekeeper 手动放行、CLI 链接和项目打开流程。
 3. 运行 `./run_smoke_test.sh`，确认测试、Apple Silicon 架构、嵌套签名和实际启动通过。
-4. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送与 `Info.plist` 中版本一致的 `v<version>` 标签。
+4. 跑一次 XCUITest 套件（`xcodebuild … test -only-testing:XcodeSwitcherUITests`）。**它只在发版时跑**，不跟着每次改动跑：它是这里最慢的一道，且在开发机上会撞到与代码无关的授权问题（见 `AGENTS.md`）。
+5. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送与 `Info.plist` 中版本一致的 `v<version>` 标签。
 
 ## 测试
 
@@ -291,7 +292,7 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 Smoke Test 会运行核心单元测试，覆盖项目版本匹配、失效绑定保护、进程超时/取消/输出流、多 Target 签名解析、环境报告和旧配置兼容；随后检查 App/CLI Apple Silicon 架构、Sparkle 动态链接、最低系统版本、Info.plist、嵌套签名、发布脚本语法及实际启动。
 其中的 Shell 环境 E2E 会验证 `env`、zsh Hook、环境恢复，以及不改变全局开发者目录。
 
-推送到 `main` 或 `1.2.0` 分支会触发 GitHub Actions CI；也可以在 Actions 页面手动触发。贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，问题报告和功能建议可直接使用 Issue 模板。
+推送到 `main` 或 `1.2.0` 分支会触发 GitHub Actions CI；也可以在 Actions 页面手动触发。CI 会编译包括 UI 测试目标在内的所有目标、运行单元测试与各类门禁，但**不运行** XCUITest 套件——那一道留在发布时由 `release.yml` 在产出之前跑，失败即不出产物（理由见 `AGENTS.md`）。贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)，问题报告和功能建议可直接使用 Issue 模板。
 
 ## 权限与安全
 

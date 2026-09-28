@@ -28,6 +28,15 @@ jobs:
           echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_BUILD=$build_number" >> "$GITHUB_ENV"
 
+      # UI 套件是发布门禁：只在发版时跑（政策见 AGENTS.md），失败则不出产物。
+      - name: Run the UI suite
+        run: |
+          xcodebuild -project XcodeSwitcher.xcodeproj \
+            -scheme "Xcode Switcher" \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            test -only-testing:XcodeSwitcherUITests
+
       - name: Build direct-distribution candidate
         run: ./build_local_release.sh
 

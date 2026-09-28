@@ -21,13 +21,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Build and test
+      # 每条推送都编译全部目标——包括 UITests，因为「UI 目标编译不过」正是 2026-09-22 那次
+      # 持续六天的红灯，而它只能靠编译发现。运行 UI 套件留给发布：见 AGENTS.md 的政策。
+      - name: Build everything
         run: |
           xcodebuild -project XcodeSwitcher.xcodeproj \
             -scheme "Xcode Switcher" \
             -configuration Debug \
             -derivedDataPath build/DerivedData \
-            build test
+            build
+
+      - name: Run the unit tests
+        run: |
+          xcodebuild -project XcodeSwitcher.xcodeproj \
+            -scheme "Xcode Switcher" \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            test -skip-testing:XcodeSwitcherUITests
 
       - name: Verify the string catalog
         run: ./Scripts/verify_string_catalog.sh
