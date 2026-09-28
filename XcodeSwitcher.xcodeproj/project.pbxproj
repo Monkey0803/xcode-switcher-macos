@@ -327,6 +327,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>79D8F1E467E82F060567F55B</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>XcodeSelector.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>7681C8044A5772CA8E414546</key>
 		<dict>
 			<key>isa</key>
@@ -621,6 +632,17 @@
 			<string>sourcecode.swift</string>
 			<key>path</key>
 			<string>XcodeRemovalTests.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>FF4A48AFA6B7C162CBCEAA45</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>XcodeSelectorTests.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -1047,6 +1069,13 @@
 			<key>fileRef</key>
 			<string>B4930E5CA4638CB2686F1FAA</string>
 		</dict>
+		<key>503CA73298057B70EE747A71</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>79D8F1E467E82F060567F55B</string>
+		</dict>
 		<key>A6A65C78C0DEFE3460FA6B03</key>
 		<dict>
 			<key>isa</key>
@@ -1194,6 +1223,13 @@
 			<key>fileRef</key>
 			<string>ED5CA1440D2D00A4D6383678</string>
 		</dict>
+		<key>A8134189A9634DEB7DD6AF36</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>FF4A48AFA6B7C162CBCEAA45</string>
+		</dict>
 		<key>965FDB09CB3CA4FBF76FC940</key>
 		<dict>
 			<key>isa</key>
@@ -1246,6 +1282,7 @@
 				<string>565EB39EAE6E7BFB898ED7CB</string>
 				<string>EF750BCD1D61D9B27318C85F</string>
 				<string>F54446ABE112CB4B66410CC6</string>
+				<string>503CA73298057B70EE747A71</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<string>0</string>
@@ -1428,6 +1465,7 @@
 				<string>E648DC7793718D965FB05241</string>
 				<string>E082C57F092B9E72933C068B</string>
 				<string>5C1E7AAE923E90B9ECF8D946</string>
+				<string>A8134189A9634DEB7DD6AF36</string>
 				<string>965FDB09CB3CA4FBF76FC940</string>
 				<string>0F27A3EE15A213761CA6848C</string>
 			</array>
@@ -2080,6 +2118,7 @@
 				<string>C8F370D80058D1DEF3801EE0</string>
 				<string>0FE1EA78547D5A31A6E9C3CE</string>
 				<string>B4930E5CA4638CB2686F1FAA</string>
+				<string>79D8F1E467E82F060567F55B</string>
 			</array>
 			<key>path</key>
 			<string>Sources/XcodeSwitcherKit</string>
@@ -2187,6 +2226,7 @@
 				<string>925275FB104EC55A92CE2016</string>
 				<string>D60DB81089C930E80F8721DE</string>
 				<string>ED5CA1440D2D00A4D6383678</string>
+				<string>FF4A48AFA6B7C162CBCEAA45</string>
 				<string>4DE67949251C57619C3CB4A6</string>
 				<string>5B5477B5DEFA353293A6853B</string>
 			</array>

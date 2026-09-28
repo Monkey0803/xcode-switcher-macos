@@ -364,6 +364,30 @@ Two things it learned the hard way:
   that shared the guard's assumption is exactly why the bound-projects hole above survived a
   green gate.
 
+### A selector that names two installations is refused (`XcodeSelector`)
+
+`xcodeswitcher uninstall 27.0` used to act on whichever installation answered first. With a
+beta and a release of 27.0 installed — the arrangement on the maintainer's machine on
+2026-09-28 — the lookup picked `/Applications/Xcode-beta.app` while the menu bar selection
+was `/Applications/Xcode.app`; only running the dry run first caught it before the bundle
+moved.
+
+`XcodeSelector.resolve` is now the single answer to "which installation is this", and it
+**refuses** a selector that matches more than one, naming each candidate with its build and
+path. The exit status is 64, not 1: nothing was attempted, the command line itself was
+ambiguous. App path and developer path win outright — they are unique by construction, and
+refusing them would make disambiguation impossible; name, alias and version are the forms
+that can answer for several installations.
+
+The app is untouched by this: its removal is driven by row identity, so it never has to
+guess. `ProjectXcodeMatcher` still resolves a project's version requirement with the old
+first-match rule, which is the same asymmetry one step milder — it opens the other Xcode
+rather than moving it.
+
+Cover a change here with `Tests/XcodeSelectorTests.swift`. The CLI contract E2E asserts the
+refusal too, but only on a machine that really has a duplicate version: it looks for one and
+skips the block otherwise, which is every CI runner.
+
 ## `sync_string_catalog.sh` and stale `.stringsdata`
 
 `Scripts/sync_string_catalog.sh` skips a `.stringsdata` that no longer belongs to its

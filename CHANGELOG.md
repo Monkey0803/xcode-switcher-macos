@@ -1,5 +1,11 @@
 # Changelog
 
+## 未发布
+
+### 修复
+
+- **同版本装了多个时，命令行不再静默选错那一个**：`xcodeswitcher uninstall 27.0` 原先会操作 `first(where:)` 碰到的第一个安装。本机同时装着 27.0 的 beta（`/Applications/Xcode-beta.app`）与正式版（`/Applications/Xcode.app`）时，它解析到的是 beta，而菜单里选中的是正式版——只因为先跑了预演，才没把另一个 Xcode 移进废纸篓。现在选择器匹配到多个就拒绝，并逐个列出候选的 build 与路径（退出码 64：什么都没执行，是命令行本身有歧义）；`use`、`sizes`、`doctor`、`pin`、`alias` 等所有接受选择器的命令共用这一条规则。路径（app 路径或 developer 路径）仍然直接生效，否则就没办法指明是哪一个了。App 不受影响：它的移除按列表行身份走，本来就不需要猜。
+
 ## 2.2.1 - 2026-09-28
 
 ### 修复

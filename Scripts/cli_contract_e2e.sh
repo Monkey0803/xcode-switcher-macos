@@ -124,19 +124,21 @@ run 64 uninstall
 run 1 uninstall --dry-run 99.9
 
 # 系统默认的 Xcode 必须被拒绝，而不是被移走：这是这个命令最危险的误用。
-active_version="$(/usr/bin/python3 -c '
+# 选择器一律用路径，不用版本号：同版本装了多个（beta + 正式版）时版本号是歧义的，
+# 现在会被拒并返回 64，而这里要验的是「系统默认不可移除」（1）。
+active_developer="$(/usr/bin/python3 -c '
 import json, sys
 data = json.load(sys.stdin)
-print(data["version"] if data.get("active") else "")
+print(data["developer"] if data.get("active") else "")
 ' <<<"$("$cli" --json current)")"
-if [[ -n "$active_version" ]]; then
-  run 1 --json uninstall --dry-run "$active_version"
+if [[ -n "$active_developer" ]]; then
+  run 1 --json uninstall --dry-run "$active_developer"
   expect_contains "$stderr" '"code":"failed"' "--json uninstall 拒绝系统默认版本"
 fi
 
 # 预览一个真的可以被移除的版本——既不是系统默认，也没有被项目绑定。CI 上通常
 # 只有一台 Xcode（也就是默认那台），这时整段跳过。
-spare_version="$(/usr/bin/python3 - "$cli" <<'SPARE'
+spare_app="$(/usr/bin/python3 - "$cli" <<'SPARE'
 import json, pathlib, subprocess, sys
 
 cli = sys.argv[1]
@@ -163,14 +165,14 @@ except Exception:
 
 for item in installs:
     if item.get("developer") != active and item.get("app") not in bound:
-        print(item["version"])
+        print(item["app"])
         break
 SPARE
 )"
-if [[ -n "$spare_version" ]]; then
-  run 0 uninstall --dry-run "$spare_version"
+if [[ -n "$spare_app" ]]; then
+  run 0 uninstall --dry-run "$spare_app"
   expect_contains "$stdout" "[dry-run]" "uninstall --dry-run"
-  run 0 --json uninstall --dry-run "$spare_version"
+  run 0 --json uninstall --dry-run "$spare_app"
   expect_contains "$stdout" '"performed" : false' "--json uninstall --dry-run"
 fi
 
@@ -178,29 +180,55 @@ fi
 # 「pin 写项目本地文件、移除守卫只读全局 profile」这类分叉的路径。早先这段用的是
 # 自己从 configuration.json 里读 xcodeID，等于照着守卫的假设去测守卫，两边永远不会矛盾。
 # 断言只落在项目名上：拒绝文本是本地化的，而项目名不是（英文 runner 上也一样）。
-if [[ -n "$spare_version" ]]; then
+if [[ -n "$spare_app" ]]; then
   pinned_root="$work/pinned"
   mkdir -p "$pinned_root/cli-e2e-bound.xcodeproj"
   printf '// dummy\n' >"$pinned_root/cli-e2e-bound.xcodeproj/project.pbxproj"
-  run 0 pin "$spare_version" "$pinned_root/cli-e2e-bound.xcodeproj"
-  run 1 uninstall --dry-run "$spare_version"
+  run 0 pin "$spare_app" "$pinned_root/cli-e2e-bound.xcodeproj"
+  run 1 uninstall --dry-run "$spare_app"
   expect_contains "$stderr" "cli-e2e-bound" "被项目绑定的版本必须拒绝移除"
 
   run 0 unpin "$pinned_root/cli-e2e-bound.xcodeproj"
   expect_not_contains "$stdout" "%@" "unpin 的输出"
 
-  run 0 uninstall --dry-run "$spare_version"
+  run 0 uninstall --dry-run "$spare_app"
   expect_contains "$stdout" "[dry-run]" "解绑后应当又能预演移除"
+fi
+
+# 同版本装了多个时，版本号是歧义的，必须拒绝并列出候选——否则 uninstall 会静默挑第一个。
+# CI 上通常只有一个 Xcode，所以这段只在真有重复版本的机器上执行（本机 2026-09-28 正是
+# 因为装了 27.0 的 beta 与正式版才暴露出这个洞）。
+duplicate_version="$(/usr/bin/python3 - "$cli" <<'DUPLICATE'
+import json, subprocess, sys
+from collections import Counter
+
+installs = json.loads(subprocess.run([sys.argv[1], "--json", "list"], capture_output=True, text=True).stdout)
+counts = Counter(item["version"] for item in installs)
+print(next((version for version, n in counts.items() if n > 1), ""))
+DUPLICATE
+)"
+if [[ -n "$duplicate_version" ]]; then
+  run 64 uninstall --dry-run "$duplicate_version"
+  while IFS=$'\t' read -r app; do
+    expect_contains "$stderr" "$app" "歧义的版本号要列出候选路径"
+  done < <(/usr/bin/python3 - "$cli" "$duplicate_version" <<'CANDIDATES'
+import json, subprocess, sys
+
+installs = json.loads(subprocess.run([sys.argv[1], "--json", "list"], capture_output=True, text=True).stdout)
+for item in installs:
+    if item["version"] == sys.argv[2]:
+        print(item["app"])
+CANDIDATES
+)
 fi
 
 # --- dry-run 只解析，不切换 ---
 # 这里的版本号不可能存在，所以用 list 里真实存在的一个。
-installation_version="$(/usr/bin/python3 -c '
+installation_app="$(/usr/bin/python3 -c '
 import json, sys
-data = json.load(sys.stdin)
-print(data[0]["version"])
+print(json.load(sys.stdin)[0]["app"])
 ' <<<"$("$cli" --json list)")"
-run 0 use --dry-run "$installation_version"
+run 0 use --dry-run "$installation_app"
 expect_contains "$stdout" "[dry-run]" "use --dry-run"
 
 after_developer_dir="$(env -u DEVELOPER_DIR xcode-select --print-path)"

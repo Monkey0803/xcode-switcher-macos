@@ -837,20 +837,31 @@ private struct XcodeSwitcherCLI {
         return first
     }
 
+    /// Turns a selector into an installation, refusing one that names several.
+    ///
+    /// The deciding happens in `XcodeSelector`, which is where it can be tested; this only
+    /// turns the answer into the message the caller reads. An ambiguous selector is a
+    /// command-line problem (exit 64), not a failed action: nothing was attempted.
     private func findInstallation(_ selector: String) throws -> XcodeInstallation {
-        let expanded = (selector as NSString).expandingTildeInPath
-        if let exact = installations.first(where: {
-            $0.id == expanded || $0.developerURL.path == expanded ||
-                $0.name.localizedCaseInsensitiveCompare(selector) == .orderedSame ||
-                configuration.xcodeAliases[$0.id]?.localizedCaseInsensitiveCompare(selector) == .orderedSame
-        }) {
-            return exact
+        switch XcodeSelector.resolve(selector, among: installations, aliases: configuration.xcodeAliases) {
+        case let .resolved(id):
+            if let installation = installations.first(where: { $0.id == id }) { return installation }
+            throw CLIError.failed(String(localized: "未找到 Xcode：\(selector)"))
+        case .notFound:
+            throw CLIError.failed(String(localized: "未找到 Xcode：\(selector)"))
+        case let .ambiguous(ids):
+            throw CLIError.usage(ambiguousSelectorMessage(selector, ids))
         }
-        if let version = ProjectXcodeMatcher.normalizeVersion(selector),
-           let match = installations.first(where: { ProjectXcodeMatcher.version($0.version, matches: version) }) {
-            return match
-        }
-        throw CLIError.failed(String(localized: "未找到 Xcode：\(selector)"))
+    }
+
+    /// Names every candidate with its build and path, because the build is what actually
+    /// tells two installations of the same version apart and the path is what to pass back.
+    private func ambiguousSelectorMessage(_ selector: String, _ ids: [String]) -> String {
+        let candidates = ids
+            .compactMap { id in installations.first { $0.id == id } }
+            .map { "  \($0.displayVersion) — \($0.appURL.path)" }
+            .joined(separator: "\n")
+        return String(localized: "「\(selector)」对应多个已安装的 Xcode，请用下面的路径指明其中一个：\n\(candidates)")
     }
 
     private static func loadConfiguration() -> AppConfiguration {

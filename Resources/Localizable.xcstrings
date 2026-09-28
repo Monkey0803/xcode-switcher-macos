@@ -750,6 +750,22 @@
     },
     "~/Library/Developer/Xcode/UserData/Provisioning Profiles": {},
     "~/Library/MobileDevice/Provisioning Profiles": {},
+    "「%@」对应多个已安装的 Xcode，请用下面的路径指明其中一个：\n%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "「%1$@」对应多个已安装的 Xcode，请用下面的路径指明其中一个：\n%2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" matches more than one installed Xcode; pass one of these paths:\n%@"
+          }
+        }
+      }
+    },
     "下载": {
       "localizations": {
         "en": {
