@@ -9,6 +9,7 @@
 ## 2.2.1 - 2026-09-28
 
 ### 修复
+
 - **`xcodeswitcher unpin` 打印的是字面量「已解除 %@ 的项目绑定。」**：那句 `String(localized:)` 带着一个 `%@` 占位符，却从来没有传过参数，于是把 key 本身当成了输出。现在按 `pin` 的写法用插值传项目名；key 不变，已有翻译照旧生效。CLI 契约 E2E 增加一条与语言无关的断言——输出里不得出现 `%@`——因为本地化文本在英文 runner 上换了一种写法，这类残留只有占位符本身能稳定抓住。
 
 - **`xcodeswitcher pin` 绑定的版本不再能被 `uninstall` 移走**：`pin` 只写项目自己的 `.xcode-switcher.json`（`resolve`、`open` 都读它），而移除守卫读的是 App 的全局项目列表 `configuration.projects`，于是「被项目绑定」这条本应拒绝、且 `--force` 也不能越过的规则，对命令行 pin 出来的绑定形同不存在。现在 `pin` 同时把项目登记进那份共享列表（App 里在「项目」页绑定时写的正是它），`unpin` 则清掉这份绑定、保留项目本身。这也是 2.2.0 的真实验收——用已发布的 CLI 对着本机真实 Xcode 跑 `uninstall --dry-run`——才发现的：单元测试与 CLI 契约测试都照着守卫的假设造数据，两边永远不会矛盾。
@@ -30,6 +31,7 @@
 - **工程**：UI 测试补上跨系统边界的路径。管理员授权与 `simctl` 在测试里无法真正完成，夹具因此把它们换成会失败的桩（`activateXcode` 抛错、`simulatorAction` 返回失败）——验证的是**失败有没有落到用户能看到的那一行**；Simulator 行来自夹具设备，断言与本机装了哪些 Runtime 无关。另加 ⇧⌘V 打开「所有 Xcode 版本」的快捷键路径，以及授权被取消时状态栏的提示。夹具新增 `setSimulatorDevicesForUITesting`，并在夹具模式下跳过 `loadDetails` 的后台 `simctl` 读取，否则它会把夹具行覆盖成本机真实数据。UI 测试类改用 `@preconcurrency import XCTest` 与 `nonisolated(unsafe) var app`：XCTest 的生命周期回调是 nonisolated，而 `XCUIApplication` 是 main-actor 隔离的。
 
 ### 修复
+
 - **窗口在小屏幕上不再开到屏幕外**：设置窗口与「所有 Xcode 版本」窗口原先用 `NSWindow.center()` 定位，而它按「调用那一刻的窗口尺寸」居中——内容视图控制器尚未布局时窗口还是最小尺寸，于是在一块 1024×768 的屏幕上，760 点宽的设置窗口落到了 x=511，右侧 247 点悬在屏幕外，那片区域里的控件既看不到也点不到。现在先 `setContentSize` 钉住尺寸，再按屏幕可见区域计算居中位置（布局完成后再算一次）；设置窗口补上了这个调用，而「所有 Xcode 版本」早就有——它的注释里正记着这个坑。CI 的 runner 正是 1024×768，它让 UI 测试对明明存在于元素树里的控件报「Not hittable」而暴露了这个问题。
 - **发布索引刷新失败不再只有一句「服务器返回了错误响应」**：现在按成因分开——请求超时、离线或连不上、被限流（`Retry-After` 或 `X-RateLimit-Reset` 能读到时直接给出重试时间）、服务器返回非 2xx 状态（带状态码）、响应不是 HTTP、以及数据格式解析失败——每种都给出能照着做的下一步。此前所有失败都塌进同一句话，看不出该等一会儿、检查网络，还是该报 bug。请求与整体传输分别设 20s / 25s 超时，卡住的连接不会让界面一直停在「正在获取版本列表…」。
 - **构建会在仓库根目录留下一个空的 `"` 目录树**：`Scripts/generate_xcode_project.py` 把图标脚本的 `inputPaths` / `outputPaths` 写成了带字面双引号的字符串（`'"$(SRCROOT)/…"'`）。Xcode 会展开构建变量，但把引号当普通字符，于是去建立一个以引号开头的路径的父目录——每次构建都在工作目录里留下 `"/<仓库>/build/DerivedData/Build/Products`。它从项目迁移到 Xcode 工程起就存在，一直没被发现，因为**git 不跟踪目录**，`git status` 始终干净。已去掉那 5 处内层引号并重新生成工程文件；`AGENTS.md` 记下了复现与检查方法。
