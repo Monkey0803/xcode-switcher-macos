@@ -95,8 +95,9 @@ final class XcodeRemovalTests: XCTestCase {
         XCTAssertEqual(forced, .refused(.boundProjects([bindings[0]])))
         let message = XcodeRemovalRefusal.boundProjects(bindings).message
         XCTAssertTrue(message.contains("Demo"))
-        // 两个来源指的路不同，所以消息要分别说出来。
-        XCTAssertTrue(message.contains("App 内绑定"))
+        // 两个来源指的路不同，所以消息要分别说出来。前者必须和消息用同一次查找：
+        // 直写中文在英文 runner 上会失败（AGENTS.md 记过的那个坑，2026-09-28 又踩了一次）。
+        XCTAssertTrue(message.contains(String(localized: "App 内绑定")))
         XCTAssertTrue(message.contains("/repo/Tools/.xcode-switcher.json"))
     }
 
