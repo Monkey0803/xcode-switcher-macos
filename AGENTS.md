@@ -321,6 +321,17 @@ Two details that are easy to undo by accident:
   stored path that is not its own resolution is the real signal. (Foundation's resolver
   itself skips `/var` and `/tmp`, which is why this comparison is safe for temporary
   paths.)
+- **A project binding lives in `AppConfiguration.projects`, and that list is all the guard
+  can see.** `xcodeswitcher pin` writes the project's own `.xcode-switcher.json` (which
+  `resolve` and `open` read) *and*, since 2026-09-28, registers the project in that list;
+  the app's 「项目」 page writes the list alone. Both must keep writing the list, because
+  nothing can enumerate the projects that own a local file — and while the CLI wrote only
+  the local one, a version pinned from the terminal could be moved to the Trash even though
+  `boundProjects` is not overridable. Found by running the published CLI against this
+  machine's real installations: the unit tests and the contract E2E both built their fixture
+  from the guard's own assumption, so the two could never disagree. The name lookup is now
+  `AppConfiguration.boundProjectNames(to:)` for both front ends, so the question cannot be
+  filtered two different ways.
 - **`XcodeRemoval.remove` returns `.alreadyGone` rather than throwing** when the bundle is
   no longer there. A stale list row is the usual reason something looked removable, and
   the runtime cleanup already treats that case as information rather than failure.
@@ -330,6 +341,28 @@ removes something Xcode cannot rebuild, so it has to stay recoverable. `AppConfi
 .forgetInstallation(id:)` drops what pointed at it — favourites, alias, activation history,
 and the `"<id>|<build>"` notification keys — but **not** project bindings, which the
 refusal above guarantees are not stale.
+
+## The CLI contract E2E (`Scripts/cli_contract_e2e.sh`)
+
+`run_smoke_test.sh` runs it, but it is also worth running by hand after touching
+`SourcesCLI/`: it drives the **packaged** CLI, which is the only place the contract a shell
+script depends on — exit statuses, which stream the error lands on, the `--json` shape — can
+be observed at all. `Tests/CLIOptionsTests.swift` covers argument parsing and cannot see any
+of it.
+
+Two things it learned the hard way:
+
+- **Assert on something that is not localized.** The runner's locale is English while a
+  developer machine is Chinese, so 「用法」/「未知命令」 pass locally and fail in CI. The
+  help is asserted through its command list (`xcodeswitcher uninstall`, never translated),
+  and a refusal through the project name it interpolates.
+- **Restoring the user's `configuration.json` belongs on the `trap`.** `pin`/`unpin` write
+  that file — that is the behaviour under test — and a failing assertion `exit`s the script,
+  so a restore at the end never runs. Verified by leaving a project entry pointing at a
+  deleted temporary directory in a developer's config on 2026-09-28. `pin` in a test must also
+  go through the real command rather than hand-writing `xcodeID` into the JSON: the fixture
+  that shared the guard's assumption is exactly why the bound-projects hole above survived a
+  green gate.
 
 ## `sync_string_catalog.sh` and stale `.stringsdata`
 

@@ -25,7 +25,23 @@ if [[ ! -x "$cli" ]]; then
 fi
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/xcode-switcher-cli-e2e.XXXXXX")"
-trap 'rm -rf "$work"' EXIT
+
+# `pin`/`unpin` 会写用户自己的 configuration.json——那正是被测行为的一部分——所以复原
+# 必须挂在 trap 上：脚本中途 exit（断言失败就是）时，写在末尾的复原根本不会执行，实测
+# 就这么在开发机上留下过一条指向临时目录、随后被删掉的项目记录。
+config_file="$HOME/Library/Application Support/XcodeSwitcher/configuration.json"
+config_backup="$work/configuration.json"
+config_snapshot_taken=0
+if [[ -f "$config_file" ]]; then
+  cp "$config_file" "$config_backup"
+  config_snapshot_taken=1
+fi
+
+restore_config() {
+  if [[ "$config_snapshot_taken" == 1 ]]; then cp "$config_backup" "$config_file"; fi
+}
+
+trap 'restore_config; rm -rf "$work"' EXIT
 
 # run <expected status> <args...>
 # Sets $stdout and $stderr, and fails the script when the status is not the expected
@@ -41,6 +57,16 @@ run() {
   if [[ "$status" -ne "$expected" ]]; then
     printf '退出码不符：期望 %s，实际 %s\n命令：xcodeswitcher %s\n标准输出：\n%s\n标准错误：\n%s\n' \
       "$expected" "$status" "$*" "$stdout" "$stderr" >&2
+    exit 1
+  fi
+}
+
+# 输出里不该出现未替换的格式化占位符。这条断言与语言无关，所以英文 runner 上一样有效
+# ——曾经 unpin 打印的就是字面量「已解除 %@ 的项目绑定。」。
+expect_not_contains() {
+  local haystack="$1" needle="$2" label="$3"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    printf '%s 不应包含 %s：\n%s\n' "$label" "$needle" "$haystack" >&2
     exit 1
   fi
 }
@@ -146,6 +172,25 @@ if [[ -n "$spare_version" ]]; then
   expect_contains "$stdout" "[dry-run]" "uninstall --dry-run"
   run 0 --json uninstall --dry-run "$spare_version"
   expect_contains "$stdout" '"performed" : false' "--json uninstall --dry-run"
+fi
+
+# 用真实的 pin 造出一个绑定，再要求 uninstall 拒绝——这是唯一能发现
+# 「pin 写项目本地文件、移除守卫只读全局 profile」这类分叉的路径。早先这段用的是
+# 自己从 configuration.json 里读 xcodeID，等于照着守卫的假设去测守卫，两边永远不会矛盾。
+# 断言只落在项目名上：拒绝文本是本地化的，而项目名不是（英文 runner 上也一样）。
+if [[ -n "$spare_version" ]]; then
+  pinned_root="$work/pinned"
+  mkdir -p "$pinned_root/cli-e2e-bound.xcodeproj"
+  printf '// dummy\n' >"$pinned_root/cli-e2e-bound.xcodeproj/project.pbxproj"
+  run 0 pin "$spare_version" "$pinned_root/cli-e2e-bound.xcodeproj"
+  run 1 uninstall --dry-run "$spare_version"
+  expect_contains "$stderr" "cli-e2e-bound" "被项目绑定的版本必须拒绝移除"
+
+  run 0 unpin "$pinned_root/cli-e2e-bound.xcodeproj"
+  expect_not_contains "$stdout" "%@" "unpin 的输出"
+
+  run 0 uninstall --dry-run "$spare_version"
+  expect_contains "$stdout" "[dry-run]" "解绑后应当又能预演移除"
 fi
 
 # --- dry-run 只解析，不切换 ---

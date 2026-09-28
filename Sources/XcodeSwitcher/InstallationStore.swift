@@ -231,9 +231,7 @@ final class InstallationStore: ObservableObject {
             knownInstallations: installations,
             activeDeveloperPath: activeDeveloperPath,
             isRunning: !XcodeProcessInspector.runningInstallations(among: [installation]).isEmpty,
-            boundProjectNames: owner?.configuration.projects
-                .filter { $0.xcodeID == installation.id }
-                .map(\.name) ?? [],
+            boundProjectNames: owner?.configuration.boundProjectNames(to: installation.id) ?? [],
             force: force
         )
     }

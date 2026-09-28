@@ -639,9 +639,7 @@ private struct XcodeSwitcherCLI {
             knownInstallations: installations,
             activeDeveloperPath: activeDeveloperPath,
             isRunning: !XcodeProcessInspector.runningInstallations(among: [installation]).isEmpty,
-            boundProjectNames: configuration.projects
-                .filter { $0.xcodeID == installation.id }
-                .map(\.name),
+            boundProjectNames: configuration.boundProjectNames(to: installation.id),
             force: options.force
         )
         if case let .refused(refusal) = XcodeRemoval.decide(installation, in: context) {
@@ -752,20 +750,59 @@ private struct XcodeSwitcherCLI {
         guard try ProjectLocalConfigurationStore.save(xcode: selector, for: project) != nil else {
             throw CLIError.failed(String(localized: "无法写入项目绑定：项目没有可写入的目录。"))
         }
+        try recordProjectBinding(installation, for: project)
         print(String(localized: "已将 \(project.lastPathComponent) 绑定到 \(installation.name) \(installation.displayVersion)。"))
         return 0
+    }
+
+    /// Records the same binding in the shared profile list, which is what the removal
+    /// guard reads.
+    ///
+    /// The project-local `.xcode-switcher.json` is what `resolve` and `open` consult, but
+    /// nothing can enumerate the projects that own one — so the guard has to be told, here.
+    /// The app writes this same list when you pin in its 项目 page, and adding the project
+    /// when it is not tracked yet is how it becomes visible (and removable-as-pinned) at all.
+    private func recordProjectBinding(_ installation: XcodeInstallation, for project: URL) throws {
+        var updated = configuration
+        let path = project.standardizedFileURL.path
+        if let index = updated.projects.firstIndex(where: { $0.url.standardizedFileURL.path == path }) {
+            updated.projects[index].xcodeID = installation.id
+        } else {
+            updated.projects.append(
+                ProjectProfile(
+                    name: project.deletingPathExtension().lastPathComponent,
+                    path: path,
+                    xcodeID: installation.id
+                )
+            )
+        }
+        try saveConfiguration(updated)
+    }
+
+    /// Clears the binding from the shared list, leaving the project itself known — the app's
+    /// own 项目 page keeps an unpinned project too, and removing the entry would be a second,
+    /// quieter decision than the one asked for.
+    private func clearProjectBinding(for project: URL) throws {
+        var updated = configuration
+        let path = project.standardizedFileURL.path
+        guard let index = updated.projects.firstIndex(where: { $0.url.standardizedFileURL.path == path }),
+              updated.projects[index].xcodeID != nil
+        else { return }
+        updated.projects[index].xcodeID = nil
+        try saveConfiguration(updated)
     }
 
     private func unpinProject(_ options: CLIOptions) throws -> Int32 {
         let project = try boundProjectURL(from: options.values)
         if options.dryRun {
-            print("[dry-run] " + String(localized: "已解除 %@ 的项目绑定。"))
+            print("[dry-run] " + String(localized: "已解除 \(project.lastPathComponent) 的项目绑定。"))
             return 0
         }
         guard try ProjectLocalConfigurationStore.clear(for: project) else {
             throw CLIError.failed(String(localized: "\(project.lastPathComponent) 没有项目绑定。"))
         }
-        print(String(localized: "已解除 %@ 的项目绑定。"))
+        try clearProjectBinding(for: project)
+        print(String(localized: "已解除 \(project.lastPathComponent) 的项目绑定。"))
         return 0
     }
 
@@ -856,6 +893,7 @@ private struct XcodeSwitcherCLI {
     --json 输出机器可读 JSON；--dry-run 仅显示将执行的动作。
     --force 即使有 Xcode 正在运行也继续切换；clean 则用它表示真正执行清理，
     uninstall 用它绕过「它正在运行」这一条。
+    pin 同时把项目登记进 App 的项目列表，unpin 只解除绑定、项目仍留在列表里。
     clean 默认只预览并列出可直接清理的缓存；--all 会一并处理 Xcode 无法自动
     重建的内容（归档、真机支持、包缓存），这些会移到废纸篓。clean 不处理
     Simulator Runtime，请在应用中清理。

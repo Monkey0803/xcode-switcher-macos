@@ -92,6 +92,26 @@ final class XcodeRemovalTests: XCTestCase {
         XCTAssertTrue(XcodeRemovalRefusal.boundProjects(["Demo"]).message.contains("Demo"))
     }
 
+    /// The guard refuses on `AppConfiguration.projects`, and both front ends now ask for the
+    /// names through one shared method. They used to filter the list themselves, and — more
+    /// importantly — `xcodeswitcher pin` wrote only the project's own `.xcode-switcher.json`,
+    /// so the list it filtered had nothing to say. A version could therefore be trashed while
+    /// a project pinned it.
+    func testBoundProjectNamesComeFromTheListTheRemovalGuardReads() throws {
+        var configuration = AppConfiguration()
+        configuration.projects = [
+            ProjectProfile(name: "Aligned", path: "/tmp/Aligned.xcodeproj", xcodeID: "/Applications/Xcode 26.3.app"),
+            ProjectProfile(name: "Unpinned", path: "/tmp/Unpinned.xcodeproj"),
+            ProjectProfile(name: "Also", path: "/tmp/Also.xcworkspace", xcodeID: "/Applications/Xcode 26.3.app")
+        ]
+
+        XCTAssertEqual(
+            configuration.boundProjectNames(to: "/Applications/Xcode 26.3.app"),
+            ["Aligned", "Also"]
+        )
+        XCTAssertTrue(configuration.boundProjectNames(to: "/Applications/Xcode 27.0.app").isEmpty)
+    }
+
     func testRefusesARunningXcodeUnlessForced() throws {
         let (root, installation) = try makeFixture()
         defer { try? FileManager.default.removeItem(atPath: root) }

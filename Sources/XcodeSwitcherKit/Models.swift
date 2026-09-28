@@ -183,6 +183,20 @@ public struct AppConfiguration: Codable {
         activationHistory.removeAll { $0 == id }
         notifiedXcodeUpdateKeys = notifiedXcodeUpdateKeys.filter { !$0.hasPrefix("\(id)|") }
     }
+
+    /// Names of the projects that pin `installationID`, in the order they were added.
+    ///
+    /// Shared by both front ends on purpose. `XcodeRemovalRefusal/boundProjects` refuses on
+    /// this list and `--force` cannot override it, so the two places that build the removal
+    /// context must ask the same question of the same list — and, just as importantly, the
+    /// two places that *write* a binding must write to that one list. `xcodeswitcher pin`
+    /// used to write only the project's own `.xcode-switcher.json`, which `resolve` and
+    /// `open` read but the removal guard never saw: the version could then be trashed while
+    /// a project pinned it. Found on 2026-09-28 by running the published 2.2.0 against the
+    /// real installations rather than a fixture.
+    public func boundProjectNames(to installationID: String) -> [String] {
+        projects.filter { $0.xcodeID == installationID }.map(\.name)
+    }
 }
 
 public struct XcodeDetails: Sendable {
