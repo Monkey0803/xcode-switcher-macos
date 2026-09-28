@@ -233,6 +233,12 @@ final class XcodeSwitcherUITests: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH %@", "environment-doctor-button-")
         ).firstMatch
         XCTAssertTrue(doctor.waitForExistence(timeout: 5))
+        // The same activation the settings-window tests needed: a click synthesized
+        // while another window owns the keyboard goes to activating the window instead
+        // of the control, and the button's action never runs. That is what the CI
+        // diagnostics showed here — hittable button, 20+ clicks, no 「正在检查…」 caption.
+        app.activate()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
 
         // Clicked until the button turns into 「重新体检」, rather than once and then
         // waiting: on the CI runner the first click can land on empty space because the
@@ -245,7 +251,7 @@ final class XcodeSwitcherUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(1))
         }
         guard doctor.label == "重新体检" else {
-            print("[ui-test] doctor label=\(doctor.label) hittable=\(doctor.isHittable) frame=\(doctor.frame)")
+            print("[ui-test] doctor label=\(doctor.label) enabled=\(doctor.isEnabled) hittable=\(doctor.isHittable) frame=\(doctor.frame)")
             print("[ui-test] categories=\(app.radioButtons.allElementsBoundByIndex.map(\.label))")
             // `value`, not `label`: a SwiftUI StaticText carries its text in `value`
             // and reports an empty `label`, which made the first diagnostic dump here
