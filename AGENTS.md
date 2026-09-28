@@ -249,11 +249,14 @@ only the test process sets (`AppDelegate.makeModel()`):
 - a dedicated `UserDefaults` suite, cleared on every launch, so a test never reads or
   writes the developer's own configuration or language.
 
-The fixture's root is `resolvingSymlinksInPath()`ed on purpose. `FileManager`'s temporary
-directory lives under `/var`, which is a symlink to `/private/var`, and the removal policy
-refuses a path that is not its own resolution — leaving it unresolved made every fixture
-installation report itself as a symbolic link, so the removal panel could not be tested at
-all. Discovery resolves symlinks too, so this is also what a real installation looks like.
+The fixture resolves its root to match what discovery stores. Be careful with the reason
+people usually give for that: `FileManager`'s temporary directory lives under `/var`, which
+*is* a symlink to `/private/var`, but **`URL.resolvingSymlinksInPath()` leaves `/var` and
+`/tmp` alone** — measured 2026-09-28, `URL(fileURLWithPath: "/var/folders")
+.resolvingSymlinksInPath().path` is `/var/folders`. So the call is a no-op for the default
+temporary directory, and the removal policy's symlink test does not fire on fixture paths;
+it fires on a genuine symlink, which is what
+`XcodeRemovalTests.testRefusesAPathThatIsASymbolicLink` drives.
 
 `InstallationStore.refresh` ignores every trigger while that fixture is in place
 (`usesUITestFixture`), so clicking 「重新扫描」 in a test cannot replace the list with the
@@ -304,7 +307,9 @@ Two details that are easy to undo by accident:
   per-component walk like `XcodeCleanupReporter.containsSymlinkComponent`. Reusing that
   one would refuse every path under `/var/folders/...` because the *ancestor* `/var` is a
   link — including the UI-test fixture and `mktemp -d`. Discovery already resolves, so a
-  stored path that is not its own resolution is the real signal.
+  stored path that is not its own resolution is the real signal. (Foundation's resolver
+  itself skips `/var` and `/tmp`, which is why this comparison is safe for temporary
+  paths.)
 - **`XcodeRemoval.remove` returns `.alreadyGone` rather than throwing** when the bundle is
   no longer there. A stale list row is the usual reason something looked removable, and
   the runtime cleanup already treats that case as information rather than failure.

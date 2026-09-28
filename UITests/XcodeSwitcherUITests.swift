@@ -1,4 +1,5 @@
 @preconcurrency import XCTest
+import AppKit
 
 @MainActor
 final class XcodeSwitcherUITests: XCTestCase {
@@ -50,6 +51,10 @@ final class XcodeSwitcherUITests: XCTestCase {
 
         let languagePicker = app.popUpButtons["app-language-picker"]
         XCTAssertTrue(languagePicker.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            raiseAndWait(for: languagePicker, in: app.windows["XcodeSwitcherSettingsWindow"]),
+            "语言选择器应当可点：设置窗口必须位于主窗口之上"
+        )
 
         languagePicker.click()
         let english = app.menuItems["English"]
@@ -102,6 +107,10 @@ final class XcodeSwitcherUITests: XCTestCase {
 
         let openProject = app.buttons["open-project-button-7C7B93FD-DC7A-47BB-9C91-F0E591DDD2AA"]
         XCTAssertTrue(openProject.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            raiseAndWait(for: openProject, in: app.windows["XcodeSwitcherSettingsWindow"]),
+            "应用并打开按钮应当可点：设置窗口必须位于主窗口之上"
+        )
         openProject.click()
 
         XCTAssertTrue(app.staticTexts["项目推荐使用另一版本的 Xcode"].waitForExistence(timeout: 5))
@@ -215,7 +224,8 @@ final class XcodeSwitcherUITests: XCTestCase {
         XCTAssertEqual(choices.count, 2)
     }
 
-    func testEnvironmentDoctorRendersCompletedReport() throws {        let environmentCategory = app.radioButtons["环境"]
+    func testEnvironmentDoctorRendersCompletedReport() throws {
+        let environmentCategory = app.radioButtons["环境"]
         XCTAssertTrue(environmentCategory.waitForExistence(timeout: 10))
         environmentCategory.click()
 
@@ -224,7 +234,18 @@ final class XcodeSwitcherUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(doctor.waitForExistence(timeout: 5))
         doctor.click()
-        XCTAssertTrue(app.staticTexts["测试诊断完成"].waitForExistence(timeout: 5))
+
+        // 15s rather than 5: this is the one assertion in the suite that waits on a
+        // view rebuilt from an asynchronous report, and the runner is slower than a
+        // developer machine. The diagnostics exist because the first CI run of this
+        // suite failed here and the log could not say whether the report was missing,
+        // late, or rendered in another language.
+        if !app.staticTexts["测试诊断完成"].waitForExistence(timeout: 15) {
+            print("[ui-test] categories=\(app.radioButtons.allElementsBoundByIndex.map(\.label))")
+            print("[ui-test] windows=\(app.windows.allElementsBoundByIndex.map { "\($0.identifier):\($0.frame)" })")
+            print("[ui-test] texts=\(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | "))")
+            XCTFail("体检报告没有渲染出检查项")
+        }
     }
 
     // MARK: - 主窗口主路径
@@ -436,6 +457,38 @@ final class XcodeSwitcherUITests: XCTestCase {
 
         XCTAssertTrue(releaseRow("27Z999", in: window, exists: false))
         XCTAssertTrue(releaseRow("15F31d", in: window))
+    }
+
+
+
+    /// Brings an auxiliary window (Settings, All versions) to the front and waits for a
+    /// control inside it to become hittable.
+    ///
+    /// They are separate `NSWindow`s, and a window that ends up underneath the main one
+    /// makes every control in the overlap area unreachable: XCUITest reports
+    /// 「Not hittable」 for an element that plainly exists. On the CI runner both windows
+    /// are centred on the same screen, which is exactly the overlap case — this is how
+    /// three of these tests failed on CI while passing on a developer machine.
+    /// Clicking the title bar raises a window without activating one of its controls.
+    @discardableResult
+    private func raiseAndWait(
+        for element: XCUIElement,
+        in window: XCUIElement,
+        timeout: TimeInterval = 10
+    ) -> Bool {
+        guard window.exists else { return false }
+        app.activate()
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.01)).click()
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.exists, element.isHittable { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        }
+        // The next CI run has to distinguish "covered" from "off-screen" from "gone";
+        // a bare assertion failure says none of that.
+        print("[ui-test] element=\(element.frame) hittable=\(element.exists ? String(element.isHittable) : "missing") window=\(window.frame) screen=\(NSScreen.main?.frame ?? .zero)")
+        return false
     }
 
     // MARK: - 系统边界的可见失败

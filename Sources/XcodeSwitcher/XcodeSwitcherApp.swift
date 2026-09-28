@@ -179,11 +179,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The UI suite launches the production app target, but this fixture removes
     /// dependencies on the user's installed Xcodes, project list, and disk usage.
     private static func configureUITestFixture(on model: XcodeViewModel) {
-        // Resolved, not the raw temporary directory: that lives under `/var`, which is
-        // a symbolic link to `/private/var`, and the removal policy refuses a path that
-        // is not its own resolution — every fixture installation would be reported as
-        // a symbolic link instead of testing anything. Discovery resolves symlinks too,
-        // so this is also what a real installation looks like.
+        // Resolved to match what discovery stores (it resolves too). Note that
+        // `URL.resolvingSymlinksInPath()` leaves `/var` and `/tmp` alone — measured
+        // 2026-09-28 — so for the default temporary directory this call is a no-op and
+        // the removal policy's symlink test does not fire on fixture paths.
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("XcodeSwitcherUITestFixture-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
             .resolvingSymlinksInPath()

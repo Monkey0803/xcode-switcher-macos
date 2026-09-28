@@ -69,7 +69,9 @@ expect_contains "$stdout" '"developer"' "--json current"
 run 0 version
 run 0 --help
 run 0
-expect_contains "$stdout" "用法" "无参数时打印帮助"
+# 帮助文本本身是本地化的：CI 的 runner 是英文环境，本机是中文，所以断言只能落在
+# 不翻译的那部分——子命令列表——上。这顺带守住「新命令必须出现在帮助里」。
+expect_contains "$stdout" "xcodeswitcher uninstall" "无参数时打印帮助"
 
 # --- 用法错误：64，JSON 走标准错误 ---
 run 64 definitely-not-a-command
