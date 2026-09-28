@@ -204,7 +204,12 @@ struct ViewModelCachingTests {
         fixture.model.scheduleProjectUpdate(profile, name: "Renamed", xcodeID: nil)
         #expect(fixture.store.load().projects.first?.name == "Demo")
 
-        try await Task.sleep(for: .milliseconds(900))
+        // 轮询到条件成立，而不是固定睡一个「应该够了」的时长：防抖窗口是 400ms，落盘还要回到
+        // 主 actor 上执行，CI 的 runner 比开发机慢——2026-09-28 那次就是差这一点点，900ms 没等到。
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline, fixture.store.load().projects.first?.name != "Renamed" {
+            try await Task.sleep(for: .milliseconds(50))
+        }
         #expect(fixture.store.load().projects.first?.name == "Renamed")
     }
 
