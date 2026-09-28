@@ -247,7 +247,13 @@ final class XcodeSwitcherUITests: XCTestCase {
         guard doctor.label == "重新体检" else {
             print("[ui-test] doctor label=\(doctor.label) hittable=\(doctor.isHittable) frame=\(doctor.frame)")
             print("[ui-test] categories=\(app.radioButtons.allElementsBoundByIndex.map(\.label))")
-            print("[ui-test] texts=\(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | "))")
+            // `value`, not `label`: a SwiftUI StaticText carries its text in `value`
+            // and reports an empty `label`, which made the first diagnostic dump here
+            // useless.
+            let texts = app.staticTexts.allElementsBoundByIndex
+                .map { ($0.value as? String) ?? $0.label }
+                .filter { !$0.isEmpty }
+            print("[ui-test] texts=\(texts.joined(separator: " | "))")
             return XCTFail("体检没有生成报告：按钮始终是「\(doctor.label)」")
         }
 

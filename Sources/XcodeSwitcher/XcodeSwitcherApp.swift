@@ -281,7 +281,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         ], for: active)
         model.environment.inspect = { installation, _ in
-            EnvironmentReport(
+            // Printed on purpose: the app's stdout lands in the CI log, and when this
+            // path fails only on a runner this is what tells 「the click never ran the
+            // action」 apart from 「the report never came back」.
+            print("[ui-test] environment inspect ran for \(installation.name)")
+            return EnvironmentReport(
                 installationID: installation.id,
                 installationName: installation.name,
                 version: installation.version,
