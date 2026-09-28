@@ -1647,7 +1647,7 @@
 			<key>name</key>
 			<string>Release</string>
 		</dict>
-		<key>A8A7B77F307773B950BE296C</key>
+		<key>1F7841CA1F548A0B833E9AEA</key>
 		<dict>
 			<key>isa</key>
 			<string>XCBuildConfiguration</string>
@@ -1656,7 +1656,7 @@
 				<key>CODE_SIGN_ENTITLEMENTS</key>
 				<string>Resources/Debug.entitlements</string>
 				<key>CURRENT_PROJECT_VERSION</key>
-				<string>11</string>
+				<string>12</string>
 				<key>EXECUTABLE_NAME</key>
 				<string>XcodeSwitcherApp</string>
 				<key>INFOPLIST_FILE</key>
@@ -1667,7 +1667,7 @@
 					<string>@executable_path/../Frameworks</string>
 				</array>
 				<key>MARKETING_VERSION</key>
-				<string>2.2.1</string>
+				<string>2.2.2</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
 				<string>com.yostar.xcodeswitcher.debug</string>
 				<key>PRODUCT_MODULE_NAME</key>
@@ -1682,14 +1682,14 @@
 			<key>name</key>
 			<string>Debug</string>
 		</dict>
-		<key>5C6347DA6D6C882E25C0E4FE</key>
+		<key>C091D7D56094A106207BF432</key>
 		<dict>
 			<key>isa</key>
 			<string>XCBuildConfiguration</string>
 			<key>buildSettings</key>
 			<dict>
 				<key>CURRENT_PROJECT_VERSION</key>
-				<string>11</string>
+				<string>12</string>
 				<key>EXECUTABLE_NAME</key>
 				<string>XcodeSwitcherApp</string>
 				<key>INFOPLIST_FILE</key>
@@ -1700,7 +1700,7 @@
 					<string>@executable_path/../Frameworks</string>
 				</array>
 				<key>MARKETING_VERSION</key>
-				<string>2.2.1</string>
+				<string>2.2.2</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
 				<string>com.yostar.xcodeswitcher</string>
 				<key>PRODUCT_MODULE_NAME</key>
@@ -1895,8 +1895,8 @@
 			<string>XCConfigurationList</string>
 			<key>buildConfigurations</key>
 			<array>
-				<string>A8A7B77F307773B950BE296C</string>
-				<string>5C6347DA6D6C882E25C0E4FE</string>
+				<string>1F7841CA1F548A0B833E9AEA</string>
+				<string>C091D7D56094A106207BF432</string>
 			</array>
 			<key>defaultConfigurationIsVisible</key>
 			<string>0</string>
