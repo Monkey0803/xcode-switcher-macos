@@ -236,8 +236,14 @@ on `List` rows and inside `ToolbarItem`s as well. Three things the suite had to 
 `AppDelegate` builds the model differently when `XCODE_SWITCHER_UI_TESTING=1`, which
 only the test process sets (`AppDelegate.makeModel()`):
 
-- two fake installations (Xcode 15.4 active, Xcode 16.0), a project and a workspace with
-  a version conflict, one cleanup entry and a stubbed environment report;
+- three fake installations (Xcode 15.4 active, Xcode 16.0 pinned by a project, Xcode 17.5
+  free), a project and a workspace with a version conflict, one cleanup entry and a
+  stubbed environment report;
+- a stubbed administrator authorization and `simctl` (`activateXcode` throws,
+  `simulatorAction` returns a failure) plus one fixture simulator device
+  (`setSimulatorDevicesForUITesting`) — a test cannot answer a password prompt or drive a
+  real simulator, so what those three tests assert is that **the failure reaches the line
+  the user reads**, not that the operation could have succeeded;
 - the release index served from memory (`uiTestReleaseCatalogStore()`), so the
   "every version" window depends on neither the network nor a day-old cache;
 - a dedicated `UserDefaults` suite, cleared on every launch, so a test never reads or
@@ -258,10 +264,16 @@ with `-AppleLanguages (zh-Hans)` regardless of the runner's own locale, which is
 assertions may spell out Chinese text (unlike the unit tests, see above).
 
 Deliberately **not** covered, because they need a real privileged action or a real
-device: the administrator authorization for `xcode-select --switch`, the global
-shortcut's Accessibility grant, and Simulator device operations. Those remain manual
-acceptance items in `README.md`. The menu-bar status item is not driven either: whether
-it is even present depends on how crowded the runner's menu bar is.
+device: the administrator authorization for `xcode-select --switch` actually succeeding,
+the global shortcut's Accessibility grant, and `simctl` actually running. What the suite
+covers is their *failure* being visible (the stubs above). Those remain manual acceptance
+items in `README.md`. The menu-bar status item is not driven either: whether it is even
+present depends on how crowded the runner's menu bar is.
+
+The class is `@preconcurrency import XCTest` with `nonisolated(unsafe) var app` and
+`MainActor.assumeIsolated` in `setUpWithError`/`tearDownWithError`: XCTest's lifecycle
+callbacks are nonisolated while `XCUIApplication` is main-actor isolated, so the unsafe
+reference is confined to that framework boundary.
 
 ```bash
 xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \

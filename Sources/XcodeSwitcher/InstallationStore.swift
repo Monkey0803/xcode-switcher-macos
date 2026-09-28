@@ -42,6 +42,15 @@ final class InstallationStore: ObservableObject {
     /// Told the id of a bundle that is no longer on disk, so the stores holding a
     /// measurement or a cached size for it can drop theirs too.
     var didRemoveInstallation: (String) -> Void = { _ in }
+    /// System boundaries are explicit so the shipped UI tests can drive the visible
+    /// failure paths without touching a developer machine: the authorization prompt
+    /// and `simctl` cannot be answered inside a test.
+    var activateXcode: @Sendable (XcodeInstallation) throws -> Void = { installation in
+        try XcodeActivator.activate(installation)
+    }
+    var simulatorAction: @Sendable (String, SimulatorDevice, XcodeInstallation) -> ProcessResult = { action, device, installation in
+        XcodeTooling.simulatorAction(action, device: device, installation: installation)
+    }
 
     private var refreshTask: Task<Void, Never>?
     private var usesUITestFixture = false
@@ -60,6 +69,14 @@ final class InstallationStore: ObservableObject {
         runtimeDownloadTask?.cancel()
     }
 
+
+    /// Supplies deterministic simulator rows for the shipped-app UI tests. Limited to
+    /// the fixture mode on purpose: production still reads `simctl` rather than an
+    /// in-memory shadow list.
+    func setSimulatorDevicesForUITesting(_ devices: [SimulatorDevice], for installation: XcodeInstallation) {
+        guard usesUITestFixture else { return }
+        devicesByID[installation.id] = devices
+    }
 
     func deleteUnavailableDevices(for installation: XcodeInstallation) {
         let unavailable = simulatorDevices(for: installation).filter { !$0.isAvailable }.count
@@ -334,6 +351,10 @@ final class InstallationStore: ObservableObject {
 
 
     func loadDetails(for installation: XcodeInstallation) {
+        // The UI fixture supplies every visible detail itself. A background `simctl`
+        // read here would overwrite those rows with whatever happens to be installed
+        // on the machine running the test.
+        guard !usesUITestFixture else { return }
         guard detailsByID[installation.id] == nil, detailTasks[installation.id] == nil else { return }
         loadingDetailsIDs.insert(installation.id)
         detailTasks[installation.id] = Task.detached(priority: .utility) { [weak self] in
@@ -412,11 +433,14 @@ final class InstallationStore: ObservableObject {
         status?.isError = false
         status?.statusMessage = String(localized: "正在请求管理员授权…")
         let switchLog = AppLog.logger(.switching)
+        // Captured before the detached task: the closure is @Sendable and cannot read
+        // main-actor state.
+        let activateXcode = activateXcode
         switchLog.info("switch requested: \(installation.developerURL.path, privacy: .public) (was \(self.activeDeveloperPath ?? "none", privacy: .public))")
         Task {
             let errorMessage = await Task.detached(priority: .userInitiated) { () -> String? in
                 do {
-                    try XcodeActivator.activate(installation)
+                    try activateXcode(installation)
                     return nil
                 } catch {
                     return error.localizedDescription
@@ -620,12 +644,13 @@ final class InstallationStore: ObservableObject {
         default:
             String(localized: "正在抹掉 Simulator \(device.name)…")
         }
+        let simulatorAction = simulatorAction
         mutateSimulatorDevices(
             start: start,
             success: String(localized: "Simulator \(device.name) 操作完成。"),
             installation: installation
         ) {
-            XcodeTooling.simulatorAction(action, device: device, installation: installation)
+            simulatorAction(action, device, installation)
         }
     }
 

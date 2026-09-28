@@ -247,6 +247,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             [active, recommended, spare],
             activeDeveloperPath: active.developerURL.path
         )
+        // The two system boundaries a test cannot cross are stubbed rather than
+        // simulated: the administrator prompt for `xcode-select --switch` and
+        // `simctl` itself. Both fail visibly, which is what the tests assert.
+        model.installs.activateXcode = { _ in
+            throw NSError(
+                domain: "XcodeSwitcher.UITest",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "UI test authorization cancelled."]
+            )
+        }
+        model.installs.simulatorAction = { _, _, _ in
+            ProcessResult(status: 1, stdout: "", stderr: "UI test simctl failure")
+        }
+        model.installs.setSimulatorDevicesForUITesting([
+            SimulatorDevice(
+                id: "ui-test-device",
+                name: "UI Test Simulator",
+                state: "Shutdown",
+                runtimeID: "ui-test-runtime",
+                isAvailable: true
+            )
+        ], for: recommended)
         // The UI test opens then cancels this confirmation. It must remain
         // enabled even when the developer machine has a real Xcode process.
         model.cleanup.isAnyXcodeRunning = { false }

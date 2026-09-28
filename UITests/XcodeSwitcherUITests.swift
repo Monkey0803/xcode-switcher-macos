@@ -1,15 +1,18 @@
-import XCTest
+@preconcurrency import XCTest
 
 @MainActor
 final class XcodeSwitcherUITests: XCTestCase {
-    private var app: XCUIApplication!
-    private var targetsInstalledApp: Bool {
+    // XCTest's lifecycle callbacks are nonisolated while `XCUIApplication` is
+    // main-actor isolated. Keep the reference explicitly unsafe only at that
+    // framework boundary: every test method stays on the main actor, and all
+    // application interaction is confined to it.
+    private nonisolated(unsafe) var app: XCUIApplication!
+    private nonisolated static var targetsInstalledApp: Bool {
         FileManager.default.fileExists(atPath: "/tmp/xcode-switcher-ui-test-installed-app")
     }
 
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-        app = XCUIApplication(bundleIdentifier: targetsInstalledApp
+    private static func launchApp(targetsInstalledApp: Bool) -> XCUIApplication {
+        let app = XCUIApplication(bundleIdentifier: targetsInstalledApp
             ? "com.yostar.xcodeswitcher"
             : "com.yostar.xcodeswitcher.debug")
         app.launchArguments = [
@@ -20,10 +23,22 @@ final class XcodeSwitcherUITests: XCTestCase {
             app.launchEnvironment["XCODE_SWITCHER_UI_TESTING"] = "1"
         }
         app.launch()
+        return app
+    }
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        let installedApp = Self.targetsInstalledApp
+        app = MainActor.assumeIsolated {
+            Self.launchApp(targetsInstalledApp: installedApp)
+        }
     }
 
     override func tearDownWithError() throws {
-        app.terminate()
+        guard let launchedApp = app else { return }
+        MainActor.assumeIsolated {
+            launchedApp.terminate()
+        }
     }
 
     func testLanguageSelectorShowsRestartAction() throws {
@@ -128,7 +143,7 @@ final class XcodeSwitcherUITests: XCTestCase {
     }
 
     func testInstalledAppPersistsDiskWarningThresholdAfterRestart() throws {
-        guard targetsInstalledApp else {
+        guard Self.targetsInstalledApp else {
             throw XCTSkip("仅在 XCODE_SWITCHER_UI_TEST_INSTALLED_APP=1 时验收已安装应用。")
         }
         app.typeKey(",", modifierFlags: .command)
@@ -159,7 +174,7 @@ final class XcodeSwitcherUITests: XCTestCase {
     }
 
     func testInstalledAppEnablesXcodeUpdateNotifications() throws {
-        guard targetsInstalledApp else {
+        guard Self.targetsInstalledApp else {
             throw XCTSkip("仅在正式应用验收标记存在时启用更新通知。")
         }
         app.activate()
@@ -184,7 +199,7 @@ final class XcodeSwitcherUITests: XCTestCase {
     }
 
     func testInstalledAppDisplaysWorkspaceConflict() throws {
-        guard targetsInstalledApp else {
+        guard Self.targetsInstalledApp else {
             throw XCTSkip("仅在 XCODE_SWITCHER_UI_TEST_INSTALLED_APP=1 时验收已安装应用。")
         }
         app.activate()
@@ -421,6 +436,50 @@ final class XcodeSwitcherUITests: XCTestCase {
 
         XCTAssertTrue(releaseRow("27Z999", in: window, exists: false))
         XCTAssertTrue(releaseRow("15F31d", in: window))
+    }
+
+    // MARK: - 系统边界的可见失败
+    //
+    // 三条路径都跨出了应用：管理员授权、全局快捷键的系统级注册、以及 simctl。
+    // 前两条在测试里无法真正完成，所以夹具把它们换成会失败的桩——要验证的是
+    // 失败有没有落到用户能看到的那一行，而不是失败本身可不可能。
+
+    /// 授权被取消（夹具桩抛错）必须显示在状态栏，而不是静默地什么都不发生。
+    func testAuthorizationFailureIsVisibleInTheStatusLine() throws {
+        selectInstallation("Xcode 16.0.app")
+
+        let activate = app.buttons["activate-selected-xcode-button"]
+        XCTAssertTrue(activate.waitForExistence(timeout: 5))
+        XCTAssertTrue(activate.isEnabled, "选中非当前版本后，激活按钮必须可用")
+        activate.click()
+
+        XCTAssertTrue(
+            app.staticTexts["切换失败：UI test authorization cancelled."].waitForExistence(timeout: 5)
+        )
+    }
+
+    /// ⇧⌘V 是应用自己的菜单命令，与窗口上的按钮是两条独立入口。
+    func testApplicationShortcutOpensAllVersions() throws {
+        app.activate()
+        app.typeKey("v", modifierFlags: [.command, .shift])
+        XCTAssertTrue(app.textFields["all-versions-search-field"].waitForExistence(timeout: 10))
+    }
+
+    /// simctl 失败同样要看得见；行内的设备来自夹具，所以断言与开发机上装了
+    /// 哪些 Simulator 无关。
+    func testSimulatorFailureIsVisibleAfterRealDeviceAction() throws {
+        selectInstallation("Xcode 16.0.app")
+        let simulatorCategory = app.radioButtons["模拟器"]
+        XCTAssertTrue(simulatorCategory.waitForExistence(timeout: 5))
+        simulatorCategory.click()
+
+        let boot = app.buttons["simulator-boot-button-ui-test-device"]
+        XCTAssertTrue(boot.waitForExistence(timeout: 5))
+        boot.click()
+
+        XCTAssertTrue(
+            app.staticTexts["Simulator 操作失败：UI test simctl failure"].waitForExistence(timeout: 5)
+        )
     }
 
     // MARK: - 移除已安装的 Xcode

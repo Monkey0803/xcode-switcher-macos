@@ -971,8 +971,10 @@ private struct SimulatorDevicesView: View {
                         Spacer()
                         if device.isBooted {
                             Button("关闭") { model.performSimulatorAction("shutdown", device: device, installation: installation) }
+                                .accessibilityIdentifier("simulator-shutdown-button-\(device.id)")
                         } else {
                             Button("启动") { model.performSimulatorAction("boot", device: device, installation: installation) }
+                                .accessibilityIdentifier("simulator-boot-button-\(device.id)")
                         }
                         Button("抹掉") { pending = .erase(device) }
                             .foregroundStyle(.red)

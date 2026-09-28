@@ -12,6 +12,7 @@
 - **工程**：`AGENTS.md` 里「`accessibilityIdentifier` and the accessibility tree」一节此前止于「本仓库没有 UI 测试目标，因此没人验证 XCUITest 是否看得见这些 identifier」。已改写为实测结论，并记下这次踩到的坑：`XCUIElementQuery.firstMatch` 只解析一次并沿用结果，用它等待一个尚未出现的元素永远不会成功（搜索后留下的那一行被报成不存在，而同一棵树的 dump 里它就在那）。
 
 - **CLI 退出码不再一律是 `2`**：此前所有失败都返回 `2`，脚本无法区分「命令行写错了」和「命令执行失败」——`--json` 的 `code` 字段一直有区分，但只有显式传 `--json` 才看得到。现在 `1` = 命令执行了但没成功，`64` = `sysexits.h` 的 `EX_USAGE`（未知命令、缺参数、缺项目路径）；`2` 保留给 `doctor` 自己的结果等级（`0` 健康 / `1` 有问题 / `2` 严重），不再与「参数写错」混淆。**按 `2` 判断失败的脚本需要改成 `1`。** 新增 `Scripts/cli_contract_e2e.sh` 把这份契约变成回归测试（退出码、`--json` 错误结构、错误写在标准错误、`--dry-run` 不改变全局开发者目录、`doctor` 只返回 0/1/2），由 `run_smoke_test.sh` 执行。
+- **工程**：UI 测试补上跨系统边界的路径。管理员授权与 `simctl` 在测试里无法真正完成，夹具因此把它们换成会失败的桩（`activateXcode` 抛错、`simulatorAction` 返回失败）——验证的是**失败有没有落到用户能看到的那一行**；Simulator 行来自夹具设备，断言与本机装了哪些 Runtime 无关。另加 ⇧⌘V 打开「所有 Xcode 版本」的快捷键路径，以及授权被取消时状态栏的提示。夹具新增 `setSimulatorDevicesForUITesting`，并在夹具模式下跳过 `loadDetails` 的后台 `simctl` 读取，否则它会把夹具行覆盖成本机真实数据。UI 测试类改用 `@preconcurrency import XCTest` 与 `nonisolated(unsafe) var app`：XCTest 的生命周期回调是 nonisolated，而 `XCUIApplication` 是 main-actor 隔离的。
 
 ### 修复
 - **发布索引刷新失败不再只有一句「服务器返回了错误响应」**：现在按成因分开——请求超时、离线或连不上、被限流（`Retry-After` 或 `X-RateLimit-Reset` 能读到时直接给出重试时间）、服务器返回非 2xx 状态（带状态码）、响应不是 HTTP、以及数据格式解析失败——每种都给出能照着做的下一步。此前所有失败都塌进同一句话，看不出该等一会儿、检查网络，还是该报 bug。请求与整体传输分别设 20s / 25s 超时，卡住的连接不会让界面一直停在「正在获取版本列表…」。

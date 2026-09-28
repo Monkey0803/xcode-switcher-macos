@@ -206,6 +206,14 @@ public struct SimulatorRuntime: Identifiable, Sendable {
     /// runtime does not say, which the creation form reads as "no restriction" rather
     /// than as "nothing fits".
     public let supportedDeviceTypes: [String]
+
+    public init(id: String, name: String, version: String, isAvailable: Bool, supportedDeviceTypes: [String] = []) {
+        self.id = id
+        self.name = name
+        self.version = version
+        self.isAvailable = isAvailable
+        self.supportedDeviceTypes = supportedDeviceTypes
+    }
 }
 
 /// One simulator device type `simctl` can create, e.g. "iPhone 17 Pro".
@@ -222,6 +230,14 @@ public struct SimulatorDevice: Identifiable, Hashable, Sendable {
     public let state: String
     let runtimeID: String
     public let isAvailable: Bool
+
+    public init(id: String, name: String, state: String, runtimeID: String, isAvailable: Bool) {
+        self.id = id
+        self.name = name
+        self.state = state
+        self.runtimeID = runtimeID
+        self.isAvailable = isAvailable
+    }
 
     public var isBooted: Bool { state.caseInsensitiveCompare("Booted") == .orderedSame }
 }
