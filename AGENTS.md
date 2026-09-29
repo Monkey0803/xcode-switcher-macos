@@ -111,6 +111,11 @@ shasum -a 256 /tmp/Xcode-Switcher-1.6.0-6-local.zip   # 应等于 Release 里 SH
 
 Run that from inside the repository: `gh release download` needs a git context and
 fails with `fatal: not a git repository` from `/tmp`.
+`SHA256SUMS` records the CI paths with a `release/local/` prefix; when its three
+files are downloaded into one directory, check it with
+`sed 's@release/local/@@' SHA256SUMS | shasum -a 256 -c -` from that directory.
+After release, test the downloaded ZIP/DMG and their embedded CLI; a green local
+`build_local_release.sh` result does not validate the bytes users receive.
 
 Pushing a `v*` tag **is** the release action. `.github/workflows/release.yml` then
 validates the tag against `Info.plist`, builds with `build_local_release.sh`, and
@@ -414,14 +419,17 @@ ambiguous. App path and developer path win outright — they are unique by const
 refusing them would make disambiguation impossible; name, alias and version are the forms
 that can answer for several installations.
 
-The app is untouched by this: its removal is driven by row identity, so it never has to
-guess. `ProjectXcodeMatcher` still resolves a project's version requirement with the old
-first-match rule, which is the same asymmetry one step milder — it opens the other Xcode
-rather than moving it.
+The app's removal is driven by row identity, so it never has to guess. Project resolution
+now refuses the same ambiguity: `.xcode-switcher.json`, `.xcode-version` and `.tool-versions`
+must identify one installation before App opening, CLI `resolve`/`open`, or the zsh
+`DEVELOPER_DIR` hook proceeds. The project page reports every candidate with its build and
+path; an App binding, a unique alias, or an exact app path can disambiguate it. Preserve
+this shared behavior when changing `ProjectXcodeMatcher` or `XcodeSelector`.
 
-Cover a change here with `Tests/XcodeSelectorTests.swift`. The CLI contract E2E asserts the
-refusal too, but only on a machine that really has a duplicate version: it looks for one and
-skips the block otherwise, which is every CI runner.
+Cover selector changes with `Tests/XcodeSelectorTests.swift` and project resolution changes
+with `Tests/ProjectMatchingTests.swift`. The CLI contract E2E checks both selector and
+project-command refusals when a machine has duplicate versions; it skips that block on
+single-Xcode CI runners, so the unit tests must always cover the ambiguity.
 
 ## `sync_string_catalog.sh` and stale `.stringsdata`
 

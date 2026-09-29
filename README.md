@@ -2,7 +2,7 @@
 
 一个原生 macOS 应用，用于发现、诊断和切换本机安装的 Xcode，并为不同项目固定对应的开发环境。
 
-当前版本：`2.2.3`（仅支持 Apple Silicon，最低支持 macOS 15.0）。`v2.2.2` 为上一个公开稳定版本。
+当前开发版本：`2.2.4`（仅支持 Apple Silicon，最低支持 macOS 15.0）。`v2.2.3` 为当前公开稳定版本。
 
 ## 下载与安装
 
@@ -57,6 +57,7 @@ cd xcode-switcher-macos && ./build_app.sh
 - 移除不再需要的 Xcode：详情页的「磁盘清理」区顶部显示这个 Xcode.app 自身占用多少，并可在确认后把它移到废纸篓（缓存清理永远不碰 Xcode.app，两者刻意分开）。它是当前系统默认、正在运行、被某个项目绑定、或路径含符号链接时会被拒绝并说明原因——这几种情况下移除要么没用，要么会破坏别的东西。**「被项目绑定」两个来源都算**：App 里的项目列表，以及项目或仓库里的 `.xcode-switcher.json`（后者会被项目扫描目录发现，不要求先在 App 里添加过这个项目）；被拒时会逐条列出是哪个项目、这份绑定写在哪里，因为两者该改的地方不同。
 - 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode，一键切换并打开项目。
 - 自动读取项目或上级目录中的 `.xcode-version`、`.tool-versions`，匹配对应 Xcode；绑定版本或项目路径失效时会阻止误开并给出提示。
+- 项目要求的版本若同时匹配多个安装包（例如 27.0 的 Beta 与正式版），会列出构建号和路径并阻止自动打开或注入 `DEVELOPER_DIR`；可在项目页固定其中一个安装，或在 `.xcode-switcher.json` 中使用唯一别名或完整路径。
 - 一键打开指定 Xcode，或打开注入对应 `DEVELOPER_DIR` 的 Terminal。
 - 在 macOS 26 及以上按 Liquid Glass 呈现：自绘的快捷键录制控件改用 `NSGlassEffectView`，主要操作按钮使用 glass 样式；更早系统保持原有外观（最低支持 macOS 15）。macOS 上 Liquid Glass 是 AppKit 能力，SwiftUI 仅提供 glass 按钮样式。
 - 明确区分两条路径：**系统级切换**执行 `xcode-select --switch`，需要管理员授权并影响全机的开发者目录；**不改系统设置**的方式（打开注入 `DEVELOPER_DIR` 的终端、一键复制 `export` 命令、zsh 项目 Hook、用指定 Xcode 直接打开工程）不需要授权，只影响当前会话或当前项目。详情页与设置页都会说明这一点。
@@ -92,7 +93,7 @@ cd /Users/huxiaohui/Documents/scripts/xcode-switcher-macos
 xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
   -configuration Debug -derivedDataPath build/DerivedData build
 xcodebuild -project XcodeSwitcher.xcodeproj -scheme "Xcode Switcher" \
-  -configuration Debug -derivedDataPath build/DerivedData test   # 128 XCTest + 20 Swift Testing
+  -configuration Debug -derivedDataPath build/DerivedData test
 open "build/DerivedData/Build/Products/Debug/Xcode Switcher.app"
 ```
 
@@ -111,7 +112,7 @@ open "build/Xcode Switcher.app"
 
 | 文件 | 用途 | 代价 |
 | --- | --- | --- |
-`brew trust` 是必需的：Homebrew 6 起会拒绝加载未信任的第三方 tap。Homebrew 6 也已移除 `--no-quarantine`，所以预编译产物带隔离属性，用户需要在「系统设置 → 隐私与安全性」放行一次——**放行之前，bundle 内的 `xcodeswitcher` 也会被 Gatekeeper 直接杀掉**（表现为静默的 `Killed: 9`）。若目标 app 不由 Homebrew 管理（例如手工装过），还需加 `--force`，否则 Homebrew 会拒绝覆盖并清掉刚下载的版本。
+| `Casks/xcode-switcher.rb` | 安装 GitHub Release 发布的 ZIP | 未公证，首次启动需要在系统设置中放行 |
 | `Formula/xcode-switcher.rb` | 从源码构建，产物无 quarantine 属性 | 仅限 **macOS 26 及更早**：macOS 27 上 Homebrew 要求 Xcode 27，而 SDK 27 的 `@State` 宏经 `swift-plugin-server` 展开会被其构建沙箱拒绝；改用 Xcode 26 则 Homebrew 直接拒绝构建。macOS 27 请用 cask |
 
 两者已放进 tap 仓库 [Monkey0803/homebrew-xcode-switcher](https://github.com/Monkey0803/homebrew-xcode-switcher)（本仓库中的 `Casks/` 与 `Formula/` 是其源头）：
@@ -121,16 +122,21 @@ brew tap Monkey0803/xcode-switcher
 brew trust Monkey0803/xcode-switcher   # Homebrew 6 起拒绝加载未信任的第三方 tap
 
 brew install --cask xcode-switcher   # 预编译产物
-brew install xcode-switcher                          # 从源码构建
+brew install xcode-switcher           # 从源码构建
 ```
 
 `brew trust` 是必需的：Homebrew 6 起会拒绝加载未信任的第三方 tap。Homebrew 6 也已移除 `--no-quarantine`，所以预编译产物带隔离属性，用户需要在「系统设置 → 隐私与安全性」放行一次——**放行之前，bundle 内的 `xcodeswitcher` 也会被 Gatekeeper 直接杀掉**（表现为静默的 `Killed: 9`）。若目标 app 不由 Homebrew 管理（例如手工装过），还需加 `--force`，否则 Homebrew 会拒绝覆盖并清掉刚下载的版本。
 
-发新版本后需要 bump cask 的两行：
+发新版本后，需要用**已发布**的 ZIP 更新 cask 的版本与校验值，再同步到 tap；本地 `build_local_release.sh` 产物的哈希不能代替 CI 发布的产物：
 
 ```bash
-# 改 version "x,y"，再用仓库 Release 里 SHA256SUMS 的值（或自行计算）更新 sha256
-curl -sL "<zip 地址>" | shasum -a 256
+release_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)
+release_check_dir=$(mktemp -d)
+gh release download "v${release_version}" --dir "$release_check_dir" \
+  --pattern '*-local.zip' --pattern '*-local.dmg' --pattern 'SHA256SUMS'
+(cd "$release_check_dir" && sed 's@release/local/@@' SHA256SUMS | shasum -a 256 -c -)
+shasum -a 256 "$release_check_dir"/*-local.zip
+# 用上一行的哈希更新 Casks/xcode-switcher.rb，再运行 ./Scripts/sync_tap_repo.sh
 ```
 
 ### 本地化（String Catalog）
@@ -220,6 +226,8 @@ Hook 只在切换目录时重新解析，同一目录不会每条命令都启动
 
 这个文件里写的 `xcode` 也是**移除守卫的依据**：项目或仓库里绑定着某个版本时，「移除 Xcode」会拒绝把它移到废纸篓，并告诉你这个绑定写在哪个文件里。文件放在仓库根目录时，它覆盖其下的所有项目。
 
+如果同一版本安装了多个 Xcode，写版本号会得到歧义提示，不会按列表顺序挑选。团队共用配置可为各机器上的目标安装设置同一个唯一别名；只针对本机的配置也可以直接写 Xcode.app 的完整路径。
+
 项目设置会标记失效路径或失效 Xcode 绑定，并提供“清理失效项目”批量移除入口。
 
 ## 正式发布（非 App Store）
@@ -275,13 +283,14 @@ export SPARKLE_PRIVATE_KEY_FILE="/secure/path/sparkle-private-key"
 
 当前直接分发版本不启用 Sparkle 自动更新，因此不要求配置 `SU_FEED_URL`；设置页提供 GitHub Releases 下载入口。如果之后希望消除 Gatekeeper 提示并启用自动更新，再按上面的正式签名流程配置 Developer ID、公证凭据和 Sparkle 密钥。
 
-### 发布前验收
+### 发布验收
 
 1. 在真实 Apple Silicon 机器上验证首次启动、辅助功能授权、管理员授权和多个 Xcode 版本切换。
-2. 在干净用户环境安装直接分发 DMG，确认 Gatekeeper 手动放行、CLI 链接和项目打开流程。
-3. 运行 `./run_smoke_test.sh`，确认测试、Apple Silicon 架构、嵌套签名和实际启动通过。
-4. 跑一次 XCUITest 套件（`xcodebuild … test -only-testing:XcodeSwitcherUITests`）。**它只在发版时跑**，不跟着每次改动跑：它是这里最慢的一道，且在开发机上会撞到与代码无关的授权问题（见 `AGENTS.md`）。
-5. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送与 `Info.plist` 中版本一致的 `v<version>` 标签。
+2. 运行 `./run_smoke_test.sh`，确认测试、Apple Silicon 架构、嵌套签名和实际启动通过；发布工作流会在打包前运行 XCUITest 套件。**它只在发版时跑**，不跟着每次改动跑（见 `AGENTS.md`）。
+3. 确认 `CFBundleIdentifier`、应用名称和图标的发布归属，再推送与 `Info.plist` 中版本一致的 `v<version>` 标签。等发布工作流成功并生成 GitHub Release。
+4. 从 GitHub Release 下载**正式发布的** ZIP、DMG 和 `SHA256SUMS`，验证哈希与两个包中的 App 一致，再从下载的包运行 App 和内嵌 CLI。不要用本地构建包代替这一步。`SHA256SUMS` 中带有 CI 路径 `release/local/`；三个文件下载到同一目录时，可执行 `sed 's@release/local/@@' SHA256SUMS | shasum -a 256 -c -`。
+5. 在装有同版本 Beta 与正式版 Xcode 的机器上，用交付包里的 CLI 验证 `use`、`uninstall`、`resolve`、`open --dry-run` 和 `env` 均拒绝模糊的版本号，并列出候选路径；指定唯一别名或完整路径应能解析。
+6. 在干净用户环境安装交付的 DMG，确认 Gatekeeper 手动放行、CLI 链接和项目打开流程。用正式 ZIP 的哈希更新 `Casks/`，用发布标签的提交更新 `Formula/`，再同步并验证 tap 仓库。
 
 ## 测试
 

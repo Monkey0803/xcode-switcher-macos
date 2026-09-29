@@ -93,6 +93,7 @@ public enum ProjectLocalConfigurationStore {
 
 public enum ProjectXcodeResolution: Equatable, Sendable {
     case resolved(installationID: String, source: ProjectXcodeResolutionSource)
+    case ambiguousXcode(selector: String, source: String, candidates: [XcodeInstallation])
     case missingProject(path: String)
     case missingBoundXcode(path: String)
     case missingRequiredXcode(ProjectXcodeRequirement)
@@ -108,6 +109,12 @@ public enum ProjectXcodeResolution: Equatable, Sendable {
         switch self {
         case .resolved:
             return nil
+        case let .ambiguousXcode(selector, source, candidates):
+            let paths = candidates.map { "  \($0.displayVersion) — \($0.appURL.path)" }.joined(separator: "\n")
+            if URL(fileURLWithPath: source).lastPathComponent == ".xcode-switcher.json" {
+                return String(localized: "项目配置中的 Xcode「\(selector)」对应多个安装包（来自 \(source)）。请将 xcode 改为唯一别名或下面某个完整路径：\n\(paths)")
+            }
+            return String(localized: "项目要求的 Xcode「\(selector)」对应多个安装包（来自 \(source)）。请在项目页固定其中一个版本，或在 .xcode-switcher.json 中写入唯一别名或完整路径：\n\(paths)")
         case let .missingProject(path):
             return String(localized: "项目路径已失效，请移除后重新添加：\(path)")
         case let .missingBoundXcode(path):
@@ -206,12 +213,16 @@ public enum ProjectXcodeMatcher {
     ) -> ProjectXcodeMatch? {
         guard let requirement = requirement(for: projectURL, fileManager: fileManager) else { return nil }
         let required = requirement.normalizedVersion
-        let installation = installations.first { installation in
+        let candidates = installations.filter { installation in
             version(installation.version, matches: required) ||
                 normalizeVersion(installation.name).map { version($0, matches: required) } == true ||
                 aliases[installation.id].flatMap(normalizeVersion).map { version($0, matches: required) } == true
         }
-        return ProjectXcodeMatch(requirement: requirement, installationID: installation?.id)
+        return ProjectXcodeMatch(
+            requirement: requirement,
+            installationID: candidates.count == 1 ? candidates[0].id : nil,
+            candidateIDs: candidates.map(\.id)
+        )
     }
 
     public static func resolve(
@@ -230,24 +241,24 @@ public enum ProjectXcodeMatcher {
             return .invalidProjectConfiguration(path: url.path)
         }
         if let selector = localConfiguration?.xcode?.trimmingCharacters(in: .whitespacesAndNewlines), !selector.isEmpty {
-            if let installation = installations.first(where: {
-                $0.id == selector || $0.appURL.path == selector || $0.developerURL.path == selector ||
-                    $0.name.localizedCaseInsensitiveCompare(selector) == .orderedSame ||
-                    aliases[$0.id]?.localizedCaseInsensitiveCompare(selector) == .orderedSame
-            }) {
-                return .resolved(installationID: installation.id, source: .localConfiguration(selector))
-            }
-            if let required = normalizeVersion(selector) {
-                return installations.first(where: { version($0.version, matches: required) })
-                    .map { .resolved(installationID: $0.id, source: .localConfiguration(selector)) }
-                    ?? .missingRequiredXcode(ProjectXcodeRequirement(
-                        source: ProjectLocalConfigurationStore.configurationURL(for: profile.url, fileManager: fileManager)?.path
-                            ?? profile.url.deletingLastPathComponent().appendingPathComponent(".xcode-switcher.json").path,
+            let source = ProjectLocalConfigurationStore.configurationURL(for: profile.url, fileManager: fileManager)?.path
+                ?? profile.url.deletingLastPathComponent().appendingPathComponent(".xcode-switcher.json").path
+            switch XcodeSelector.resolve(selector, among: installations, aliases: aliases) {
+            case let .resolved(id):
+                return .resolved(installationID: id, source: .localConfiguration(selector))
+            case let .ambiguous(ids):
+                let candidates = ids.compactMap { id in installations.first { $0.id == id } }
+                return .ambiguousXcode(selector: selector, source: source, candidates: candidates)
+            case .notFound:
+                if let required = normalizeVersion(selector) {
+                    return .missingRequiredXcode(ProjectXcodeRequirement(
+                        source: source,
                         rawValue: selector,
                         normalizedVersion: required
                     ))
+                }
+                return .missingBoundXcode(path: selector)
             }
-            return .missingBoundXcode(path: selector)
         }
         if let boundID = profile.xcodeID {
             guard installations.contains(where: { $0.id == boundID }) else {
@@ -261,6 +272,14 @@ public enum ProjectXcodeMatcher {
             aliases: aliases,
             fileManager: fileManager
         ) {
+            if automaticMatch.isAmbiguous {
+                let candidates = automaticMatch.candidateIDs.compactMap { id in installations.first { $0.id == id } }
+                return .ambiguousXcode(
+                    selector: automaticMatch.requirement.rawValue,
+                    source: automaticMatch.requirement.source,
+                    candidates: candidates
+                )
+            }
             guard let installationID = automaticMatch.installationID else {
                 return .missingRequiredXcode(automaticMatch.requirement)
             }
@@ -495,6 +514,12 @@ public enum WorkspaceXcodeConflictDetector {
                     projectName: profile.name,
                     version: requirement.normalizedVersion,
                     source: URL(fileURLWithPath: requirement.source).lastPathComponent
+                )
+            case let .ambiguousXcode(selector, source, _):
+                return WorkspaceXcodeConflict.Requirement(
+                    projectName: profile.name,
+                    version: ProjectXcodeMatcher.normalizeVersion(selector) ?? selector,
+                    source: URL(fileURLWithPath: source).lastPathComponent
                 )
             case .missingProject, .missingBoundXcode, .invalidProjectConfiguration, .noInstallation:
                 return nil

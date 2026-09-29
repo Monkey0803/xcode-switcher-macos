@@ -37,6 +37,121 @@ final class ProjectMatchingTests: XCTestCase {
         XCTAssertEqual(match?.installationID, installation.id)
     }
 
+    func testXcodeVersionFileRefusesTwoInstallationsOfTheSameVersion() throws {
+        let fixture = try Fixture()
+        try fixture.write("27.0\n", to: ".xcode-version")
+        let beta = fixture.installation(version: "27.0", name: "Xcode-beta.app", build: "27A5218g")
+        let release = fixture.installation(version: "27.0", name: "Xcode.app", build: "27A266a")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path)
+
+        let match = try XCTUnwrap(ProjectXcodeMatcher.match(
+            projectURL: fixture.projectURL,
+            installations: [beta, release]
+        ))
+        XCTAssertTrue(match.isInstalled)
+        XCTAssertTrue(match.isAmbiguous)
+        XCTAssertNil(match.installationID)
+
+        let resolution = ProjectXcodeMatcher.resolve(
+            profile: profile,
+            installations: [beta, release],
+            activeInstallationID: release.id
+        )
+        XCTAssertEqual(resolution, .ambiguousXcode(
+            selector: "27.0",
+            source: fixture.root.appendingPathComponent(".xcode-version").path,
+            candidates: [beta, release]
+        ))
+        XCTAssertNil(resolution.installationID)
+        XCTAssertTrue(try XCTUnwrap(resolution.issueDescription).contains(beta.appURL.path))
+        XCTAssertTrue(try XCTUnwrap(resolution.issueDescription).contains("27A266a"))
+        XCTAssertNil(ProjectXcodeMatcher.openDecision(for: resolution, activeInstallationID: release.id))
+    }
+
+    func testLocalConfigurationRefusesAmbiguousVersionAndExactPathResolvesIt() throws {
+        let fixture = try Fixture()
+        let beta = fixture.installation(version: "27.0", name: "Xcode-beta.app", build: "27A5218g")
+        let release = fixture.installation(version: "27.0", name: "Xcode.app", build: "27A266a")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path)
+        let configurationURL = fixture.root.appendingPathComponent(".xcode-switcher.json")
+        try fixture.write("{\"xcode\":\"27.0\"}\n", to: ".xcode-switcher.json")
+
+        let ambiguous = ProjectXcodeMatcher.resolve(
+            profile: profile,
+            installations: [beta, release],
+            activeInstallationID: release.id,
+            localConfiguration: ProjectLocalConfigurationStore.load(for: fixture.projectURL)
+        )
+        XCTAssertEqual(ambiguous, .ambiguousXcode(
+            selector: "27.0", source: configurationURL.path, candidates: [beta, release]
+        ))
+
+        try fixture.write("{\"xcode\":\"\(release.appURL.path)\"}\n", to: ".xcode-switcher.json")
+        XCTAssertEqual(
+            ProjectXcodeMatcher.resolve(
+                profile: profile,
+                installations: [beta, release],
+                activeInstallationID: beta.id,
+                localConfiguration: ProjectLocalConfigurationStore.load(for: fixture.projectURL)
+            ),
+            .resolved(installationID: release.id, source: .localConfiguration(release.appURL.path))
+        )
+    }
+
+    func testProjectEnvironmentRefusesAmbiguousVersionWithoutExportingDeveloperDirectory() throws {
+        let fixture = try Fixture()
+        try fixture.write("27.0\n", to: ".xcode-version")
+        let beta = fixture.installation(version: "27.0", name: "Xcode-beta.app")
+        let release = fixture.installation(version: "27.0", name: "Xcode.app")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path)
+
+        let result = ProjectEnvironmentResolver.resolve(
+            for: profile,
+            installations: [beta, release],
+            activeInstallationID: release.id
+        )
+        guard case let .issue(message) = result else { return XCTFail("Expected an ambiguity issue") }
+        XCTAssertTrue(message.contains(beta.appURL.path))
+        XCTAssertTrue(message.contains(release.appURL.path))
+    }
+
+    func testAppBindingDisambiguatesAnAutomaticVersionRequirement() throws {
+        let fixture = try Fixture()
+        try fixture.write("xcode 27.0\n", to: ".tool-versions")
+        let beta = fixture.installation(version: "27.0", name: "Xcode-beta.app")
+        let release = fixture.installation(version: "27.0", name: "Xcode.app")
+        let profile = ProjectProfile(name: "Demo", path: fixture.projectURL.path, xcodeID: release.id)
+
+        XCTAssertEqual(
+            ProjectXcodeMatcher.resolve(
+                profile: profile,
+                installations: [beta, release],
+                activeInstallationID: beta.id
+            ),
+            .resolved(installationID: release.id, source: .explicitBinding)
+        )
+    }
+
+    func testToolVersionsRefusesTwoInstallationsWithoutAnAppBinding() throws {
+        let fixture = try Fixture()
+        try fixture.write("xcode 27.0\n", to: ".tool-versions")
+        let beta = fixture.installation(version: "27.0", name: "Xcode-beta.app")
+        let release = fixture.installation(version: "27.0", name: "Xcode.app")
+
+        XCTAssertEqual(
+            ProjectXcodeMatcher.resolve(
+                profile: ProjectProfile(name: "Demo", path: fixture.projectURL.path),
+                installations: [beta, release],
+                activeInstallationID: release.id
+            ),
+            .ambiguousXcode(
+                selector: "27.0",
+                source: fixture.root.appendingPathComponent(".tool-versions").path,
+                candidates: [beta, release]
+            )
+        )
+    }
+
     func testToolVersionsIsDetectedFromParentDirectory() throws {
         let fixture = try Fixture(nestedProject: true)
         try fixture.write("ruby 3.3.0\nxcode 15.4\n", to: ".tool-versions")
@@ -436,11 +551,11 @@ private final class Fixture {
         try contents.write(to: url, atomically: true, encoding: .utf8)
     }
 
-    func installation(version: String, name: String) -> XcodeInstallation {
+    func installation(version: String, name: String, build: String = "") -> XcodeInstallation {
         XcodeInstallation(
             appURL: root.appendingPathComponent(name, isDirectory: true),
             version: version,
-            build: ""
+            build: build
         )
     }
 }

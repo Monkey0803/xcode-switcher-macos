@@ -1579,10 +1579,10 @@ struct ProjectProfileRow: View {
             if let match = compatibility.automaticMatch {
                 Label(
                     requirementDescription(match),
-                    systemImage: match.isInstalled ? "checkmark.circle" : "exclamationmark.triangle.fill"
+                    systemImage: match.isInstalled && !match.isAmbiguous ? "checkmark.circle" : "exclamationmark.triangle.fill"
                 )
                 .font(.caption)
-                .foregroundStyle(match.isInstalled ? Color.secondary : Color.orange)
+                .foregroundStyle(match.isInstalled && !match.isAmbiguous ? Color.secondary : Color.orange)
             }
             if let installation = compatibility.installation,
                let source = compatibility.resolvedSource {
@@ -1665,6 +1665,9 @@ struct ProjectProfileRow: View {
     }
 
     private func requirementDescription(_ match: ProjectXcodeMatch) -> String {
+        if match.isAmbiguous {
+            return String(localized: "要求 Xcode \(match.requirement.normalizedVersion)（匹配多个安装包），来自 \(URL(fileURLWithPath: match.requirement.source).lastPathComponent)")
+        }
         let installationState = match.isInstalled
             ? String(localized: "已安装")
             : String(localized: "未安装")

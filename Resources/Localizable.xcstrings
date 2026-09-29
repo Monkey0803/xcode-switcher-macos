@@ -2514,6 +2514,22 @@
         }
       }
     },
+    "已添加项目 %@，但需要处理：%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added project %@, but it needs attention: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "已添加项目 %1$@，但需要处理：%2$@"
+          }
+        }
+      }
+    },
     "已添加项目 %@，自动匹配 Xcode %@。": {
       "localizations": {
         "en": {
@@ -5524,6 +5540,22 @@
         }
       }
     },
+    "要求 Xcode %@（匹配多个安装包），来自 %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requires Xcode %@ (multiple installations match), from %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "要求 Xcode %1$@（匹配多个安装包），来自 %2$@"
+          }
+        }
+      }
+    },
     "警告": {
       "localizations": {
         "en": {
@@ -6372,6 +6404,22 @@
         }
       }
     },
+    "项目要求的 Xcode「%@」对应多个安装包（来自 %@）。请在项目页固定其中一个版本，或在 .xcode-switcher.json 中写入唯一别名或完整路径：\n%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode \"%@\" required by this project matches multiple installations (from %@). Pin one in Projects, or set a unique alias or full path in .xcode-switcher.json:\n%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "项目要求的 Xcode「%1$@」对应多个安装包（来自 %2$@）。请在项目页固定其中一个版本，或在 .xcode-switcher.json 中写入唯一别名或完整路径：\n%3$@"
+          }
+        }
+      }
+    },
     "项目设置…": {
       "localizations": {
         "en": {
@@ -6398,6 +6446,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "The project path is no longer valid; remove it and add it again: %@"
+          }
+        }
+      }
+    },
+    "项目配置中的 Xcode「%@」对应多个安装包（来自 %@）。请将 xcode 改为唯一别名或下面某个完整路径：\n%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xcode \"%@\" in the project configuration matches multiple installations (from %@). Set xcode to a unique alias or one of these full paths:\n%@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "项目配置中的 Xcode「%1$@」对应多个安装包（来自 %2$@）。请将 xcode 改为唯一别名或下面某个完整路径：\n%3$@"
           }
         }
       }

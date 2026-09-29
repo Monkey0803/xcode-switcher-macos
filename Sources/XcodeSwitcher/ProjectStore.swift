@@ -99,7 +99,10 @@ final class ProjectStore: ObservableObject {
         let profile = ProjectProfile(name: url.deletingPathExtension().lastPathComponent, path: url.path)
         setProjects(projects() + [profile])
         persist()
-        if let match = automaticMatch(for: profile) {
+        if let issue = projectIssue(for: profile) {
+            status?.statusMessage = String(localized: "已添加项目 \(profile.name)，但需要处理：\(issue)")
+            status?.isError = true
+        } else if let match = automaticMatch(for: profile) {
             status?.isError = !match.isInstalled
             status?.statusMessage = match.isInstalled
                 ? String(localized: "已添加项目 \(profile.name)，自动匹配 Xcode \(match.requirement.normalizedVersion)。")
@@ -413,21 +416,27 @@ final class ProjectStore: ObservableObject {
         configurationURL: URL?
     ) -> ProjectXcodeMatch? {
         if let selector = localConfiguration?.xcode?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !selector.isEmpty,
-           let installation = installations.first(where: {
-               $0.id == selector || $0.appURL.path == selector || $0.developerURL.path == selector ||
-               $0.name.localizedCaseInsensitiveCompare(selector) == .orderedSame ||
-               aliases[$0.id]?.localizedCaseInsensitiveCompare(selector) == .orderedSame
-           }),
-           let normalized = ProjectXcodeMatcher.normalizeVersion(selector) ?? ProjectXcodeMatcher.normalizeVersion(installation.version) {
-            return ProjectXcodeMatch(
-                requirement: ProjectXcodeRequirement(
-                    source: configurationURL?.path ?? ".xcode-switcher.json",
-                    rawValue: selector,
-                    normalizedVersion: normalized
-                ),
-                installationID: installation.id
-            )
+           !selector.isEmpty {
+            let resolution = XcodeSelector.resolve(selector, among: installations, aliases: aliases)
+            let ids: [String]
+            switch resolution {
+            case let .resolved(id): ids = [id]
+            case let .ambiguous(candidateIDs): ids = candidateIDs
+            case .notFound: ids = []
+            }
+            if let installation = ids.first.flatMap({ id in installations.first { $0.id == id } }),
+               let normalized = ProjectXcodeMatcher.normalizeVersion(selector)
+                    ?? (ids.count == 1 ? ProjectXcodeMatcher.normalizeVersion(installation.version) : nil) {
+                return ProjectXcodeMatch(
+                    requirement: ProjectXcodeRequirement(
+                        source: configurationURL?.path ?? ".xcode-switcher.json",
+                        rawValue: selector,
+                        normalizedVersion: normalized
+                    ),
+                    installationID: ids.count == 1 ? ids[0] : nil,
+                    candidateIDs: ids
+                )
+            }
         }
         return ProjectXcodeMatcher.match(
             projectURL: profile.url,

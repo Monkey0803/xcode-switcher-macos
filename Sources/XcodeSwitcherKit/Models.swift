@@ -95,12 +95,15 @@ public struct ProjectXcodeRequirement: Equatable, Sendable {
 public struct ProjectXcodeMatch: Equatable, Sendable {
     public let requirement: ProjectXcodeRequirement
     let installationID: String?
+    let candidateIDs: [String]
 
-    public var isInstalled: Bool { installationID != nil }
+    public var isInstalled: Bool { !candidateIDs.isEmpty || installationID != nil }
+    public var isAmbiguous: Bool { candidateIDs.count > 1 }
 
-    public init(requirement: ProjectXcodeRequirement, installationID: String?) {
+    public init(requirement: ProjectXcodeRequirement, installationID: String?, candidateIDs: [String] = []) {
         self.requirement = requirement
         self.installationID = installationID
+        self.candidateIDs = candidateIDs
     }
 }
 

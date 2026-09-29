@@ -242,6 +242,19 @@ for item in installs:
         print(item["app"])
 CANDIDATES
 )
+
+  # 项目文件同样不能静默选列表中的第一台。三条入口共用项目解析，
+  # 预览 open 与 env 都不得切换系统默认或导出错误的 DEVELOPER_DIR。
+  duplicate_project="$work/duplicate/Review.xcodeproj"
+  mkdir -p "$duplicate_project"
+  printf '%s\n' "$duplicate_version" >"$work/duplicate/.xcode-version"
+  run 1 --json resolve "$duplicate_project"
+  expect_contains "$stderr" '"code":"failed"' "歧义项目的 resolve"
+  expect_contains "$stderr" "$duplicate_version" "歧义项目的 resolve 候选版本"
+  run 1 --json open --dry-run "$duplicate_project"
+  expect_contains "$stderr" '"code":"failed"' "歧义项目的 open --dry-run"
+  run 1 --json env "$duplicate_project"
+  expect_contains "$stderr" '"code":"failed"' "歧义项目的 env"
 fi
 
 # --- dry-run 只解析，不切换 ---
