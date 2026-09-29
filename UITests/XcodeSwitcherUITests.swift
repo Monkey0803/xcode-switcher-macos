@@ -56,10 +56,13 @@ final class XcodeSwitcherUITests: XCTestCase {
             "语言选择器应当可点：设置窗口必须位于主窗口之上"
         )
 
-        languagePicker.click()
-        let english = app.menuItems["English"]
-        XCTAssertTrue(english.waitForExistence(timeout: 5))
-        english.click()
+        let english = app.menuItems.matching(identifier: "English")
+        for _ in 0..<3 {
+            languagePicker.click()
+            if waitFor(NSPredicate(format: "count > 0"), evaluatedWith: english, timeout: 2) { break }
+        }
+        XCTAssertGreaterThan(english.count, 0)
+        english.element(boundBy: 0).click()
 
         XCTAssertTrue(app.buttons["restart-for-language-button"].waitForExistence(timeout: 5))
     }
@@ -109,16 +112,21 @@ final class XcodeSwitcherUITests: XCTestCase {
             identifier: "project-actions-menu-7C7B93FD-DC7A-47BB-9C91-F0E591DDD2AA"
         ).firstMatch
         XCTAssertTrue(projectActions.waitForExistence(timeout: 5))
+        let projectList = app.scrollViews.firstMatch
+        XCTAssertTrue(projectList.exists)
+        for _ in 0..<3 {
+            if projectList.frame.contains(CGPoint(x: projectActions.frame.midX, y: projectActions.frame.midY)) { break }
+            projectList.swipeUp()
+        }
+        XCTAssertTrue(projectList.frame.contains(CGPoint(x: projectActions.frame.midX, y: projectActions.frame.midY)))
         XCTAssertTrue(
             raiseAndWait(for: projectActions, in: app.windows["XcodeSwitcherSettingsWindow"]),
             "项目更多操作应当可点：设置窗口必须位于主窗口之上"
         )
         projectActions.click()
-        let switchAndOpen = app.descendants(matching: .any).matching(
-            NSPredicate(format: "label == %@", "切换系统默认并打开")
-        ).firstMatch
-        XCTAssertTrue(switchAndOpen.waitForExistence(timeout: 5))
-        switchAndOpen.click()
+        let switchAndOpen = app.menuItems.matching(identifier: "切换系统默认并打开")
+        XCTAssertTrue(waitFor(NSPredicate(format: "count > 0"), evaluatedWith: switchAndOpen))
+        switchAndOpen.element(boundBy: 0).click()
 
         XCTAssertTrue(app.staticTexts["项目推荐使用另一版本的 Xcode"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["切换系统默认并打开"].exists)
