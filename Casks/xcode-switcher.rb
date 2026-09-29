@@ -6,8 +6,8 @@ cask "xcode-switcher" do
   # and the in-app update check both fall back to a working version. 1.4.1 fixes
   # the signing and also makes the release scripts launch the artifact before
   # publishing, so this cannot ship again unnoticed.
-  version "2.2.3,13"
-  sha256 "e829f35f4d893ba747e06ecf66ee6062770eb6ee218b87af226c974762b29eb1"
+  version "2.2.4,14"
+  sha256 "670b17ea8d0d95d2a839770154662eeda46ff3bf08288db9104b5454f64c463d"
 
   url "https://github.com/Monkey0803/xcode-switcher-macos/releases/download/v#{version.csv.first}/Xcode-Switcher-#{version.csv.first}-#{version.csv.second}-local.zip"
   name "Xcode Switcher"
