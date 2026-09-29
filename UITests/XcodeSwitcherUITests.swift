@@ -105,18 +105,39 @@ final class XcodeSwitcherUITests: XCTestCase {
         XCTAssertTrue(projectsTab.waitForExistence(timeout: 10))
         projectsTab.click()
 
-        let openProject = app.buttons["open-project-button-7C7B93FD-DC7A-47BB-9C91-F0E591DDD2AA"]
-        XCTAssertTrue(openProject.waitForExistence(timeout: 5))
+        let projectActions = app.descendants(matching: .any).matching(
+            identifier: "project-actions-menu-7C7B93FD-DC7A-47BB-9C91-F0E591DDD2AA"
+        ).firstMatch
+        XCTAssertTrue(projectActions.waitForExistence(timeout: 5))
         XCTAssertTrue(
-            raiseAndWait(for: openProject, in: app.windows["XcodeSwitcherSettingsWindow"]),
-            "应用并打开按钮应当可点：设置窗口必须位于主窗口之上"
+            raiseAndWait(for: projectActions, in: app.windows["XcodeSwitcherSettingsWindow"]),
+            "项目更多操作应当可点：设置窗口必须位于主窗口之上"
         )
-        openProject.click()
+        projectActions.click()
+        let switchAndOpen = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label == %@", "切换系统默认并打开")
+        ).firstMatch
+        XCTAssertTrue(switchAndOpen.waitForExistence(timeout: 5))
+        switchAndOpen.click()
 
         XCTAssertTrue(app.staticTexts["项目推荐使用另一版本的 Xcode"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["切换系统默认并打开"].exists)
         app.sheets.buttons["取消"].click()
         XCTAssertFalse(app.buttons["切换系统默认并打开"].exists)
+    }
+
+    func testProjectFileBindingShowsItsSourceAndProjectActions() throws {
+        app.typeKey(",", modifierFlags: .command)
+        let projectsTab = app.radioButtons["项目"]
+        XCTAssertTrue(projectsTab.waitForExistence(timeout: 10))
+        projectsTab.click()
+
+        let suffix = "7ABF924D-57B7-4D6B-AC2B-46BE78EB764B"
+        let source = app.descendants(matching: .any).matching(identifier: "project-local-binding-source-\(suffix)").firstMatch
+        XCTAssertTrue(source.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "project-xcode-picker-\(suffix)").firstMatch.exists)
+        XCTAssertTrue(app.buttons["open-project-without-switch-button-\(suffix)"].exists)
+        XCTAssertTrue(app.buttons["open-project-terminal-button-\(suffix)"].exists)
     }
 
     func testWorkspaceConflictOffersDirectXcodeChoices() throws {
@@ -147,7 +168,7 @@ final class XcodeSwitcherUITests: XCTestCase {
         XCTAssertTrue(scan.exists)
         scan.click()
         XCTAssertTrue(app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "open-project-button-")
+            NSPredicate(format: "identifier BEGINSWITH %@", "open-project-without-switch-button-")
         ).firstMatch.waitForExistence(timeout: 5))
     }
 

@@ -12,6 +12,7 @@ struct ProjectCompatibilityItem: Identifiable {
     let automaticMatch: ProjectXcodeMatch?
     let workspaceConflict: WorkspaceXcodeConflict?
     let installation: XcodeInstallation?
+    let localXcodeBindingPath: String?
     let isProjectPresent: Bool
     let isActiveInstallation: Bool
 
@@ -26,6 +27,7 @@ struct ProjectCompatibilityItem: Identifiable {
     /// malformed local config must be fixed in the project itself.
     var hasRepairableMissingBinding: Bool {
         guard profile.xcodeID != nil else { return false }
+        guard localXcodeBindingPath == nil else { return false }
         guard case .missingBoundXcode = resolution else { return false }
         return true
     }
@@ -53,6 +55,8 @@ final class ProjectStore: ObservableObject {
     var activeInstallation: () -> XcodeInstallation? = { nil }
     var aliases: () -> [String: String] = { [:] }
     var activate: (XcodeInstallation, URL?) -> Void = { _, _ in }
+    var openProject: (URL, XcodeInstallation) -> Void = XcodeActions.open
+    var openTerminal: (URL, String) -> Bool = XcodeActions.openTerminal
     var showMainWindow: () -> Void = {}
     weak var status: (any StatusReporting)?
 
@@ -76,6 +80,7 @@ final class ProjectStore: ObservableObject {
         let resolution: ProjectXcodeResolution
         let match: ProjectXcodeMatch?
         let workspaceConflict: WorkspaceXcodeConflict?
+        let localXcodeBindingPath: String?
         let isProjectPresent: Bool
         let computedAt: Date
     }
@@ -198,6 +203,7 @@ final class ProjectStore: ObservableObject {
                 automaticMatch: snapshot.match,
                 workspaceConflict: snapshot.workspaceConflict,
                 installation: installation,
+                localXcodeBindingPath: snapshot.localXcodeBindingPath,
                 isProjectPresent: snapshot.isProjectPresent,
                 isActiveInstallation: installation?.id == activeInstallation()?.id
             )
@@ -259,21 +265,46 @@ final class ProjectStore: ObservableObject {
         return resolution.installationID.flatMap { id in installations().first(where: { $0.id == id }) }
     }
 
-    func applyAndOpen(_ profile: ProjectProfile) {
-        // Opening a project changes which Xcode is used, so resolve from disk
-        // rather than trusting a cached snapshot.
-        let resolution = snapshot(for: profile, refreshing: true).resolution
+    private func resolvedAction(for profile: ProjectProfile) -> (ProjectProfile, XcodeInstallation, ProjectXcodeResolution)? {
+        // A row may still hold a value from an earlier render. Use the current
+        // profile and re-read project files before performing either action.
+        let currentProfile = projects().first(where: { $0.id == profile.id }) ?? profile
+        let resolution = snapshot(for: currentProfile, refreshing: true).resolution
         if let issue = resolution.issueDescription {
             status?.statusMessage = issue
             status?.isError = true
-            return
+            return nil
         }
         guard let installationID = resolution.installationID,
               let installation = installations().first(where: { $0.id == installationID }) else {
             status?.statusMessage = String(localized: "没有可用于打开项目的 Xcode。")
             status?.isError = true
-            return
+            return nil
         }
+        return (currentProfile, installation, resolution)
+    }
+
+    /// Opens with the Xcode selected by the project's effective binding. The
+    /// machine-wide developer directory and administrator authorization are untouched.
+    func openProjectWithoutSwitch(_ profile: ProjectProfile) {
+        guard let (profile, installation, _) = resolvedAction(for: profile) else { return }
+        openProject(profile.url, installation)
+        status?.statusMessage = String(localized: "已请求使用 Xcode \(installation.displayVersion) 打开 \(profile.name)，未修改系统开发者目录。")
+        status?.isError = false
+    }
+
+    func openProjectTerminal(_ profile: ProjectProfile) {
+        guard let (profile, installation, _) = resolvedAction(for: profile) else { return }
+        let directory = profile.url.deletingLastPathComponent()
+        let success = openTerminal(directory, installation.developerURL.path)
+        status?.isError = !success
+        status?.statusMessage = success
+            ? String(localized: "已在 \(directory.path) 打开终端，DEVELOPER_DIR 指向 Xcode \(installation.displayVersion)。")
+            : String(localized: "无法在 \(directory.path) 打开项目终端。")
+    }
+
+    func applyAndOpen(_ profile: ProjectProfile) {
+        guard let (profile, installation, resolution) = resolvedAction(for: profile) else { return }
         guard let decision = ProjectXcodeMatcher.openDecision(
             for: resolution,
             activeInstallationID: activeInstallation()?.id
@@ -312,7 +343,7 @@ final class ProjectStore: ObservableObject {
     func openPendingProjectWithRecommendedXcode() {
         guard let request = pendingProjectOpen else { return }
         pendingProjectOpen = nil
-        XcodeActions.open(request.profile.url, with: request.recommendedInstallation)
+        openProject(request.profile.url, request.recommendedInstallation)
         status?.statusMessage = String(localized: "已用 Xcode \(request.recommendedInstallation.displayVersion) 打开 \(request.profile.name)，未修改系统开发者目录。")
         status?.isError = false
     }
@@ -381,6 +412,8 @@ final class ProjectStore: ObservableObject {
         let localConfiguration = configurationURL.flatMap {
             ProjectLocalConfigurationStore.load(in: $0.deletingLastPathComponent())
         }
+        let localControlsXcode = localConfiguration?.xcode?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            || (configurationURL != nil && localConfiguration == nil)
         let resolved = ProjectSnapshot(
             resolution: ProjectXcodeMatcher.resolve(
                 profile: profile,
@@ -401,6 +434,7 @@ final class ProjectStore: ObservableObject {
                 installations: installations(),
                 aliases: aliases()
             ),
+            localXcodeBindingPath: localControlsXcode ? configurationURL?.path : nil,
             isProjectPresent: FileManager.default.fileExists(atPath: profile.path),
             computedAt: Date()
         )

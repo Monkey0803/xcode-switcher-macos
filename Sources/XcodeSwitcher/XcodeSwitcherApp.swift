@@ -50,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let uiTestingEnvironmentKey = "XCODE_SWITCHER_UI_TESTING"
     private static let uiTestingDefaultsSuite = "com.yostar.xcodeswitcher.uitests"
     private static let uiTestingRecommendedProjectID = UUID(uuidString: "7C7B93FD-DC7A-47BB-9C91-F0E591DDD2AA")!
+    private static let uiTestingFileBoundProjectID = UUID(uuidString: "7ABF924D-57B7-4D6B-AC2B-46BE78EB764B")!
 
     private static var isRunningUITests: Bool {
         ProcessInfo.processInfo.environment[uiTestingEnvironmentKey] == "1"
@@ -207,6 +208,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         let projectURL = root.appendingPathComponent("Fixture.xcodeproj", isDirectory: true)
         let workspaceURL = root.appendingPathComponent("Workspace.xcworkspace", isDirectory: true)
+        let fileBoundProjectURL = root.appendingPathComponent("Local/BoundByFile.xcodeproj", isDirectory: true)
         try? FileManager.default.createDirectory(
             at: active.developerURL,
             withIntermediateDirectories: true
@@ -221,6 +223,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         try? FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: workspaceURL, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: fileBoundProjectURL, withIntermediateDirectories: true)
+        try? "{\"xcode\": \"\(active.appURL.path)\"}".write(
+            to: fileBoundProjectURL.deletingLastPathComponent().appendingPathComponent(".xcode-switcher.json"),
+            atomically: true,
+            encoding: .utf8
+        )
         for (name, version) in [("App", "15.4"), ("Tools", "16.0")] {
             let directory = root.appendingPathComponent(name, isDirectory: true)
             let childProjectURL = directory.appendingPathComponent("\(name).xcodeproj", isDirectory: true)
@@ -255,6 +263,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "UI test authorization cancelled."]
             )
+        }
+        model.projects.openProject = { project, installation in
+            print("[ui-test] opened \(project.lastPathComponent) with \(installation.displayVersion) without system switch")
+        }
+        model.projects.openTerminal = { directory, developerPath in
+            print("[ui-test] terminal at \(directory.path) with \(developerPath)")
+            return true
         }
         model.installs.simulatorAction = { _, _, _ in
             ProcessResult(status: 1, stdout: "", stderr: "UI test simctl failure")
@@ -306,7 +321,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 path: projectURL.path,
                 xcodeID: recommended.id
             ),
-            ProjectProfile(name: String(localized: "测试工作区"), path: workspaceURL.path)
+            ProjectProfile(name: String(localized: "测试工作区"), path: workspaceURL.path),
+            ProjectProfile(
+                id: uiTestingFileBoundProjectID,
+                name: String(localized: "文件绑定项目"),
+                path: fileBoundProjectURL.path,
+                xcodeID: recommended.id
+            )
         ]
         model.configuration.projectSearchPaths = [root.path]
     }

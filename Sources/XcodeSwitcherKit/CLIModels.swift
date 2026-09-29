@@ -17,6 +17,8 @@ public enum CLISubcommands {
 public struct CLIOptions: Equatable, Sendable {
     public let json: Bool
     public let dryRun: Bool
+    /// `open --no-switch` launches the chosen Xcode without changing xcode-select.
+    public let noSwitch: Bool
     /// Set by `--force`: switch even though a running Xcode would be disturbed, and
     /// for `clean` the flag that turns a preview into an actual removal.
     public let force: Bool
@@ -29,6 +31,7 @@ public struct CLIOptions: Equatable, Sendable {
     public static func parse(_ arguments: [String]) throws -> CLIOptions {
         var json = false
         var dryRun = false
+        var noSwitch = false
         var force = false
         var all = false
         var remaining: [String] = []
@@ -36,6 +39,7 @@ public struct CLIOptions: Equatable, Sendable {
             switch argument {
             case "--json": json = true
             case "--dry-run": dryRun = true
+            case "--no-switch": noSwitch = true
             case "--force": force = true
             case "--all": all = true
             default: remaining.append(argument)
@@ -44,6 +48,7 @@ public struct CLIOptions: Equatable, Sendable {
         return CLIOptions(
             json: json,
             dryRun: dryRun,
+            noSwitch: noSwitch,
             force: force,
             all: all,
             command: remaining.first,
@@ -110,17 +115,20 @@ public struct CLIOperationOutput: Codable, Equatable, Sendable {
     let installation: CLIInstallationOutput
     let project: String?
     let dryRun: Bool
+    let switchSystem: Bool?
 
     public init(
         action: String,
         installation: CLIInstallationOutput,
         project: String?,
-        dryRun: Bool
+        dryRun: Bool,
+        switchSystem: Bool? = nil
     ) {
         self.action = action
         self.installation = installation
         self.project = project
         self.dryRun = dryRun
+        self.switchSystem = switchSystem
     }
 }
 

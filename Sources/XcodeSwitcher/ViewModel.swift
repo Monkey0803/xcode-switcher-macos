@@ -502,6 +502,8 @@ final class XcodeViewModel: ObservableObject, StatusReporting, ConfigurationOwni
         projects.installation(for: profile)
     }
     func applyAndOpen(_ profile: ProjectProfile) { projects.applyAndOpen(profile) }
+    func openProjectWithoutSwitch(_ profile: ProjectProfile) { projects.openProjectWithoutSwitch(profile) }
+    func openProjectTerminal(_ profile: ProjectProfile) { projects.openProjectTerminal(profile) }
     func switchAndOpenPendingProject() { projects.switchAndOpenPendingProject() }
     func openPendingProjectWithRecommendedXcode() { projects.openPendingProjectWithRecommendedXcode() }
     func cancelPendingProjectOpen() { projects.cancelPendingProjectOpen() }

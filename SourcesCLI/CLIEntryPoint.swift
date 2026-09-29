@@ -82,8 +82,12 @@ private struct XcodeSwitcherCLI {
     func run(arguments: [String]) throws -> Int32 {
         let options = try CLIOptions.parse(arguments)
         guard let command = options.command else {
+            if options.noSwitch { throw CLIError.usage(String(localized: "--no-switch 仅适用于 open 命令。")) }
             print(Self.help)
             return 0
+        }
+        if options.noSwitch && command != "open" {
+            throw CLIError.usage(String(localized: "--no-switch 仅适用于 open 命令。"))
         }
         let values = options.values
         switch command {
@@ -206,6 +210,7 @@ private struct XcodeSwitcherCLI {
                   let installation = installations.first(where: { $0.id == id }) else {
                 throw CLIError.failed(String(localized: "无法解析项目使用的 Xcode。"))
             }
+            let switchSystem = !options.noSwitch && installation.developerURL.path != activeDeveloperPath
             if options.dryRun {
                 let output = CLIOperationOutput(
                     action: "open",
@@ -215,16 +220,38 @@ private struct XcodeSwitcherCLI {
                         alias: configuration.xcodeAliases[installation.id]
                     ),
                     project: project.path,
-                    dryRun: true
+                    dryRun: true,
+                    switchSystem: switchSystem
                 )
-                if options.json { printJSON(output) } else { print(String(localized: "[dry-run] 将使用 \(installation.name) 打开 \(project.path)")) }
+                if options.json {
+                    printJSON(output)
+                } else {
+                    let systemAction = switchSystem
+                        ? String(localized: "将切换系统默认 Xcode")
+                        : String(localized: "不会切换系统默认 Xcode")
+                    print(String(localized: "[dry-run] 将使用 \(installation.name) 打开 \(project.path)；\(systemAction)"))
+                }
                 return 0
             }
-            if installation.developerURL.path != activeDeveloperPath {
+            if switchSystem {
                 try XcodeActivator.activate(installation)
             }
             XcodeActions.open(project, with: installation)
-            print(String(localized: "已使用 \(installation.name) 打开 \(project.lastPathComponent)"))
+            if options.json {
+                printJSON(CLIOperationOutput(
+                    action: "open",
+                    installation: CLIInstallationOutput(
+                        installation: installation,
+                        active: installation.developerURL.path == XcodeLocator.activeDeveloperPath(),
+                        alias: configuration.xcodeAliases[installation.id]
+                    ),
+                    project: project.path,
+                    dryRun: false,
+                    switchSystem: switchSystem
+                ))
+            } else {
+                print(String(localized: "已使用 \(installation.name) 打开 \(project.lastPathComponent)"))
+            }
             return 0
         default:
             throw CLIError.usage("\(String(localized: "未知命令：\(command)"))\n\n\(Self.help)")
@@ -907,7 +934,7 @@ private struct XcodeSwitcherCLI {
       xcodeswitcher [--json] use [--dry-run] <版本、别名或路径>
       xcodeswitcher pin <版本、别名或路径> [项目路径]
       xcodeswitcher unpin [项目路径]
-      xcodeswitcher [--json] open [--dry-run] <project.xcodeproj|workspace.xcworkspace>
+      xcodeswitcher [--json] open [--dry-run] [--no-switch] <project.xcodeproj|workspace.xcworkspace>
 
     --json 输出机器可读 JSON；--dry-run 仅显示将执行的动作。
     --force 即使有 Xcode 正在运行也继续切换；clean 则用它表示真正执行清理，
@@ -919,6 +946,7 @@ private struct XcodeSwitcherCLI {
     uninstall 把 Xcode.app 移到废纸篓，不移除项目、签名或用户数据；它是系统
     默认、被项目绑定、或路径含符号链接时会被拒绝。
     env 和 shell-init zsh 只读取项目环境，不会修改 xcode-select。
+    open --no-switch 用项目匹配的 Xcode 打开工程，不修改系统默认开发者目录。
     """)
 }
 

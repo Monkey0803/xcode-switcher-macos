@@ -111,6 +111,8 @@ if [[ -n "$stdout" ]]; then
   exit 1
 fi
 run 64 use
+run 64 --json use --no-switch --dry-run 16.4
+expect_contains "$stderr" '"code":"usage"' "--no-switch 只能用于 open"
 run 64 resolve /tmp/not-a-project.txt
 run 64 completions powershell
 
@@ -266,6 +268,28 @@ print(json.load(sys.stdin)[0]["app"])
 run 0 use --dry-run "$installation_app"
 expect_contains "$stdout" "[dry-run]" "use --dry-run"
 
+# 项目级打开可以只启动匹配的 Xcode，不修改全局 xcode-select。用真实已发现的
+# 安装路径造项目配置，再比较两个预览的机器可读切换计划。
+project_open_root="$work/project-open"
+project_open_path="$project_open_root/Review.xcodeproj"
+mkdir -p "$project_open_path"
+project_open_app="${spare_app:-$installation_app}"
+/usr/bin/python3 - "$project_open_root/.xcode-switcher.json" "$project_open_app" <<'PROJECT_CONFIG'
+import json, pathlib, sys
+pathlib.Path(sys.argv[1]).write_text(json.dumps({"xcode": sys.argv[2]}))
+PROJECT_CONFIG
+run 0 --json open --no-switch --dry-run "$project_open_path"
+expect_contains "$stdout" '"switchSystem" : false' "open --no-switch 的预览"
+resolved_project_open_app="$(/usr/bin/python3 -c 'import json,sys; print(json.load(sys.stdin)["installation"]["app"])' <<<"$stdout")"
+if [[ "$resolved_project_open_app" != "$project_open_app" ]]; then
+  printf 'open --no-switch 解析了错误的安装包：期望 %s，实际 %s\n' "$project_open_app" "$resolved_project_open_app" >&2
+  exit 1
+fi
+run 0 --json open --dry-run "$project_open_path"
+if [[ -n "$spare_app" ]]; then
+  expect_contains "$stdout" '"switchSystem" : true' "普通 open 对非默认 Xcode 的预览"
+fi
+
 after_developer_dir="$(env -u DEVELOPER_DIR xcode-select --print-path)"
 if [[ "$before_developer_dir" != "$after_developer_dir" ]]; then
   printf 'CLI 改变了全局 Developer 目录：%s -> %s\n' \
@@ -287,4 +311,4 @@ case "$doctor_status" in
     ;;
 esac
 
-printf 'CLI 契约 E2E 通过：只读命令、退出码 0/1/2/64、--json 错误结构与标准错误输出、uninstall 的拒绝规则、dry-run 不改变全局开发者目录。\n'
+printf 'CLI 契约 E2E 通过：只读命令、退出码 0/1/2/64、--json 错误结构与标准错误输出、uninstall 的拒绝规则、open --no-switch 预演和全局开发者目录保持不变。\n'

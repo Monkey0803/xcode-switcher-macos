@@ -55,7 +55,7 @@ cd xcode-switcher-macos && ./build_app.sh
 - 查看 Simulator 设备状态，并可启动、关闭、抹掉、删除、克隆、重命名或新建设备（新建时按所选运行系统过滤设备类型）；不再受当前 Xcode SDK 支持的设备可一次性清理（这类设备无法启动也无法抹掉，此前只能不断堆积）；切换 Xcode 后可回滚到最近使用版本。
 - 清理 Xcode 磁盘占用：DerivedData、Products、DeviceLogs、文档缓存与索引、CoreSimulator 缓存、包缓存、Archives 与 iOS DeviceSupport 子项，按「可安全清理 / 需谨慎清理」分级；谨慎项（归档、真机支持、包缓存）删除时移到废纸篓以便恢复。
 - 移除不再需要的 Xcode：详情页的「磁盘清理」区顶部显示这个 Xcode.app 自身占用多少，并可在确认后把它移到废纸篓（缓存清理永远不碰 Xcode.app，两者刻意分开）。它是当前系统默认、正在运行、被某个项目绑定、或路径含符号链接时会被拒绝并说明原因——这几种情况下移除要么没用，要么会破坏别的东西。**「被项目绑定」两个来源都算**：App 里的项目列表，以及项目或仓库里的 `.xcode-switcher.json`（后者会被项目扫描目录发现，不要求先在 App 里添加过这个项目）；被拒时会逐条列出是哪个项目、这份绑定写在哪里，因为两者该改的地方不同。
-- 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode，一键切换并打开项目。
+- 添加 `.xcodeproj` / `.xcworkspace`，为项目绑定 Xcode；可用项目匹配的 Xcode 直接打开工程，或在项目目录打开已注入 `DEVELOPER_DIR` 的终端，两者都不修改系统默认开发者目录。需要全局切换时，可从项目行的「更多操作」明确选择「切换系统默认并打开」。
 - 自动读取项目或上级目录中的 `.xcode-version`、`.tool-versions`，匹配对应 Xcode；绑定版本或项目路径失效时会阻止误开并给出提示。
 - 项目要求的版本若同时匹配多个安装包（例如 27.0 的 Beta 与正式版），会列出构建号和路径并阻止自动打开或注入 `DEVELOPER_DIR`；可在项目页固定其中一个安装，或在 `.xcode-switcher.json` 中使用唯一别名或完整路径。
 - 一键打开指定 Xcode，或打开注入对应 `DEVELOPER_DIR` 的 Terminal。
@@ -173,7 +173,7 @@ CLI 位于 App 包内：
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" resolve /path/Demo.xcworkspace
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" doctor 16.4
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json use --dry-run 16.4
-"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json open --dry-run /path/Demo.xcodeproj
+"build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json open --no-switch --dry-run /path/Demo.xcodeproj
 "build/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" --json uninstall --dry-run 16.0
 ```
 
@@ -184,8 +184,8 @@ mkdir -p "$HOME/.local/bin"
 ln -s "/Applications/Xcode Switcher.app/Contents/MacOS/xcodeswitcher" "$HOME/.local/bin/xcodeswitcher"
 ```
 
-`use` 和 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`resolve` 与 `doctor` 不改变系统配置。`uninstall` 把 Xcode.app 移到废纸篓（不删除项目、签名或用户数据），需要 `--dry-run` 预览，并在它是系统默认、被项目绑定或路径含符号链接时拒绝——只有「它正在运行」这一条能用 `--force` 越过。
-所有命令默认输出人类可读文本；`--json` 输出机器可读 JSON，`--dry-run` 只解析并展示 `use`/`open` 将执行的动作，不会切换 Xcode 或打开项目。
+`use` 和普通 `open` 会在确实需要切换 Command Line Tools 时请求管理员授权；`open --no-switch` 只用项目匹配的 Xcode 打开工程，不修改 `xcode-select`，无需管理员授权。`resolve` 与 `doctor` 也不改变系统配置。`uninstall` 把 Xcode.app 移到废纸篓（不删除项目、签名或用户数据），需要 `--dry-run` 预览，并在它是系统默认、被项目绑定或路径含符号链接时拒绝——只有「它正在运行」这一条能用 `--force` 越过。
+所有命令默认输出人类可读文本；`--json` 输出机器可读 JSON，`--dry-run` 只解析并展示 `use`/`open` 将执行的动作，不会切换 Xcode 或打开项目。`open --dry-run --json` 的 `switchSystem` 字段说明实际执行时是否会修改系统默认 Xcode。
 命令失败时，`--json` 会在标准错误输出 `{"code":"usage|failed","message":"…"}`，退出码按下面的约定：
 
 | 退出码 | 含义 |
@@ -227,6 +227,8 @@ Hook 只在切换目录时重新解析，同一目录不会每条命令都启动
 这个文件里写的 `xcode` 也是**移除守卫的依据**：项目或仓库里绑定着某个版本时，「移除 Xcode」会拒绝把它移到废纸篓，并告诉你这个绑定写在哪个文件里。文件放在仓库根目录时，它覆盖其下的所有项目。
 
 如果同一版本安装了多个 Xcode，写版本号会得到歧义提示，不会按列表顺序挑选。团队共用配置可为各机器上的目标安装设置同一个唯一别名；只针对本机的配置也可以直接写 Xcode.app 的完整路径。
+
+项目文件中的 `xcode` 优先于 App 内的项目绑定。项目页会显示实际生效的配置文件路径；当该文件控制 Xcode 时，App 绑定选择器不会出现，可用「显示配置文件」找到需要修改的文件。项目页的「用匹配 Xcode 打开」和「在项目目录打开终端」都会在点击时重新读取配置，以文件当前内容为准。
 
 项目设置会标记失效路径或失效 Xcode 绑定，并提供“清理失效项目”批量移除入口。
 

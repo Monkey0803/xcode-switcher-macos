@@ -1537,12 +1537,16 @@ struct ProjectProfileRow: View {
     @State private var name: String
     @State private var selectedXcodeID: String
     @State private var ignoresNextXcodeBindingSave = false
+    @State private var actionFeedback: String?
+    @State private var actionFeedbackIsError: Bool
 
     init(profile: ProjectProfile, compatibility: ProjectCompatibilityItem) {
         self.profile = profile
         self.compatibility = compatibility
         _name = State(initialValue: profile.name)
         _selectedXcodeID = State(initialValue: profile.xcodeID ?? "")
+        _actionFeedback = State(initialValue: nil)
+        _actionFeedbackIsError = State(initialValue: false)
     }
 
     var body: some View {
@@ -1557,24 +1561,67 @@ struct ProjectProfileRow: View {
                     Text(profile.path).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer()
-                Picker("Xcode", selection: $selectedXcodeID) {
-                    Text("自动匹配 / 跟随当前").tag("")
-                    if !selectedXcodeID.isEmpty,
-                       !model.installations.contains(where: { $0.id == selectedXcodeID }) {
-                        Text("绑定版本已丢失").tag(selectedXcodeID)
+                if compatibility.localXcodeBindingPath == nil {
+                    Picker("Xcode", selection: $selectedXcodeID) {
+                        Text("自动匹配 / 跟随当前").tag("")
+                        if !selectedXcodeID.isEmpty,
+                           !model.installations.contains(where: { $0.id == selectedXcodeID }) {
+                            Text("绑定版本已丢失").tag(selectedXcodeID)
+                        }
+                        ForEach(model.installations) { installation in
+                            Text("\(installation.name) \(installation.displayVersion)").tag(installation.id)
+                        }
                     }
-                    ForEach(model.installations) { installation in
-                        Text("\(installation.name) \(installation.displayVersion)").tag(installation.id)
-                    }
+                    .frame(minWidth: 180, idealWidth: 240)
+                    .accessibilityIdentifier("project-xcode-picker-\(profile.id.uuidString)")
+                } else {
+                    Text("由项目配置决定")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(minWidth: 180, idealWidth: 240)
-                .accessibilityIdentifier("project-xcode-picker-\(profile.id.uuidString)")
-                Button("应用并打开") { model.applyAndOpen(profile) }
-                    .prominentActionStyle()
-                    .disabled(compatibility.issueDescription != nil)
-                    .accessibilityIdentifier("open-project-button-\(profile.id.uuidString)")
                 Button { NSWorkspace.shared.activateFileViewerSelecting([profile.url]) } label: { Image(systemName: "folder") }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel("在 Finder 中显示 \(profile.name)")
+            }
+            if let path = compatibility.localXcodeBindingPath {
+                HStack(spacing: 8) {
+                    Label("Xcode 由项目配置文件控制：\(path)。App 绑定不会覆盖它。", systemImage: "doc.text")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("project-local-binding-source-\(profile.id.uuidString)")
+                    Button("显示配置文件") {
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                    }
+                    .buttonStyle(.link)
+                }
+            }
+            HStack(spacing: 8) {
+                Button("用匹配 Xcode 打开") {
+                    model.openProjectWithoutSwitch(profile)
+                    captureActionFeedback()
+                }
+                    .prominentActionStyle()
+                    .disabled(compatibility.installation == nil || compatibility.issueDescription != nil)
+                    .accessibilityIdentifier("open-project-without-switch-button-\(profile.id.uuidString)")
+                Button("在项目目录打开终端") {
+                    model.openProjectTerminal(profile)
+                    captureActionFeedback()
+                }
+                    .disabled(compatibility.installation == nil || compatibility.issueDescription != nil)
+                    .accessibilityIdentifier("open-project-terminal-button-\(profile.id.uuidString)")
+                Menu("更多操作") {
+                    Button("切换系统默认并打开") { model.applyAndOpen(profile) }
+                        .disabled(compatibility.installation == nil || compatibility.issueDescription != nil)
+                }
+                .accessibilityIdentifier("project-actions-menu-\(profile.id.uuidString)")
+            }
+            if let actionFeedback {
+                Label(actionFeedback, systemImage: actionFeedbackIsError ? "exclamationmark.triangle.fill" : "checkmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(actionFeedbackIsError ? Color.orange : Color.secondary)
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("project-action-feedback-\(profile.id.uuidString)")
             }
             if let match = compatibility.automaticMatch {
                 Label(
@@ -1615,10 +1662,12 @@ struct ProjectProfileRow: View {
                                     chooseWorkspaceRequirement(requirement)
                                 }
                                 .buttonStyle(.bordered)
-                                .disabled(requirement.installationID == nil)
-                                .help(requirement.installationID == nil
-                                    ? String(localized: "本机未安装该项目要求的 Xcode。")
-                                    : String(localized: "固定此 Workspace 打开时使用的 Xcode。"))
+                                .disabled(requirement.installationID == nil || compatibility.localXcodeBindingPath != nil)
+                                .help(compatibility.localXcodeBindingPath != nil
+                                    ? String(localized: "项目配置文件控制此 Workspace 的 Xcode，请修改该文件。")
+                                    : requirement.installationID == nil
+                                        ? String(localized: "本机未安装该项目要求的 Xcode。")
+                                        : String(localized: "固定此 Workspace 打开时使用的 Xcode。"))
                                 .accessibilityIdentifier("workspace-xcode-choice-\(profile.id.uuidString)-\(requirement.id)")
                             }
                         }
@@ -1656,6 +1705,11 @@ struct ProjectProfileRow: View {
 
     private func scheduleSave() {
         model.scheduleProjectUpdate(profile, name: name, xcodeID: selectedXcodeID.isEmpty ? nil : selectedXcodeID)
+    }
+
+    private func captureActionFeedback() {
+        actionFeedback = model.statusMessage
+        actionFeedbackIsError = model.isError
     }
 
     private func chooseWorkspaceRequirement(_ requirement: WorkspaceXcodeConflict.Requirement) {

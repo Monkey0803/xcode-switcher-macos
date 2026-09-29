@@ -10,6 +10,7 @@ final class CLIOptionsTests: XCTestCase {
         XCTAssertEqual(options.command, "use")
         XCTAssertEqual(options.values, ["16.4"])
         XCTAssertFalse(options.force)
+        XCTAssertFalse(options.noSwitch)
     }
 
     func testDefaultsToHumanOutputAndNoDryRun() throws {
@@ -49,6 +50,28 @@ final class CLIOptionsTests: XCTestCase {
         let shellInit = try CLIOptions.parse(["shell-init", "zsh"])
         XCTAssertEqual(shellInit.command, "shell-init")
         XCTAssertEqual(shellInit.values, ["zsh"])
+    }
+
+    func testParsesNoSwitchForProjectOpen() throws {
+        let options = try CLIOptions.parse(["--json", "open", "--no-switch", "--dry-run", "/tmp/App.xcodeproj"])
+        XCTAssertTrue(options.noSwitch)
+        XCTAssertTrue(options.dryRun)
+        XCTAssertEqual(options.command, "open")
+        XCTAssertEqual(options.values, ["/tmp/App.xcodeproj"])
+    }
+
+    func testOpenOperationReportsWhetherItWillSwitchSystemXcode() throws {
+        let installation = XcodeInstallation(appURL: URL(fileURLWithPath: "/Applications/Xcode.app"), version: "16.4", build: "16F6")
+        let output = CLIOperationOutput(
+            action: "open",
+            installation: CLIInstallationOutput(installation: installation, active: false),
+            project: "/tmp/App.xcodeproj",
+            dryRun: true,
+            switchSystem: false
+        )
+        let data = try JSONEncoder().encode(output)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(object["switchSystem"] as? Bool, false)
     }
 
     func testSubcommandListIsUniqueAndComplete() throws {

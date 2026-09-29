@@ -271,6 +271,68 @@ struct ViewModelCachingTests {
         #expect(afterRepeatedSaves == settled)
     }
 
+    @Test("项目文件控制 Xcode 时不会把 App 绑定误报为可批量修复")
+    func localXcodeBindingTakesPriorityInCompatibilityOverview() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        var profile = try makeProject(in: fixture.root, version: "16.4")
+        profile.xcodeID = fixture.root.appendingPathComponent("missing-app-binding.app").path
+        fixture.model.configuration.projects = [profile]
+        let configURL = profile.url.deletingLastPathComponent().appendingPathComponent(".xcode-switcher.json")
+        try "{\"xcode\": \"missing-local-binding\"}".write(to: configURL, atomically: true, encoding: .utf8)
+
+        let item = try #require(fixture.model.projectCompatibilityItems.first)
+        #expect(item.localXcodeBindingPath == configURL.path)
+        #expect(item.issueDescription?.contains("missing-local-binding") == true)
+        #expect(fixture.model.repairableMissingProjectBindings.isEmpty)
+    }
+
+    @Test("项目打开和终端都重新解析文件，且不切换系统 Xcode")
+    func projectWorkSessionUsesFreshMatchWithoutSwitchingSystem() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let profile = try makeProject(in: fixture.root, version: "16.4")
+        let xcode15 = XcodeInstallation(appURL: fixture.root.appendingPathComponent("Xcode 15.4.app"), version: "15.4", build: "15F31d")
+        let xcode16 = XcodeInstallation(appURL: fixture.root.appendingPathComponent("Xcode 16.4.app"), version: "16.4", build: "16F6")
+        fixture.model.installs.replaceInstallationsForUITesting(
+            [xcode15, xcode16],
+            activeDeveloperPath: xcode15.developerURL.path
+        )
+        fixture.model.configuration.projects = [profile]
+        #expect(fixture.model.projectCompatibilityItems.first?.installation?.id == xcode16.id)
+
+        // Change the project requirement after the overview was cached. A click
+        // must use the file's current value instead of the previous row snapshot.
+        try "15.4\n".write(
+            to: profile.url.deletingLastPathComponent().appendingPathComponent(".xcode-version"),
+            atomically: true,
+            encoding: .utf8
+        )
+        var openedProject: URL?
+        var openedInstallationID: String?
+        fixture.model.projects.openProject = { url, installation in
+            openedProject = url
+            openedInstallationID = installation.id
+        }
+        var terminalDirectory: URL?
+        var terminalDeveloperPath: String?
+        fixture.model.projects.openTerminal = { directory, developerPath in
+            terminalDirectory = directory
+            terminalDeveloperPath = developerPath
+            return true
+        }
+
+        fixture.model.openProjectWithoutSwitch(profile)
+        fixture.model.openProjectTerminal(profile)
+
+        #expect(openedProject == profile.url)
+        #expect(openedInstallationID == xcode15.id)
+        #expect(terminalDirectory == profile.url.deletingLastPathComponent())
+        #expect(terminalDeveloperPath == xcode15.developerURL.path)
+        #expect(fixture.model.activeDeveloperPath == xcode15.developerURL.path)
+        #expect(fixture.model.pendingProjectOpen == nil)
+    }
+
     @Test("应用语言写入 AppleLanguages，并可恢复为跟随系统")
     func persistsAppLanguageOverride() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("XcodeSwitcherVM-\(UUID().uuidString)")
